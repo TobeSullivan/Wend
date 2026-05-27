@@ -1,0 +1,10 @@
+# Third-party asset pack source (licensed; not redistributed)
+art/
+
+# Dev artifacts (video frame extracts, screenshots, etc.)
+notes/video_frames/
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini

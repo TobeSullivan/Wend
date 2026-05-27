@@ -1,0 +1,42 @@
+# Project Map
+
+One-line index of what exists in this project. Read at start of every session for orientation.
+
+---
+
+## Repo root files
+
+- `claude-rules.md` — Universal Claude rules (mirror of master copy)
+- `RULES.md` — Project-specific addendum to claude-rules
+- `STATE.md` — Current focus, last session, next step, open questions
+- `PROJECT.md` — This file. Map of what exists.
+- `DESIGN.md` — Locked design decisions for the game
+- `.gitignore` — Ignores `art/` (third-party asset pack source), dev artifacts, OS junk
+
+## Directories
+
+- `src/` — Godot 4 project (open `src/project.godot` in Godot). Contains `scenes/`, `scripts/`, `resources/`, `assets/`, and its own `.gitignore` for the `.godot/` cache.
+- `src/scenes/prototype.tscn` — Main scene. Single Node2D root with `main.gd` attached.
+- `src/scripts/` — All gameplay scripts (`main`, `mob`, `tower`, `projectile`, `spawner`, `build_controller`, `upgrade_panel`).
+- `src/assets/` — Curated subset of the asset pack actually used by the project (tower sprites, zombie animations, map tiles, level markers). Committed.
+- `art/` — Full third-party asset pack as dropped in. Source-of-truth for what we pull into `src/assets/`. **Gitignored** for license safety.
+- `levels/` — Campaign mission definitions (empty until campaign content begins).
+- `notes/` — Working notes, market research, references. `video_frames/` subdir holds debug frame extracts and is gitignored.
+
+## External references
+
+- GitHub repo: https://github.com/TobeSullivan/tower_defense (public)
+- Reference game: **Random TD** (StarCraft 2 custom map, Hive Workshop archive)
+- Cautionary reference: **AMazing TD** (Steam, by Go4 Games — same team as Random TD)
+- Godot binary: `C:\Users\tobes\Desktop\Godot.exe` (4.6.3 stable, not on PATH; reference by full path in commands)
+- Python toolchain: `C:\Users\tobes\AppData\Local\Programs\Python\Python312\python.exe` with Pillow, numpy, scipy, imageio, imageio-ffmpeg installed (used for asset-pack inspection and video frame extraction)
+
+---
+
+## Reading order at session start
+
+1. `claude-rules.md`
+2. `RULES.md`
+3. `STATE.md`
+4. `PROJECT.md` (this file)
+5. Only specific files needed for the current question

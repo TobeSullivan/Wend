@@ -1,0 +1,13 @@
+# Godot 4+ generated cache
+.godot/
+
+# Imported translations (auto-generated from CSV)
+*.translation
+
+# Export configs (machine-specific paths)
+/export.cfg
+/export_presets.cfg
+
+# OS junk
+.DS_Store
+Thumbs.db
