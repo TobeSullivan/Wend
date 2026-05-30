@@ -7,7 +7,7 @@ class_name RoundManager
 #   Build phase 30s round 1 / 25s round 2-29 / 5-10s round 30+.
 # Working numbers (TBD per STATE.md open questions):
 const STARTING_GOLD := 250
-const TOWER_COST := 20
+const TOWER_COST := 10
 const KILL_BONUS := 1
 const ROUND_BONUS_BASE := 25  # actual = ROUND_BONUS_BASE + completed_round
 const INTEREST_RATE := 0.10
@@ -39,6 +39,8 @@ signal build_timer_changed(time_left: float)
 signal damage_dealt_changed(total: int)
 signal kills_changed(total: int)
 signal match_ended
+signal gold_goal_reached  # total damage crossed the Gold threshold mid-match
+signal round_summary(round_completed: int, kill_gold: int, round_bonus: int, interest: int)
 
 var round_num: int = 1
 var gold: int = STARTING_GOLD
@@ -47,6 +49,8 @@ var build_time_left: float = BUILD_TIME_FIRST
 var total_damage_dealt: int = 0
 var total_kills: int = 0
 var match_over: bool = false
+var gold_goal_hit: bool = false  # has the Gold threshold been reached this match
+var _round_kill_gold: int = 0    # kill gold accumulated during the current round
 
 var spawner  # Spawner — untyped to avoid class-name cycle
 var build_controller  # BuildController — untyped to avoid class-name cycle
@@ -95,6 +99,7 @@ func refund(amount: int) -> void:
 
 func _on_mob_killed() -> void:
 	gold += KILL_BONUS
+	_round_kill_gold += KILL_BONUS
 	total_kills += 1
 	emit_signal("gold_changed", gold)
 	emit_signal("kills_changed", total_kills)
@@ -104,6 +109,10 @@ func _on_mob_killed() -> void:
 func _on_damage_dealt(amount: float) -> void:
 	total_damage_dealt += int(round(amount))
 	emit_signal("damage_dealt_changed", total_damage_dealt)
+	# Crossing the Gold threshold mid-match offers an early "you won" choice.
+	if not gold_goal_hit and not match_over and total_damage_dealt >= GOLD_DAMAGE:
+		gold_goal_hit = true
+		emit_signal("gold_goal_reached")
 
 func medal_for(damage: int) -> String:
 	if damage >= GOLD_DAMAGE:
@@ -133,6 +142,8 @@ func _end_round() -> void:
 	var interest := mini(int(floor(gold * INTEREST_RATE)), INTEREST_CAP)
 	gold += round_bonus + interest
 	emit_signal("gold_changed", gold)
+	emit_signal("round_summary", round_num, _round_kill_gold, round_bonus, interest)
+	_round_kill_gold = 0
 
 	if round_num >= MAX_ROUNDS:
 		_end_match()

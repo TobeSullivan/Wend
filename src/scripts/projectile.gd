@@ -7,6 +7,7 @@ const ARROW_TEX := preload("res://assets/towers/arrow.png")
 var target: Node2D
 var damage: float = 0.0
 var is_crit: bool = false
+var source_tower: Node2D = null  # who fired this — credited with damage/kills on hit
 
 var sprite: Sprite2D
 
@@ -34,7 +35,7 @@ func _process(delta: float) -> void:
 
 	if step >= dist:
 		if target.has_method("take_hit"):
-			target.take_hit(damage, is_crit)
+			target.take_hit(damage, is_crit, source_tower)
 		queue_free()
 	else:
 		position += to_target.normalized() * step

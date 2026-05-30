@@ -13,9 +13,13 @@ const STAT_LABELS := {
 
 var round_manager  # RoundManager — untyped to avoid class-name cycle
 
+const TILE_PX := 48.0  # for range-in-tiles display
+
 var _target_tower: Node2D
 var _panel: PanelContainer
+var _stats_label: Label
 var _stat_tier_labels: Dictionary = {}
+var _stat_value_labels: Dictionary = {}
 var _stat_buttons: Dictionary = {}
 
 func _ready() -> void:
@@ -28,7 +32,7 @@ func _ready() -> void:
 
 func _build_ui() -> void:
 	_panel = PanelContainer.new()
-	_panel.custom_minimum_size = Vector2(320, 0)
+	_panel.custom_minimum_size = Vector2(400, 0)
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_panel)
 
@@ -48,23 +52,41 @@ func _build_ui() -> void:
 	title.add_theme_font_size_override("font_size", 18)
 	vbox.add_child(title)
 
+	# Cumulative performance — updates live so you can spot your top-DPS tower.
+	_stats_label = Label.new()
+	_stats_label.add_theme_font_size_override("font_size", 15)
+	_stats_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+	vbox.add_child(_stats_label)
+
+	var hsep := HSeparator.new()
+	vbox.add_child(hsep)
+
 	for stat in STATS:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
 
 		var name_label := Label.new()
 		name_label.text = STAT_LABELS[stat]
-		name_label.custom_minimum_size = Vector2(120, 40)
+		name_label.custom_minimum_size = Vector2(110, 40)
 		name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		row.add_child(name_label)
 
 		var tier_label := Label.new()
 		tier_label.text = "T0"
-		tier_label.custom_minimum_size = Vector2(40, 40)
+		tier_label.custom_minimum_size = Vector2(34, 40)
 		tier_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		tier_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_stat_tier_labels[stat] = tier_label
 		row.add_child(tier_label)
+
+		var value_label := Label.new()
+		value_label.text = "—"
+		value_label.custom_minimum_size = Vector2(64, 40)
+		value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		value_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
+		_stat_value_labels[stat] = value_label
+		row.add_child(value_label)
 
 		var button := Button.new()
 		button.text = "+"
@@ -102,8 +124,10 @@ func _refresh_labels() -> void:
 		return
 	var in_build: bool = round_manager == null or round_manager.phase == "build"
 	var gold: int = round_manager.gold if round_manager != null else 99999
+	_stats_label.text = "Damage done: %d   ·   Kills: %d" % [int(_target_tower.damage_done), _target_tower.kills]
 	for stat in STATS:
 		_stat_tier_labels[stat].text = "T%d" % _target_tower.tiers[stat]
+		_stat_value_labels[stat].text = _effective_value(stat)
 		var button: Button = _stat_buttons[stat]
 		var cost: int = _target_tower.upgrade_cost(stat)
 		if cost <= 0:
@@ -112,6 +136,24 @@ func _refresh_labels() -> void:
 		else:
 			button.text = "+ %dg" % cost
 			button.disabled = (not in_build) or (gold < cost)
+
+# Real, effective stat values (zone bonuses included) pulled from the tower's getters.
+func _effective_value(stat: String) -> String:
+	var t := _target_tower
+	match stat:
+		"damage":       return "%.0f" % t.get_damage()
+		"range":        return "%.1ft" % (t.get_range() / TILE_PX)
+		"attack_speed": return "%.2f/s" % (1.0 / t.get_cooldown())
+		"crit_chance":  return "%d%%" % int(round(t.get_crit_chance() * 100.0))
+		"crit_damage":  return "x%.2f" % t.get_crit_damage_mult()
+		"multishot":    return "%d tgt" % (1 + t.get_multishot())
+	return "—"
+
+func _process(_delta: float) -> void:
+	# Live-refresh the cumulative damage/kills while the panel is open (e.g. watching
+	# a tower during the run phase).
+	if _panel.visible and is_instance_valid(_target_tower):
+		_stats_label.text = "Damage done: %d   ·   Kills: %d" % [int(_target_tower.damage_done), _target_tower.kills]
 
 func _on_upgrade_pressed(stat: String) -> void:
 	if not is_instance_valid(_target_tower):

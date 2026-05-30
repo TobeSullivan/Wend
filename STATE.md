@@ -1,12 +1,55 @@
 # State
 
-Last updated: 2026-05-28
+Last updated: 2026-05-30
 
 ---
 
 ## Current focus
 
-**Prototype is now a complete, playable single-player loop.** Maze-building per DESIGN (no fixed path, direct lines + tower detours, animated blue flow overlay), 6 upgrade stats wired, 4-type bonus zone system with labels, build/run round structure with start-now button, gold + supply cap (50) + per-stat upgrade costs, 10-round cap with Bronze/Silver/Gold damage thresholds, end-of-match summary modal + New Game restart, HUD with live Round/Gold/Score/Kills/Towers/Phase + timer. Next: playtest to calibrate the working numbers (thresholds, costs, HP curve, zone magnitudes) and then start on the next big DESIGN-locked system.
+**Playable SP loop + first playtest tweak pass done.** On top of the complete maze-building loop (6 upgrade stats, 4-type bonus zones, build/run rounds, gold economy, supply cap, Bronze/Silver/Gold thresholds, match-end modal), this session added: single-player fast-forward, off-screen entry/exit, non-stop death FX, scattered environment obstacles, per-tower damage/kill tracking, a win-on-Gold modal, effective-stat readouts in the upgrade panel, and a round-end gold-breakdown toast — plus fixed a hard crash in the placement path. **Next build focus: the mission/level framework + level-select (home) screen, then author the first campaign levels.** Two design items parked for dedicated chats: leaderboards ([notes/leaderboards.md](notes/leaderboards.md)) and the pause menu (plan below).
+
+---
+
+## Playtest tweak pass + crash fix + UX — 2026-05-30
+
+Long session: playtest-driven tweaks, a real crash fix, environment obstacles, and a batch of readability/UX features. STATE was intentionally not updated mid-session at the user's request.
+
+### Gameplay tweaks
+- **Fast-forward (SP)** ([hud.gd](src/scripts/hud.gd)) — "Speed: Nx" button cycles 1x→2x→3x→1x via `Engine.time_scale`. Applies during the **run** phase only; build + post-match forced to 1x so it can't drain the build timer. Reapplied on each `phase_changed`.
+- **Entry/exit off-screen** ([build_controller.gd](src/scripts/build_controller.gd), [main.gd](src/scripts/main.gd)) — flags removed; `current_path_world()` prepends/appends an off-screen point (`OFFSCREEN_PAD = 160px`) so mobs spawn/despawn beyond the map edge. Reserved funnel cells (col 0 / 39) kept so towers can't plug the mouth.
+- **Tower cost 20g → 10g** ([round_manager.gd](src/scripts/round_manager.gd)).
+- **Mobs never stop on death** ([mob.gd](src/scripts/mob.gd), new [death_fx.gd](src/scripts/death_fx.gd), [tower.gd](src/scripts/tower.gd)) — removed the `state`/"die" freeze. On kill, mob spawns a self-freeing `DeathFx` burst and instantly resets HP, marching without pause. Towers' `_find_targets` dropped the defunct `m.state` filter.
+
+### Environment obstacles (item #4 from the tweak list — DONE)
+- New [obstacle.gd](src/scripts/obstacle.gd) — a prop claiming a footprint of grid cells, fed into the build controller's `blocked` map so it acts as a permanent wall (A* routes around, towers can't place on it). Auto-fits the sprite to its footprint.
+- Art comes from the new `art/environment_art/props/` pack (post-apocalyptic urban set). 8 props copied into `src/assets/environment/props/` and hand-scattered on the test map via `OBSTACLES` in [main.gd](src/scripts/main.gd): wrecked cars, toppled truck, dead trees, rubble piles, oil drum. Placed clear of the funnel/checkpoints/zone centers so they add detours without sealing a route.
+- MP will randomize these later; campaign hand-places them.
+
+### CRASH FIX — placement-path SIGSEGV
+- **Symptom:** silent crash (signal 11) while hovering/placing towers, no debugger output. Found via Godot's log at `%APPDATA%/Godot/app_userdata/Maze Battle TD/logs/godot.log`.
+- **Root cause:** the A*+string-pull path was essentially never exercised until obstacles forced detours. `_process` ran **two full multi-segment pathfinds every frame** while hovering a valid cell (`_is_valid_placement` + `_compute_projected`), now each doing A*+string-pull ~120×/sec near obstacles — the allocation churn crashed the engine (crash landed on a benign `blocked.has()` in the hot loop).
+- **Fix** ([build_controller.gd](src/scripts/build_controller.gd)) — cache ghost validity + projected path; recompute **only when the hovered cell changes** (or the maze changes / build mode reopens, which invalidate via `_last_ghost_cell = _NO_CELL`). Pathfinder logic itself was correct and left untouched. Confirmed fixed by the user.
+
+### Readability / UX batch (items #2 + #4)
+- **Per-tower damage + kills** ([tower.gd](src/scripts/tower.gd), [projectile.gd](src/scripts/projectile.gd), [mob.gd](src/scripts/mob.gd)) — tower stamps itself on each projectile → `mob.take_hit(dmg, is_crit, source)` credits the source tower via `register_damage(amount, killed)` (overkill-clamped, matches score). Upgrade panel shows `Damage done / Kills`, live-updating while open → lets you spot your top-DPS tower.
+- **Effective stats in upgrade panel** ([upgrade_panel.gd](src/scripts/upgrade_panel.gd)) — each stat row now shows its real value incl. zone bonuses: Damage (number), Range (tiles), Atk Speed (hits/sec), Crit (%), Crit Dmg (×mult), Multishot (target count).
+- **Round-end gold toast** (new [round_toast.gd](src/scripts/round_toast.gd)) — top-center popup: `Round N complete +Xg kills · +Yg round bonus · +Zg interest`, fades after 2.5s. Driven by new `round_summary` signal; round-kill gold tracked via `_round_kill_gold`.
+
+### Win-on-Gold (item #3 — DONE)
+- New `gold_goal_reached` signal fires the first time total damage crosses `GOLD_DAMAGE` mid-match.
+- New [win_panel.gd](src/scripts/win_panel.gd) — pauses the tree (`PROCESS_MODE_ALWAYS`) and shows "GOLD REACHED — You won!" with **Keep Playing** (unpause) / **Return Home** (restart). Fires once per match.
+- **Known gap:** "Return Home" (and the win modal generally) has no real home screen yet — currently just reloads the level. Also: after *Keep Playing* there's no way to leave the match until round 10 — this is what the planned pause menu fixes.
+
+### Parked for dedicated chats
+- **Leaderboards** — captured in [notes/leaderboards.md](notes/leaderboards.md). 9 boards: Solo/Duo/Trio/Quad each × {with-bots, without-bots} = 8, plus all-8 humans-only (no groups, no bots). Score model for grouped formats TBD.
+- **Pause menu** (plan, not built) — Esc-triggered, pauses tree like win_panel. Items: Resume / Settings / Restart Level / Quit to Menu. **Key conflict:** Esc is currently consumed by build_controller (exit build → close upgrade panel) — needs a priority order or a dedicated key. **Dependency:** "Quit to Menu" + win modal's "Return Home" both need a main-menu scene that doesn't exist yet. Settings contents to spec: volumes, default game speed, fullscreen/resolution, maybe damage-number toggle.
+
+### Files
+- New: `death_fx.gd`, `obstacle.gd`, `win_panel.gd`, `round_toast.gd`, `notes/leaderboards.md`, `src/assets/environment/props/*` (8 PNGs).
+- Modified: `hud.gd`, `build_controller.gd`, `main.gd`, `round_manager.gd`, `mob.gd`, `tower.gd`, `projectile.gd`, `upgrade_panel.gd`.
+
+### Still pending from earlier playtest note
+- Damage numbers / thresholds calibration: user noted top-score damage is currently too low vs. thresholds — OK for now, real tuning still pending.
 
 ---
 

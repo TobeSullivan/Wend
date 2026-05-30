@@ -11,8 +11,15 @@ var _score_label: Label
 var _kills_label: Label
 var _towers_label: Label
 var _start_button: Button
+var _ff_button: Button
 var _towers_count: int = 0
 var _towers_cap: int = 0
+
+# Fast-forward (single-player). Cycles 1x -> 2x -> 3x -> 1x. The selected
+# multiplier only applies during the run phase; build phase always runs at 1x
+# so the build timer isn't drained faster.
+const FF_MULTS := [1.0, 2.0, 3.0]
+var _ff_index: int = 0
 
 func _ready() -> void:
 	layer = 6
@@ -56,6 +63,12 @@ func _ready() -> void:
 	_start_button.pressed.connect(_on_start_pressed)
 	vbox.add_child(_start_button)
 
+	_ff_button = Button.new()
+	_ff_button.custom_minimum_size = Vector2(0, 34)
+	_ff_button.add_theme_font_size_override("font_size", 16)
+	_ff_button.pressed.connect(_on_ff_pressed)
+	vbox.add_child(_ff_button)
+
 	if round_manager != null:
 		round_manager.gold_changed.connect(func(_g): _refresh())
 		round_manager.round_changed.connect(func(_r): _refresh())
@@ -98,6 +111,21 @@ func _refresh() -> void:
 		_phase_label.text = "RUN"
 		_start_button.visible = false
 
+	_ff_button.text = "Speed: %dx" % int(FF_MULTS[_ff_index])
+	_apply_time_scale()
+
 func _on_start_pressed() -> void:
 	if round_manager != null:
 		round_manager.request_start_now()
+
+func _on_ff_pressed() -> void:
+	_ff_index = (_ff_index + 1) % FF_MULTS.size()
+	_ff_button.text = "Speed: %dx" % int(FF_MULTS[_ff_index])
+	_apply_time_scale()
+
+# FF only speeds the run phase. Build phase and post-match run at 1x.
+func _apply_time_scale() -> void:
+	if round_manager != null and round_manager.phase == "run" and not round_manager.match_over:
+		Engine.time_scale = FF_MULTS[_ff_index]
+	else:
+		Engine.time_scale = 1.0

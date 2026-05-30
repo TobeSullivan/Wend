@@ -20,6 +20,9 @@ const DASH_LEN := 22.0
 const DASH_GAP := 14.0
 const DASH_FLOW_SPEED := 70.0  # pixels/sec — speed dashes scroll along the path
 
+# How far past the map edge mobs spawn/despawn, so entry and exit are off-screen.
+const OFFSCREEN_PAD := 160.0
+
 signal towers_changed(count: int, cap: int)
 
 # Configured by main.gd before tree entry.
@@ -43,6 +46,14 @@ var _build_mode: bool = false
 var _current_path: PackedVector2Array = PackedVector2Array()
 var _projected_path: PackedVector2Array = PackedVector2Array()
 var _show_projected: bool = false
+
+# Ghost-cell cache: validity + projected path are recomputed only when the
+# hovered cell (or the maze) changes — NOT every frame. Each recompute runs
+# multi-segment A* + string-pull, so per-frame recomputation hammered the heap
+# and crashed the engine. Sentinel cell forces a recompute on first hover.
+const _NO_CELL := Vector2i(0x7fffffff, 0x7fffffff)
+var _last_ghost_cell: Vector2i = _NO_CELL
+var _last_ghost_valid: bool = false
 var _anim_time: float = 0.0
 
 func _ready() -> void:
@@ -95,11 +106,17 @@ func _process(delta: float) -> void:
 	var world := GridScript.cell_to_world(cell)
 	_ghost.position = world
 	_ghost_range.position = world
-	var valid := _is_valid_placement(cell)
-	if valid:
+
+	# Recompute validity + projected path only when the hovered cell changes.
+	if cell != _last_ghost_cell:
+		_last_ghost_cell = cell
+		_last_ghost_valid = _is_valid_placement(cell)
+		if _last_ghost_valid:
+			_compute_projected(cell)
+
+	if _last_ghost_valid:
 		_ghost.modulate = Color(0.55, 1.0, 0.55, 0.6)
 		_ghost_range.default_color = Color(0.4, 1.0, 0.4, 0.6)
-		_compute_projected(cell)
 		_show_projected = true
 	else:
 		_ghost.modulate = Color(1.0, 0.4, 0.4, 0.45)
@@ -158,6 +175,7 @@ func _set_build_mode(value: bool) -> void:
 	_build_mode = value
 	_ghost.visible = value
 	_ghost_range.visible = value
+	_last_ghost_cell = _NO_CELL  # force a fresh validity/path compute on next hover
 	if value:
 		_ghost_range.points = _circle_points(TowerScript.BASE_RANGE)
 		_upgrade_panel.hide_panel()
@@ -213,6 +231,7 @@ func _place_tower(cell: Vector2i) -> void:
 	towers.append(tower)
 	blocked[cell] = true
 	recompute_path()
+	_last_ghost_cell = _NO_CELL  # maze changed — invalidate cached ghost validity
 	emit_signal("towers_changed", towers.size(), max_towers)
 
 func _sell_tower_at_cell(cell: Vector2i) -> void:
@@ -229,14 +248,25 @@ func _sell_tower_at_cell(cell: Vector2i) -> void:
 			t.queue_free()
 			towers.remove_at(i)
 			recompute_path()
+			_last_ghost_cell = _NO_CELL  # maze changed — invalidate cached ghost validity
 			emit_signal("towers_changed", towers.size(), max_towers)
 			return
 
 func recompute_path() -> void:
 	_current_path = PathfinderScript.compute_full_path(entry_cell, checkpoint_cells, exit_cell, blocked)
 
+# Path the mobs actually walk: the in-grid path plus off-screen lead-in/lead-out
+# so they spawn and despawn beyond the visible map edges.
 func current_path_world() -> PackedVector2Array:
-	return _current_path
+	if _current_path.size() < 2:
+		return _current_path
+	var first: Vector2 = _current_path[0]
+	var last: Vector2 = _current_path[_current_path.size() - 1]
+	var extended := PackedVector2Array()
+	extended.append(Vector2(first.x - OFFSCREEN_PAD, first.y))
+	extended.append_array(_current_path)
+	extended.append(Vector2(last.x + OFFSCREEN_PAD, last.y))
+	return extended
 
 func _compute_projected(cell: Vector2i) -> void:
 	var trial: Dictionary = blocked.duplicate()

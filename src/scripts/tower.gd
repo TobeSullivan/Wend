@@ -54,6 +54,8 @@ var cooldown: float = 0.0
 var _current_target: Node2D = null
 var total_invested: int = 0  # base placement cost + all tier costs paid in
 var grid_cell: Vector2i
+var damage_done: float = 0.0  # cumulative credited damage this match
+var kills: int = 0            # cumulative kills this match
 
 # Cached sum of zone magnitudes per stat, computed at _ready (zones don't move).
 var zone_bonus := {
@@ -168,13 +170,17 @@ func set_selected(value: bool) -> void:
 	_selected = value
 	_selected_range.visible = value
 
+# Credited by a mob when one of this tower's projectiles lands.
+func register_damage(amount: float, killed: bool) -> void:
+	damage_done += amount
+	if killed:
+		kills += 1
+
 func _find_targets(count: int) -> Array:
 	var in_range: Array = []
 	var r := get_range()
 	for m in mobs:
 		if not is_instance_valid(m):
-			continue
-		if m.state != "walk":
 			continue
 		if position.distance_to(m.position) > r:
 			continue
@@ -194,6 +200,7 @@ func _fire_at(target: Node2D) -> void:
 	p.target = target
 	p.damage = dmg
 	p.is_crit = is_crit
+	p.source_tower = self
 	p.position = position
 	get_parent().add_child(p)
 
