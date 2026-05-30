@@ -3,30 +3,43 @@ class_name Spawner
 
 const MobScript := preload("res://scripts/mob.gd")
 
-# Configured by main.gd before _ready()
-var path: PackedVector2Array
-var mobs_array: Array  # shared reference with tower(s)
-var mob_count: int = 8
-var spawn_interval: float = 1.5
-var initial_delay: float = 0.0  # wait this long before first spawn
+var mobs_array: Array  # shared reference with tower(s) + round_manager
 
+var _mob_count: int = 0
+var _spawn_interval: float = 1.0
+var _mob_hp: float = 100.0
+var _wave_path: PackedVector2Array
 var _spawned: int = 0
 var _timer: float = 0.0
+var _active: bool = false
 
-func _ready() -> void:
-	_timer = initial_delay
+func start_wave(mob_count: int, spawn_interval: float, mob_hp: float, wave_path: PackedVector2Array) -> void:
+	_mob_count = mob_count
+	_spawn_interval = spawn_interval
+	_mob_hp = mob_hp
+	_wave_path = wave_path
+	_spawned = 0
+	_timer = 0.0
+	_active = true
+
+func is_done() -> bool:
+	return _spawned >= _mob_count and not _active
 
 func _process(delta: float) -> void:
-	if _spawned >= mob_count:
+	if not _active:
+		return
+	if _spawned >= _mob_count:
+		_active = false
 		return
 	_timer -= delta
 	if _timer <= 0.0:
 		_spawn_one()
-		_timer = spawn_interval
+		_timer = _spawn_interval
 
 func _spawn_one() -> void:
 	var mob := MobScript.new()
-	mob.path = path
+	mob.path = _wave_path
+	mob.max_hp = _mob_hp
 	mobs_array.append(mob)
 	get_parent().add_child(mob)
 	_spawned += 1

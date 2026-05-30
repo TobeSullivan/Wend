@@ -2,11 +2,32 @@ extends Node2D
 class_name Tower
 
 # Base values — actual values derived from tiers.
-const BASE_RANGE := 320.0
+# Range in pixels; ~3.3 tiles at 48px/tile.
+const BASE_RANGE := 160.0
 const BASE_DAMAGE := 25.0
 const BASE_COOLDOWN := 0.8
 
+const SPRITE_SCALE := 0.12  # fits a 48px tile
+
 const TIER_INCREMENT := 0.10  # +10% per tier on most stats
+
+# Crit + multishot tunings. Soft/hard caps per DESIGN open questions —
+# values picked here are working defaults; revisit during playtesting.
+const CRIT_CHANCE_PER_TIER := 0.10
+const CRIT_CHANCE_HARD_CAP := 0.75
+const CRIT_DAMAGE_BASE := 1.5
+const CRIT_DAMAGE_PER_TIER := 0.20
+const MULTISHOT_HARD_CAP := 3  # max +N additional targets
+
+# Per-stat linear-ramp upgrade costs: cost(tier_after) = base * tier_after.
+const UPGRADE_COST_BASE := {
+	"damage": 15,
+	"range": 20,
+	"attack_speed": 20,
+	"crit_chance": 25,
+	"crit_damage": 25,
+	"multishot": 60,
+}
 
 const LOADED_TEX := preload("res://assets/towers/arrow_box_loaded.png")
 const UNLOADED_TEX := preload("res://assets/towers/arrow_box_unloaded.png")
@@ -31,6 +52,15 @@ var mobs: Array = []  # injected by build_controller / main
 var sprite: Sprite2D
 var cooldown: float = 0.0
 var _current_target: Node2D = null
+var total_invested: int = 0  # base placement cost + all tier costs paid in
+var grid_cell: Vector2i
+
+# Cached sum of zone magnitudes per stat, computed at _ready (zones don't move).
+var zone_bonus := {
+	"damage": 0,
+	"range": 0,
+	"attack_speed": 0,
+}
 
 var tiers := {
 	"damage": 0,
@@ -47,7 +77,7 @@ var _selected: bool = false
 func _ready() -> void:
 	sprite = Sprite2D.new()
 	sprite.texture = LOADED_TEX
-	sprite.scale = Vector2(0.25, 0.25)
+	sprite.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 	add_child(sprite)
 
 	_selected_range = Line2D.new()
@@ -56,35 +86,80 @@ func _ready() -> void:
 	_selected_range.default_color = Color(1.0, 0.85, 0.35, 0.8)
 	_selected_range.visible = false
 	add_child(_selected_range)
+	_compute_zone_bonuses()
 	_refresh_range_circle()
+
+func _compute_zone_bonuses() -> void:
+	for stat in zone_bonus:
+		zone_bonus[stat] = 0
+	for zone in get_tree().get_nodes_in_group("bonus_zones"):
+		if not zone.touches_tower_cell(grid_cell):
+			continue
+		if zone.type in zone_bonus:
+			zone_bonus[zone.type] += zone.magnitude
 
 func _process(delta: float) -> void:
 	cooldown = maxf(0.0, cooldown - delta)
 
-	_current_target = _find_target()
-	if _current_target != null:
+	var shot_count := 1 + get_multishot()
+	var targets := _find_targets(shot_count)
+
+	if targets.size() > 0:
+		_current_target = targets[0]
 		var to_target := _current_target.position - position
 		sprite.rotation = to_target.angle() + PI / 2.0
+	else:
+		_current_target = null
 
 	if cooldown > 0.0:
 		return
-	if _current_target != null:
-		_fire_at(_current_target)
-		cooldown = get_cooldown()
+	if targets.is_empty():
+		return
+	for t in targets:
+		_fire_at(t)
+	cooldown = get_cooldown()
 
 func get_damage() -> float:
-	return BASE_DAMAGE * (1.0 + tiers["damage"] * TIER_INCREMENT)
+	# DESIGN stacking: zone bonuses add together; here they also add to the tier
+	# bonus rather than multiplying it. Working assumption.
+	var mult: float = 1.0 + tiers["damage"] * TIER_INCREMENT + zone_bonus["damage"] / 100.0
+	return BASE_DAMAGE * mult
 
 func get_range() -> float:
-	return BASE_RANGE * (1.0 + tiers["range"] * TIER_INCREMENT)
+	var mult: float = 1.0 + tiers["range"] * TIER_INCREMENT + zone_bonus["range"] / 100.0
+	return BASE_RANGE * mult
 
 func get_cooldown() -> float:
-	return BASE_COOLDOWN / (1.0 + tiers["attack_speed"] * TIER_INCREMENT)
+	var mult: float = 1.0 + tiers["attack_speed"] * TIER_INCREMENT + zone_bonus["attack_speed"] / 100.0
+	return BASE_COOLDOWN / mult
+
+func get_crit_chance() -> float:
+	return minf(tiers["crit_chance"] * CRIT_CHANCE_PER_TIER, CRIT_CHANCE_HARD_CAP)
+
+func get_crit_damage_mult() -> float:
+	return CRIT_DAMAGE_BASE + tiers["crit_damage"] * CRIT_DAMAGE_PER_TIER
+
+func get_multishot() -> int:
+	return mini(tiers["multishot"], MULTISHOT_HARD_CAP)
+
+func upgrade_cost(stat: String) -> int:
+	if not (stat in tiers):
+		return 0
+	if stat == "multishot" and tiers[stat] >= MULTISHOT_HARD_CAP:
+		return 0
+	if stat == "crit_chance" and get_crit_chance() >= CRIT_CHANCE_HARD_CAP:
+		return 0
+	var tier_after: int = tiers[stat] + 1
+	return UPGRADE_COST_BASE[stat] * tier_after
+
+func can_upgrade(stat: String) -> bool:
+	return upgrade_cost(stat) > 0
 
 func upgrade(stat: String) -> void:
 	if not (stat in tiers):
 		return
 	tiers[stat] += 1
+	total_invested += UPGRADE_COST_BASE[stat] * tiers[stat]
 	_update_modulate()
 	if stat == "range":
 		_refresh_range_circle()
@@ -93,9 +168,8 @@ func set_selected(value: bool) -> void:
 	_selected = value
 	_selected_range.visible = value
 
-func _find_target() -> Node2D:
-	var best: Node2D = null
-	var best_progress: int = -1
+func _find_targets(count: int) -> Array:
+	var in_range: Array = []
 	var r := get_range()
 	for m in mobs:
 		if not is_instance_valid(m):
@@ -104,15 +178,22 @@ func _find_target() -> Node2D:
 			continue
 		if position.distance_to(m.position) > r:
 			continue
-		if m.path_index > best_progress:
-			best_progress = m.path_index
-			best = m
-	return best
+		in_range.append(m)
+	in_range.sort_custom(func(a, b): return a.path_index > b.path_index)
+	if in_range.size() <= count:
+		return in_range
+	return in_range.slice(0, count)
 
 func _fire_at(target: Node2D) -> void:
+	var is_crit := randf() < get_crit_chance()
+	var dmg := get_damage()
+	if is_crit:
+		dmg *= get_crit_damage_mult()
+
 	var p := ProjectileScript.new()
 	p.target = target
-	p.damage = get_damage()
+	p.damage = dmg
+	p.is_crit = is_crit
 	p.position = position
 	get_parent().add_child(p)
 

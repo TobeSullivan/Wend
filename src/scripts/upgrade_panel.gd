@@ -11,18 +11,24 @@ const STAT_LABELS := {
 	"multishot": "Multishot",
 }
 
+var round_manager  # RoundManager — untyped to avoid class-name cycle
+
 var _target_tower: Node2D
 var _panel: PanelContainer
 var _stat_tier_labels: Dictionary = {}
+var _stat_buttons: Dictionary = {}
 
 func _ready() -> void:
 	layer = 10
 	_build_ui()
 	_panel.visible = false
+	if round_manager != null:
+		round_manager.gold_changed.connect(_on_gold_changed)
+		round_manager.phase_changed.connect(_on_phase_changed)
 
 func _build_ui() -> void:
 	_panel = PanelContainer.new()
-	_panel.custom_minimum_size = Vector2(280, 0)
+	_panel.custom_minimum_size = Vector2(320, 0)
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_panel)
 
@@ -62,8 +68,9 @@ func _build_ui() -> void:
 
 		var button := Button.new()
 		button.text = "+"
-		button.custom_minimum_size = Vector2(50, 40)
+		button.custom_minimum_size = Vector2(110, 40)
 		button.pressed.connect(_on_upgrade_pressed.bind(stat))
+		_stat_buttons[stat] = button
 		row.add_child(button)
 
 		vbox.add_child(row)
@@ -93,14 +100,43 @@ func hide_panel() -> void:
 func _refresh_labels() -> void:
 	if not is_instance_valid(_target_tower):
 		return
+	var in_build: bool = round_manager == null or round_manager.phase == "build"
+	var gold: int = round_manager.gold if round_manager != null else 99999
 	for stat in STATS:
 		_stat_tier_labels[stat].text = "T%d" % _target_tower.tiers[stat]
+		var button: Button = _stat_buttons[stat]
+		var cost: int = _target_tower.upgrade_cost(stat)
+		if cost <= 0:
+			button.text = "MAX"
+			button.disabled = true
+		else:
+			button.text = "+ %dg" % cost
+			button.disabled = (not in_build) or (gold < cost)
 
 func _on_upgrade_pressed(stat: String) -> void:
 	if not is_instance_valid(_target_tower):
 		return
+	if round_manager == null:
+		_target_tower.upgrade(stat)
+		_refresh_labels()
+		return
+	if round_manager.phase != "build":
+		return
+	var cost: int = _target_tower.upgrade_cost(stat)
+	if cost <= 0:
+		return
+	if not round_manager.spend(cost):
+		return
 	_target_tower.upgrade(stat)
 	_refresh_labels()
+
+func _on_gold_changed(_new_gold: int) -> void:
+	if _panel.visible:
+		_refresh_labels()
+
+func _on_phase_changed(_phase: String) -> void:
+	if _panel.visible:
+		_refresh_labels()
 
 func is_visible_panel() -> bool:
 	return _panel.visible

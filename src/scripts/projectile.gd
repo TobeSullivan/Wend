@@ -6,13 +6,18 @@ const ARROW_TEX := preload("res://assets/towers/arrow.png")
 
 var target: Node2D
 var damage: float = 0.0
+var is_crit: bool = false
 
 var sprite: Sprite2D
 
 func _ready() -> void:
 	sprite = Sprite2D.new()
 	sprite.texture = ARROW_TEX
-	sprite.scale = Vector2(0.5, 0.5)
+	if is_crit:
+		sprite.scale = Vector2(0.32, 0.32)
+		sprite.modulate = Color(1.6, 1.3, 0.4, 1.0)  # gold tint
+	else:
+		sprite.scale = Vector2(0.22, 0.22)
 	add_child(sprite)
 
 func _process(delta: float) -> void:
@@ -29,7 +34,7 @@ func _process(delta: float) -> void:
 
 	if step >= dist:
 		if target.has_method("take_hit"):
-			target.take_hit(damage)
+			target.take_hit(damage, is_crit)
 		queue_free()
 	else:
 		position += to_target.normalized() * step
