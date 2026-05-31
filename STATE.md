@@ -37,10 +37,15 @@ Last updated: 2026-05-30
 
 **Committed** `66c5d17` on `main` (playtested & approved, 2026-05-30) — one cohesive commit (phases commingled within shared files, so a clean 4-way split wasn't practical). **Not yet pushed to origin.**
 
-**Next build focus (after playtest):**
-- Real procgen in `map_generator.gd` (still a stub) per the "Procgen constraints" spec.
+**Procgen done (2026-05-30).** `map_generator.gd` is now a real seeded generator (was a stub):
+- Entry/exit on left/right edges; serpentine checkpoints (re-rolled toward a min path-length ratio); obstacles scattered and each validated against the pathfinder (kept clear of edge funnel); bonus zones with the first planted on the path corridor (reachability) and the rest enforcing ≤1 overlap (no 3-way overlap); per-map thresholds derived from path length (soft, tunable). Scale table drives supply/checkpoints/zones/mobs/rounds per tier. PVP omits thresholds.
+- Verified via a throwaway harness: 100 maps (tiers 1–5 × 20 seeds) passed every DESIGN_MODES procgen constraint; determinism confirmed; a generated map loads + builds through `map_loader` (same path as campaign). Path/straight ratio avg 1.36.
+- **Not yet reachable in-app** — there's no PVE/PVP entry to launch a generated map. The generator is validated infrastructure; wiring a playable PVE-solo entry (map select → generated map → match) is the obvious next step if you want to feel it in the real app.
+
+**Next build focus:**
+- Playable PVE-solo entry so generated maps can actually be played (would also let you eyeball generated layouts).
 - Audio bus layout + actual sounds (would make Music/SFX volume sliders live).
-- PVE/PVP backends (deferred — multiplayer).
+- Full PVE (windows, lobby, leaderboards) and PVP backends — deferred (multiplayer).
 
 ---
 
