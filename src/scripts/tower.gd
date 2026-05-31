@@ -1,33 +1,10 @@
 extends Node2D
 class_name Tower
 
-# Base values — actual values derived from tiers.
-# Range in pixels; ~3.3 tiles at 48px/tile.
-const BASE_RANGE := 160.0
-const BASE_DAMAGE := 25.0
-const BASE_COOLDOWN := 0.8
+# Gameplay tuning (base stats, tier increment, crit/multishot caps, upgrade cost
+# ramp) lives in the GameConstants autoload. Presentation constants stay local.
 
 const SPRITE_SCALE := 0.12  # fits a 48px tile
-
-const TIER_INCREMENT := 0.10  # +10% per tier on most stats
-
-# Crit + multishot tunings. Soft/hard caps per DESIGN open questions —
-# values picked here are working defaults; revisit during playtesting.
-const CRIT_CHANCE_PER_TIER := 0.10
-const CRIT_CHANCE_HARD_CAP := 0.75
-const CRIT_DAMAGE_BASE := 1.5
-const CRIT_DAMAGE_PER_TIER := 0.20
-const MULTISHOT_HARD_CAP := 3  # max +N additional targets
-
-# Per-stat linear-ramp upgrade costs: cost(tier_after) = base * tier_after.
-const UPGRADE_COST_BASE := {
-	"damage": 15,
-	"range": 20,
-	"attack_speed": 20,
-	"crit_chance": 25,
-	"crit_damage": 25,
-	"multishot": 60,
-}
 
 const LOADED_TEX := preload("res://assets/towers/arrow_box_loaded.png")
 const UNLOADED_TEX := preload("res://assets/towers/arrow_box_unloaded.png")
@@ -124,35 +101,35 @@ func _process(delta: float) -> void:
 func get_damage() -> float:
 	# DESIGN stacking: zone bonuses add together; here they also add to the tier
 	# bonus rather than multiplying it. Working assumption.
-	var mult: float = 1.0 + tiers["damage"] * TIER_INCREMENT + zone_bonus["damage"] / 100.0
-	return BASE_DAMAGE * mult
+	var mult: float = 1.0 + tiers["damage"] * GameConstants.TOWER_TIER_INCREMENT + zone_bonus["damage"] / 100.0
+	return GameConstants.TOWER_BASE_DAMAGE * mult
 
 func get_range() -> float:
-	var mult: float = 1.0 + tiers["range"] * TIER_INCREMENT + zone_bonus["range"] / 100.0
-	return BASE_RANGE * mult
+	var mult: float = 1.0 + tiers["range"] * GameConstants.TOWER_TIER_INCREMENT + zone_bonus["range"] / 100.0
+	return GameConstants.TOWER_BASE_RANGE * mult
 
 func get_cooldown() -> float:
-	var mult: float = 1.0 + tiers["attack_speed"] * TIER_INCREMENT + zone_bonus["attack_speed"] / 100.0
-	return BASE_COOLDOWN / mult
+	var mult: float = 1.0 + tiers["attack_speed"] * GameConstants.TOWER_TIER_INCREMENT + zone_bonus["attack_speed"] / 100.0
+	return GameConstants.TOWER_BASE_COOLDOWN / mult
 
 func get_crit_chance() -> float:
-	return minf(tiers["crit_chance"] * CRIT_CHANCE_PER_TIER, CRIT_CHANCE_HARD_CAP)
+	return minf(tiers["crit_chance"] * GameConstants.CRIT_CHANCE_PER_TIER, GameConstants.CRIT_CHANCE_HARD_CAP)
 
 func get_crit_damage_mult() -> float:
-	return CRIT_DAMAGE_BASE + tiers["crit_damage"] * CRIT_DAMAGE_PER_TIER
+	return GameConstants.CRIT_DAMAGE_BASE + tiers["crit_damage"] * GameConstants.CRIT_DAMAGE_PER_TIER
 
 func get_multishot() -> int:
-	return mini(tiers["multishot"], MULTISHOT_HARD_CAP)
+	return mini(tiers["multishot"], GameConstants.MULTISHOT_HARD_CAP)
 
 func upgrade_cost(stat: String) -> int:
 	if not (stat in tiers):
 		return 0
-	if stat == "multishot" and tiers[stat] >= MULTISHOT_HARD_CAP:
+	if stat == "multishot" and tiers[stat] >= GameConstants.MULTISHOT_HARD_CAP:
 		return 0
-	if stat == "crit_chance" and get_crit_chance() >= CRIT_CHANCE_HARD_CAP:
+	if stat == "crit_chance" and get_crit_chance() >= GameConstants.CRIT_CHANCE_HARD_CAP:
 		return 0
 	var tier_after: int = tiers[stat] + 1
-	return UPGRADE_COST_BASE[stat] * tier_after
+	return GameConstants.UPGRADE_COST_BASE[stat] * tier_after
 
 func can_upgrade(stat: String) -> bool:
 	return upgrade_cost(stat) > 0
@@ -161,7 +138,7 @@ func upgrade(stat: String) -> void:
 	if not (stat in tiers):
 		return
 	tiers[stat] += 1
-	total_invested += UPGRADE_COST_BASE[stat] * tiers[stat]
+	total_invested += GameConstants.UPGRADE_COST_BASE[stat] * tiers[stat]
 	_update_modulate()
 	if stat == "range":
 		_refresh_range_circle()

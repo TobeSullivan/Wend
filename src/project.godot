@@ -12,9 +12,15 @@ config_version=5
 
 config/name="Maze Battle TD"
 config/description="2D top-down maze TD inspired by Random TD (SC2). Damage-milking, one tower type, one mob type."
-run/main_scene="res://scenes/prototype.tscn"
+run/main_scene="res://scenes/boot.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
+
+[autoload]
+
+GameConstants="*res://resources/game_constants.gd"
+SaveData="*res://scripts/save_data.gd"
+SceneManager="*res://scripts/scene_manager.gd"
 
 [display]
 

@@ -15,12 +15,14 @@ One-line index of what exists in this project. Read at start of every session fo
 
 ## Directories
 
-- `src/` — Godot 4 project (open `src/project.godot` in Godot). Contains `scenes/`, `scripts/`, `resources/`, `assets/`, and its own `.gitignore` for the `.godot/` cache.
-- `src/scenes/prototype.tscn` — Main scene. Single Node2D root with `main.gd` attached.
-- `src/scripts/` — All gameplay scripts (`main`, `mob`, `tower`, `projectile`, `spawner`, `build_controller`, `upgrade_panel`).
+- `src/` — Godot 4 project (open `src/project.godot` in Godot). Contains `scenes/`, `scripts/`, `resources/`, `campaign/`, `assets/`, and its own `.gitignore` for the `.godot/` cache.
+- `src/scenes/prototype.tscn` — Main scene. Single Node2D root with `main.gd` attached. `main.gd` is a thin host: it loads a `MapResource` and hands it to `map_loader`.
+- `src/scripts/` — All gameplay scripts (`main`, `mob`, `tower`, `projectile`, `spawner`, `build_controller`, `upgrade_panel`, `round_manager`, `hud`, `pathfinder`, `bonus_zone`, `obstacle`, plus `map_loader` and `map_generator`).
+- `src/resources/` — `game_constants.gd` (GameConstants autoload — all global tuning), `map_resource.gd` + `zone_definition.gd` (the map schema shared by all modes).
+- `src/campaign/` — Hand-authored campaign mission `.tres` files (`mission_01.tres` is the first). Up to 10 missions.
 - `src/assets/` — Curated subset of the asset pack actually used by the project (tower sprites, zombie animations, map tiles, level markers). Committed.
 - `art/` — Full third-party asset pack as dropped in. Source-of-truth for what we pull into `src/assets/`. **Gitignored** for license safety.
-- `levels/` — Campaign mission definitions (empty until campaign content begins).
+- `levels/` — Legacy/unused; campaign mission definitions now live in `src/campaign/` as `.tres` files.
 - `notes/` — Working notes, market research, references. `video_frames/` subdir holds debug frame extracts and is gitignored.
 
 ## External references

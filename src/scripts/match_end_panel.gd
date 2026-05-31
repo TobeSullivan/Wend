@@ -78,28 +78,37 @@ func _build_ui() -> void:
 	spacer.custom_minimum_size = Vector2(0, 8)
 	vbox.add_child(spacer)
 
-	var new_game := Button.new()
-	new_game.text = "New Game"
-	new_game.custom_minimum_size = Vector2(0, 48)
-	new_game.add_theme_font_size_override("font_size", 18)
-	new_game.pressed.connect(_on_new_game)
-	vbox.add_child(new_game)
+	var home := Button.new()
+	home.text = "Return Home"
+	home.custom_minimum_size = Vector2(0, 48)
+	home.add_theme_font_size_override("font_size", 18)
+	home.pressed.connect(_on_return_home)
+	vbox.add_child(home)
+
+	var again := Button.new()
+	again.text = "Play Again"
+	again.custom_minimum_size = Vector2(0, 44)
+	again.add_theme_font_size_override("font_size", 16)
+	again.pressed.connect(_on_play_again)
+	vbox.add_child(again)
 
 func _on_match_ended() -> void:
 	var damage: int = round_manager.total_damage_dealt
 	var medal: String = round_manager.medal_for(damage)
 	_medal_label.text = MEDAL_LABELS[medal]
 	_medal_label.add_theme_color_override("font_color", MEDAL_COLORS[medal])
-	_damage_label.text = "Total damage: %d  ·  Rounds: %d" % [damage, round_manager.MAX_ROUNDS]
+	_damage_label.text = "Total damage: %d  ·  Rounds: %d" % [damage, round_manager.max_rounds]
 	_populate_thresholds(damage)
 	_panel.visible = true
+	# Persist the campaign medal (no-op for non-campaign maps).
+	SceneManager.report_match_result(damage, medal)
 
 func _populate_thresholds(damage: int) -> void:
 	for child in _thresholds_vbox.get_children():
 		child.queue_free()
-	_add_threshold_row("Bronze", round_manager.BRONZE_DAMAGE, damage, MEDAL_COLORS.bronze)
-	_add_threshold_row("Silver", round_manager.SILVER_DAMAGE, damage, MEDAL_COLORS.silver)
-	_add_threshold_row("Gold",   round_manager.GOLD_DAMAGE,   damage, MEDAL_COLORS.gold)
+	_add_threshold_row("Bronze", round_manager.bronze_threshold, damage, MEDAL_COLORS.bronze)
+	_add_threshold_row("Silver", round_manager.silver_threshold, damage, MEDAL_COLORS.silver)
+	_add_threshold_row("Gold",   round_manager.gold_threshold,   damage, MEDAL_COLORS.gold)
 
 func _add_threshold_row(name: String, threshold: int, achieved: int, color: Color) -> void:
 	var row := HBoxContainer.new()
@@ -112,8 +121,11 @@ func _add_threshold_row(name: String, threshold: int, achieved: int, color: Colo
 	row.add_child(text)
 	_thresholds_vbox.add_child(row)
 
-func _on_new_game() -> void:
-	get_tree().reload_current_scene()
+func _on_return_home() -> void:
+	SceneManager.goto_home()
+
+func _on_play_again() -> void:
+	SceneManager.restart_current_match()
 
 func _make_label(font_size: int, color: Color) -> Label:
 	var l := Label.new()

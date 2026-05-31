@@ -72,7 +72,7 @@ func _build_ui() -> void:
 
 func _on_gold_goal_reached() -> void:
 	var dmg: int = round_manager.total_damage_dealt if round_manager != null else 0
-	var goal: int = round_manager.GOLD_DAMAGE if round_manager != null else 0
+	var goal: int = round_manager.gold_threshold if round_manager != null else 0
 	_damage_label.text = "Total damage: %d  (Gold: %d)" % [dmg, goal]
 	_panel.visible = true
 	get_tree().paused = true
@@ -82,9 +82,8 @@ func _on_keep_playing() -> void:
 	get_tree().paused = false
 
 func _on_return_home() -> void:
-	# No dedicated home screen yet — restart the level (a clean win-and-reset).
 	get_tree().paused = false
-	get_tree().reload_current_scene()
+	SceneManager.goto_home()
 
 func _make_label(font_size: int, color: Color) -> Label:
 	var l := Label.new()

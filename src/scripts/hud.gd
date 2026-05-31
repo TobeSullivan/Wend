@@ -96,7 +96,7 @@ func _make_label(font_size: int) -> Label:
 func _refresh() -> void:
 	if round_manager == null:
 		return
-	_round_label.text = "Round %d / %d" % [round_manager.round_num, round_manager.MAX_ROUNDS]
+	_round_label.text = "Round %d / %d" % [round_manager.round_num, round_manager.max_rounds]
 	_gold_label.text = "Gold: %d" % round_manager.gold
 	_score_label.text = "Score: %d" % round_manager.total_damage_dealt
 	_kills_label.text = "Kills: %d" % round_manager.total_kills

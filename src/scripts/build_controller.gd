@@ -3,7 +3,6 @@ class_name BuildController
 
 const TowerScript := preload("res://scripts/tower.gd")
 const UpgradePanelScript := preload("res://scripts/upgrade_panel.gd")
-const RoundManagerScript := preload("res://scripts/round_manager.gd")
 const GridScript := preload("res://scripts/grid.gd")
 const PathfinderScript := preload("res://scripts/pathfinder.gd")
 const LOADED_TEX := preload("res://assets/towers/arrow_box_loaded.png")
@@ -31,6 +30,7 @@ var entry_cell: Vector2i
 var exit_cell: Vector2i
 var checkpoint_cells: Array  # Array[Vector2i] in visit order
 var max_towers: int = 50  # supply cap — per-map (DESIGN: map variable)
+var grid_size: Vector2i = Vector2i(GridScript.COLS, GridScript.ROWS)  # per-map logical play area
 var round_manager  # RoundManager — untyped to avoid class-name cycle
 
 var towers: Array = []
@@ -129,12 +129,8 @@ func _input(event: InputEvent) -> void:
 			KEY_B:
 				_set_build_mode(not _build_mode)
 				return
-			KEY_ESCAPE:
-				if _build_mode:
-					_set_build_mode(false)
-				else:
-					_upgrade_panel.hide_panel()
-				return
+	# Esc is arbitrated by PauseMenu (priority stack: upgrade panel → build mode
+	# → pause menu); see is_build_mode()/is_upgrade_panel_open()/close/exit below.
 
 	if not (event is InputEventMouseButton and event.pressed):
 		return
@@ -151,9 +147,9 @@ func _input(event: InputEvent) -> void:
 				return
 			if not _is_valid_placement(cell):
 				return
-			if not round_manager.can_afford(RoundManagerScript.TOWER_COST):
+			if not round_manager.can_afford(GameConstants.TOWER_COST):
 				return
-			round_manager.spend(RoundManagerScript.TOWER_COST)
+			round_manager.spend(GameConstants.TOWER_COST)
 			_place_tower(cell)
 		else:
 			var tower_at := _tower_at_cell(cell)
@@ -177,11 +173,26 @@ func _set_build_mode(value: bool) -> void:
 	_ghost_range.visible = value
 	_last_ghost_cell = _NO_CELL  # force a fresh validity/path compute on next hover
 	if value:
-		_ghost_range.points = _circle_points(TowerScript.BASE_RANGE)
+		_ghost_range.points = _circle_points(GameConstants.TOWER_BASE_RANGE)
 		_upgrade_panel.hide_panel()
 	else:
 		_show_projected = false
 	_refresh_hint()
+
+# --- Esc priority-stack hooks, driven by PauseMenu ---
+
+func is_build_mode() -> bool:
+	return _build_mode
+
+func is_upgrade_panel_open() -> bool:
+	return _upgrade_panel != null and _upgrade_panel.is_visible_panel()
+
+func close_upgrade_panel() -> void:
+	if _upgrade_panel != null:
+		_upgrade_panel.hide_panel()
+
+func exit_build_mode() -> void:
+	_set_build_mode(false)
 
 func _in_build_phase() -> bool:
 	return round_manager == null or round_manager.phase == "build"
@@ -192,7 +203,7 @@ func _on_phase_changed(phase: String) -> void:
 
 func _refresh_hint() -> void:
 	if _build_mode:
-		_hint_label.text = "BUILD MODE — left-click to place (%dg), right-click / Esc to exit" % RoundManagerScript.TOWER_COST
+		_hint_label.text = "BUILD MODE — left-click to place (%dg), right-click / Esc to exit" % GameConstants.TOWER_COST
 	else:
 		_hint_label.text = "[B] build  |  click tower to upgrade  |  right-click tower to sell (30%% refund)"
 
@@ -207,7 +218,7 @@ func _tower_at_cell(cell: Vector2i) -> Node2D:
 func _is_valid_placement(cell: Vector2i) -> bool:
 	if towers.size() >= max_towers:
 		return false
-	if not GridScript.in_bounds(cell):
+	if cell.x < 0 or cell.y < 0 or cell.x >= grid_size.x or cell.y >= grid_size.y:
 		return false
 	if blocked.has(cell):
 		return false
@@ -226,7 +237,7 @@ func _place_tower(cell: Vector2i) -> void:
 	tower.grid_cell = cell
 	tower.position = GridScript.cell_to_world(cell)
 	tower.mobs = mobs_array
-	tower.total_invested = RoundManagerScript.TOWER_COST
+	tower.total_invested = GameConstants.TOWER_COST
 	get_parent().add_child(tower)
 	towers.append(tower)
 	blocked[cell] = true
@@ -241,7 +252,7 @@ func _sell_tower_at_cell(cell: Vector2i) -> void:
 			towers.remove_at(i)
 			continue
 		if t.grid_cell == cell:
-			var refund := int(floor(t.total_invested * 0.30))
+			var refund := int(floor(t.total_invested * GameConstants.SELL_REFUND_RATE))
 			if round_manager != null:
 				round_manager.refund(refund)
 			blocked.erase(t.grid_cell)

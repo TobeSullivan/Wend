@@ -4,14 +4,13 @@ class_name Mob
 const DamageNumberScript := preload("res://scripts/damage_number.gd")
 const DeathFxScript := preload("res://scripts/death_fx.gd")
 
-const MAX_HP := 100.0  # default; per-round HP injected via max_hp
-const SPEED := 80.0  # pixels/sec
-const SLOW_FLOOR := 0.10  # mob never reduced below 10% base speed regardless of stacked slows
+# Base HP, speed, and slow floor live in the GameConstants autoload. Per-round HP
+# is injected via max_hp by the spawner.
 
 var path: PackedVector2Array
 var path_index: int = 0
-var max_hp: float = MAX_HP
-var hp: float = MAX_HP
+var max_hp: float = GameConstants.MOB_BASE_HP
+var hp: float = GameConstants.MOB_BASE_HP
 
 var anim: AnimatedSprite2D
 
@@ -72,8 +71,8 @@ func _current_speed() -> float:
 			continue
 		if zone.contains_world(position):
 			slow_total += zone.magnitude
-	var mult: float = maxf(SLOW_FLOOR, 1.0 - float(slow_total) / 100.0)
-	return SPEED * mult
+	var mult: float = maxf(GameConstants.MOB_SLOW_FLOOR, 1.0 - float(slow_total) / 100.0)
+	return GameConstants.MOB_SPEED * mult
 
 func take_hit(damage: float, is_crit: bool = false, source: Node2D = null) -> void:
 	# Overkill doesn't count toward score: a 100-dmg hit on a 10-HP mob = 10.
@@ -88,6 +87,8 @@ func take_hit(damage: float, is_crit: bool = false, source: Node2D = null) -> vo
 		_explode_and_respawn()
 
 func _spawn_damage_number(amount: float, is_crit: bool) -> void:
+	if not bool(SaveData.get_setting("damage_numbers")):
+		return
 	var dn := DamageNumberScript.new()
 	get_parent().add_child(dn)
 	dn.setup(amount, is_crit, position)
