@@ -10,7 +10,7 @@ Modes, maps, progression, seasons, and the mission/map resource architecture liv
 
 The design rests on four pillars. Every other decision serves these.
 
-**Simple to learn, hard to master.** One tower type, one mob type. The entire vocabulary of the game can be taught in five minutes. Mastery comes from reading geometry, identifying optimal placement, and committing to specialization — not from memorizing tower charts or wave compositions.
+**Simple to learn, hard to master.** One tower type, one mob type. The entire vocabulary of the game can be taught in five minutes. Mastery comes from reading geometry, identifying optimal placement, and committing to where and how you invest — not from memorizing tower charts or wave compositions.
 
 **Damage milking, not survival.** Mobs don't die permanently — they explode and respawn in place. The player isn't trying to stop the wave; they're trying to maximize damage dealt against an effectively infinite resource within a bounded window. This inverts standard TD pressure.
 
@@ -57,11 +57,9 @@ A tower can be upgraded across six independent stats. The player buys tiers of e
 - **Crit Damage** — multiplier on crit hits. Hard-capped (working ~500%, TBD).
 - **Multishot** — additional targets per attack. Hard-capped at +3 additional (4 total).
 
-### Architecture: hybrid with emergent specialization
+### No specialization or evolution
 
-The tower upgrade system is free-form across the six stats, but a **specialization milestone** triggers when a tower has accumulated enough total upgrades. Whichever stat the tower has the most tiers invested in determines which specialization unlocks. Specializations grant a powerful unique passive effect — e.g. crit-focused towers get chained crits, multishot-focused towers get bonus damage per target. Exact effects are open in `STATE.md`.
-
-Specialization emerges from play rather than being chosen up front. A tower's identity is a consequence of what the player bought, which is itself a consequence of where the tower was placed and which bonus zones it sits on.
+Towers do not specialize, evolve, or unlock milestone effects. The upgrade system is free-form across all six stats with no branching outcomes. If players request specialization after launch, it can be revisited. For now: no.
 
 ### Color modulation (visual identity)
 
@@ -70,7 +68,7 @@ A tower's visual color encodes its upgrade state at a glance. Each stat has a co
 Consequences of this system, all intentional:
 
 - Pale towers are visibly under-invested
-- Vivid mid-tones mean a tower is specialized in one or two directions
+- Vivid mid-tones mean a tower is heavily invested in one or two stats
 - Maxed-everything towers approach black, reading as a silhouette
 - The kill zone of a maze is literally the darkest region of the screen
 - Spectating an opponent's maze reveals their strategy instantly from across the map
@@ -180,6 +178,7 @@ What this game is explicitly NOT:
 - **Not a tower-variety TD.** One tower type. Forever.
 - **Not an RNG TD.** No surprise waves, no random events mid-match. The map is randomized at start; the match is not.
 - **Not a free-flexible upgrade TD.** Towers are atomic.
+- **Not a specialization/evolution TD.** No milestone effects, no tower evolution. May revisit post-launch if players request it.
 - **Not the SC2 map verbatim.** Inspired by Random TD. We do not reuse tower names, level names, art style, UI layouts, or specific tuning values from Random TD or AMazing TD.
 - **Not Greek-themed.**
 

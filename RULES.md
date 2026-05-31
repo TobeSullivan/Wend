@@ -1,4 +1,4 @@
-# RULES — <Game Project Name TBD>
+# RULES — Maze Battle TD
 
 **Read `claude-rules.md` first. This file is the project-specific addendum.**
 
@@ -16,9 +16,21 @@ This project's goal: make the game the SC2 audience actually wanted.
 
 ## Storage layer
 
-- **GitHub repo** (URL TBD — to be created)
-- The repo root contains: `STATE.md`, `PROJECT.md`, `DESIGN.md` (or `design/` if it splits), plus whatever content directories emerge as the project develops (`src/`, `art/`, `levels/`, etc.)
+- **GitHub repo: https://github.com/TobeSullivan/tower_defense**
+- The repo root contains: `STATE.md`, `PROJECT.md`, `DESIGN.md`, `DESIGN_MODES.md`, plus content directories (`src/`, `notes/`, etc.)
 - **The Claude.ai Project folder contains ONLY this file and `claude-rules.md`.** Nothing else. All actual content lives in the GitHub repo.
+
+### Fetching files from GitHub
+
+Use raw URLs, not blob URLs. Raw URLs bypass the HTML wrapper and return file content directly:
+
+```
+https://raw.githubusercontent.com/TobeSullivan/tower_defense/main/STATE.md
+https://raw.githubusercontent.com/TobeSullivan/tower_defense/main/DESIGN.md
+https://raw.githubusercontent.com/TobeSullivan/tower_defense/main/DESIGN_MODES.md
+```
+
+Blob URLs (`github.com/.../blob/main/...`) return cached GitHub HTML and are unreliable for reading current file content. Always use raw.
 
 ---
 
@@ -35,7 +47,7 @@ This split means: design discussions should produce design artifacts (full files
 
 ### Design decisions are sticky once locked
 
-The design conversation surfaces many decisions per session. Anything explicitly locked goes into `DESIGN.md`. Anything still open lives in `STATE.md` under "Open questions." Once locked, decisions don't get re-litigated unless the user opens that thread explicitly — Claude doesn't re-pitch alternatives to settled questions.
+The design conversation surfaces many decisions per session. Anything explicitly locked goes into `DESIGN.md` or `DESIGN_MODES.md`. Anything still open lives in `STATE.md` under "Open questions." Once locked, decisions don't get re-litigated unless the user opens that thread explicitly — Claude doesn't re-pitch alternatives to settled questions.
 
 ### Strong opinions, lightly held — extra hard on design
 
@@ -47,7 +59,7 @@ Even illustrative snippets should be small and clearly marked as illustrative. T
 
 ### Research is fair game
 
-Market research, competitor analysis, IP/legal framing, mechanic references — all in scope for this Claude. Use web search liberally for current data (player counts, reviews, similar games, legal precedent). The user came in wanting to understand the SC2 map and the market; that kind of work continues to be useful.
+Market research, competitor analysis, IP/legal framing, mechanic references — all in scope for this Claude. Use web search liberally for current data (player counts, reviews, similar games, legal precedent).
 
 ---
 
@@ -59,8 +71,9 @@ Market research, competitor analysis, IP/legal framing, mechanic references — 
 ├── RULES.md                 # (this file, mirrored to repo)
 ├── STATE.md                 # Current focus, last session, next step
 ├── PROJECT.md               # Map of what exists
-├── DESIGN.md  OR  design/   # Design decisions (split when it grows)
-├── src/                     # Godot project source (when implementation starts)
+├── DESIGN.md                # Core gameplay design decisions
+├── DESIGN_MODES.md          # Modes, maps, progression, seasons, UI, resource architecture
+├── src/                     # Godot project source
 ├── art/                     # Placeholder asset pack + final art
 ├── levels/                  # Campaign mission definitions
 └── notes/                   # Working notes, market research, references

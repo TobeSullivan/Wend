@@ -1,4 +1,4 @@
-# Design — Modes, Maps, Progression, Seasons
+# Design — Modes, Maps, Progression, Seasons, UI
 
 Locked design decisions for everything outside the core gameplay loop. Core gameplay (towers, mobs, economy, pathing, wave structure) lives in `DESIGN.md`.
 
@@ -272,3 +272,95 @@ The map generator must guarantee for every seed:
 - Obstacles do not block the initial path or seal the entry/exit funnel
 
 Procgen algorithm details are an implementation concern for Claude Code, not a design concern. These constraints are the spec.
+
+---
+
+## Home screen and navigation
+
+### First-launch flow
+
+On first launch, a single boolean (`first_launch`) is written to save data and never reset. Before writing it, the game loads mission 1 directly — no home screen, no mode select, straight in.
+
+The player can quit at any time via the pause menu (Esc → Quit to Menu). Quitting during the forced mission 1 lands on the home screen. There is no requirement to complete mission 1. The flag is set on first launch, not on mission completion.
+
+After first launch, the game always opens to the home screen.
+
+### Home screen (returning players)
+
+Simple. Two primary options, nothing else competing for attention.
+
+**Center of screen:**
+- **PVE** button
+- **PVP** button
+
+**Secondary (visible but not dominant):**
+- Season progress bar + current tier badge — slim, top of screen
+- Campaign — accessible as a smaller/tertiary button, not alongside PVE/PVP
+
+**Utility (tucked away):**
+- Settings
+
+The hierarchy is honest: PVE and PVP are the game. Campaign is the tutorial you can revisit. Season progress is ambient context, not a call to action.
+
+### Navigation from PVE
+
+Click PVE → PVE lobby screen showing the 5 maps for the current window (Scale 1–5). Each shows your best posted score if any. Solo players go straight into the match on map select. Groups get a brief lobby (invite + team/individual vote + ready up) before loading.
+
+### Navigation from PVP
+
+Click PVP → queue immediately. Shows estimated wait time. Nothing to configure.
+
+### Navigation from Campaign
+
+Click Campaign → mission list showing missions 1–10 with best medal per mission. All missions unlocked from the start — difficulty curve is guidance, not a gate. Click any mission → straight in.
+
+### Return to home screen
+
+Win modal "Return Home", pause menu "Quit to Menu", and post-match screens all land on the home screen. There is no intermediate screen between any in-match exit and the home screen.
+
+---
+
+## Pause menu
+
+### Trigger
+
+Esc key. Uses a priority stack — deepest open UI layer closes first:
+
+1. Upgrade panel open → Esc closes upgrade panel
+2. Build mode active (no upgrade panel) → Esc exits build mode
+3. Neither → Esc opens pause menu
+
+### Single player (Campaign + solo PVE)
+
+Pauses the scene tree while open (same mechanism as win panel).
+
+Menu items:
+- **Resume** (or press Esc again)
+- **Settings**
+- **Restart** — confirm dialog: "Restart this mission? Your progress will be lost."
+- **Quit to Menu** — confirm dialog: "Quit to the main menu? Your progress will be lost."
+
+### Multiplayer (PVP + group PVE)
+
+Does NOT pause the scene tree. Game continues while the menu is open.
+
+Menu items:
+- **Resume** (or press Esc again)
+- **Settings**
+- **Quit Match** — confirm dialog, context-aware message:
+  - PVP: "Quit the match? You will be eliminated and your lives will leave the pool."
+  - PVE: "Quit the match? Your score will not be posted."
+
+No Restart in multiplayer — you cannot restart a live match other players are in.
+
+### Settings contents
+
+Available from both pause menu and home screen:
+
+- Master volume
+- Music volume
+- SFX volume
+- Default game speed (1× / 2× / 3×)
+- Fullscreen toggle
+- Resolution select
+- Damage numbers toggle

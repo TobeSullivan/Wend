@@ -6,68 +6,61 @@ Last updated: 2026-05-30
 
 ## Current focus
 
-**Mode design and map resource architecture locked.** This session defined all three game modes (Campaign, PVE, PVP) in full, the season/progression system, the map resource schema, and the GameConstants/MapResource split architecture. Design artifacts produced: `DESIGN.md` (updated — core gameplay only) and `DESIGN_MODES.md` (new — modes, maps, progression, seasons, resource architecture).
+**Home screen, first-launch flow, and pause menu locked.** This session closed the remaining UI navigation design: first-launch forced mission 1, simple two-button home screen (PVE / PVP) for returning players, pause menu spec with single-player vs multiplayer variants, and Esc priority stack. Specialization/evolution removed from design entirely. All three artifacts updated: `DESIGN.md`, `DESIGN_MODES.md`, `RULES.md`.
 
 **Next build focus: mission/map resource framework in Godot.** Implement `MapResource`, `ZoneDefinition`, `GameConstants` autoload, `map_generator.gd`, and `map_loader.gd`. Refactor `main.gd` to consume a `MapResource` instead of hardcoded values. Author `mission_01.tres` as the first campaign mission to validate the authoring workflow.
 
 ---
 
-## Mode design session — 2026-05-30
+## UI/Navigation design session — 2026-05-30
 
-Full mode design locked this session. Key decisions:
+Key decisions locked:
 
-### Campaign
-- Solo only, 10 missions max, static hand-authored maps
-- Tutorial function only — not the product's selling point
-- Bronze/Silver/Gold thresholds feed season pass milestones; Gold should be easily attainable
-- Per-mission leaderboard (total damage)
+### First-launch flow
+- Single boolean `first_launch` written to save data on first launch
+- First launch: skip home screen, load mission 1 directly
+- Player can Esc → Quit to Menu at any time — lands on home screen
+- No requirement to complete mission 1; flag is set on launch, not completion
+- All subsequent launches go straight to home screen
 
-### PVE (Leaderboard mode)
-- 1–4 players, invite-only, no random matchmaking
-- 5 curated seeded maps per daily/weekly/monthly window
-- Scale 1–5: supply 10→50, checkpoints 1→3, zones 1–2→5–6, mob count ~8→~24, rounds 10–13→26–30
-- Round count seeded-random within scale range; same for all players on that map that window
-- Only completed runs post scores; best score per player per map counts
-- Leaderboards: Daily/Weekly/Monthly × Solo/Duo/Trio/Quad
-- Team vs individual score: per-match vote, squad default, host breaks ties
-- Individual score in a friend lobby posts to Solo leaderboard
-- No bots in PVE
-- Arena: 2-column grid, filled slots only, hidden build phase, visible run phase
+### Home screen
+- Two primary buttons: **PVE** and **PVP**
+- Season progress bar + tier badge: slim, top of screen, ambient not dominant
+- Campaign: tertiary button, clearly secondary — it's a tutorial, not the product
+- Settings: tucked away
+- All in-match exits (win modal, pause menu quit) land here
 
-### PVP (Ranked)
-- 8 players, solo queue only, no group queue ever
-- Fully randomized seeded maps per match
-- 100 lives per player, 800 total pool, zero-sum
-- Model B pairwise kill transfers per round, full strength from round 1
-- Elimination at 0 lives; eliminated player's lives leave the pool
-- Placement = elimination order; LP-per-placement ranking
-- Rank tiers: Bronze → Silver → Gold → Platinum → Masters
-- Season soft reset: one tier drop at season end
-- Masters cosmetic includes final numeric rank (e.g. "162nd Masters Season 1"), permanent
+### Campaign navigation
+- All 10 missions unlocked from the start — no sequential gating
+- Difficulty curve is guidance, not a gate
 
-### Seasons
-- Same reset cadence for PVE and PVP
-- PVP: tier at season end determines reward
-- PVE: battle pass milestone chain, no premium tier, free rewards for all
-- Season pass points from: playing matches, hitting milestones, posting to leaderboards
-- All rewards cosmetic only: tower skins, projectile skins, profile flair, season board
-- Season boards displayed in lobbies — prestige legible at a glance
-- History preserved indefinitely
+### PVE navigation
+- Solo player: map select → straight into match
+- Group: map select → brief lobby (invite + team/individual vote + ready up) → match
 
-### Map resource architecture
-- Single `MapResource` format serves all three modes
-- Campaign: hand-authored `.tres` files in `src/campaign/`
-- PVE/PVP: `MapResource` objects generated in memory by `map_generator.gd`
-- `map_loader.gd` configures the scene from the resource; `main.gd` agnostic to mode
-- `GameConstants` autoload singleton for all global constants
-- Per-map variables (supply, rounds, mob count, thresholds, layout) in `MapResource`
-- Threshold derivation formula: `total_base = base_dps × supply_cap × round_count`; bronze ×0.6, silver ×1.0, gold ×1.5
+### PVP navigation
+- One button: Find Match → queued
+
+### Pause menu
+- Esc priority stack: upgrade panel → build mode → pause menu
+- Single player: pauses tree; options: Resume / Settings / Restart / Quit to Menu
+- Multiplayer: does NOT pause tree; options: Resume / Settings / Quit Match
+- Restart only available in single player
+- Both Restart and Quit to Menu require confirm dialogs
+- PVP quit dialog: "You will be eliminated and your lives will leave the pool"
+- PVE quit dialog: "Your score will not be posted"
+- Settings: master/music/SFX volume, default game speed, fullscreen, resolution, damage numbers toggle
+
+### Specialization removed
+- No specialization, no evolution, no milestone effects — ever
+- May revisit post-launch if players explicitly request it
+- Removed from DESIGN.md; added to anti-goals
 
 ---
 
-## Playtest tweak pass + crash fix + UX — 2026-05-30
+## Mode design session — 2026-05-30
 
-See previous STATE entry (preserved below in git history). Summary: fast-forward, off-screen entry/exit, death FX, obstacles, per-tower damage/kill tracking, effective-stat readouts, round-end gold toast, win-on-Gold modal, crash fix on placement path cache.
+Full mode design locked. Key decisions: Campaign (solo, 10 missions, tutorial function), PVE (1–4 players, 5 maps per window, scale 1–5, daily/weekly/monthly), PVP (8 players, solo queue, pairwise lives transfers, LP ranking, seasonal resets), Seasons (free battle pass, cosmetic rewards, Masters rank number permanent on cosmetic), MapResource architecture, GameConstants autoload. All in `DESIGN_MODES.md`.
 
 ---
 
@@ -83,21 +76,23 @@ See previous STATE entry (preserved below in git history). Summary: fast-forward
 6. Create `src/campaign/mission_01.tres` — first campaign mission, hand-authored, validates the workflow
 7. Create `src/scripts/map_generator.gd` stub — takes seed + scale tier, returns MapResource (full procgen algorithm TBD, stub sufficient to unblock campaign work)
 
-Do these in order. Each step unblocks the next. After step 6, the campaign authoring workflow is validated and mission 02–10 can be authored incrementally.
+Do these in order. Each step unblocks the next.
 
 **For this Claude (design):**
 
-- Leaderboard backend design (captured in `notes/leaderboards.md` — needs updating with mode decisions from this session)
-- Pause menu spec (previously parked)
-- Specialization milestone effects (still open)
-- Home screen / level-select UX
+- Leaderboard backend design (captured in `notes/leaderboards.md` — needs updating with mode decisions)
+- PVP LP curve (exact points per placement TBD)
+- Season pass point values and milestone thresholds
+- Damage threshold calibration (needs real playtest data)
+- Soft caps for damage / range / attack_speed upgrade stats
 
 ---
 
 ## Recently touched files
 
-- `DESIGN.md` — updated (modes section replaced with pointer to DESIGN_MODES.md; core gameplay content preserved and cleaned)
-- `DESIGN_MODES.md` — new file
+- `DESIGN.md` — specialization removed, anti-goals updated
+- `DESIGN_MODES.md` — home screen, first-launch flow, pause menu spec added
+- `RULES.md` — GitHub URL added, raw URL fetch guidance added
 - `STATE.md` — this file
 
 ---
@@ -105,20 +100,20 @@ Do these in order. Each step unblocks the next. After step 6, the campaign autho
 ## Open questions / blocked on
 
 ### Implementation (Claude Code)
-- Procgen algorithm for PVE/PVP map generation — constraints are specced in DESIGN_MODES.md, algorithm is implementation TBD
-- Bot behavior in PVP private lobbies — damage curve vs actual maze-building (deferred, not needed for campaign or ranked)
-- Eliminated player maze handling in PVP — freeze in place, vanish, or ghost visible (deferred)
-- Networking/hosting model (deferred)
+- Procgen algorithm for PVE/PVP map generation — constraints specced in DESIGN_MODES.md, algorithm TBD
+- Bot behavior in PVP private lobbies — deferred
+- Eliminated player maze handling in PVP — deferred
+- Networking/hosting model — deferred
+- Home screen scene implementation — design locked, implementation not started
+- Pause menu scene implementation — design locked, implementation not started
+- First-launch flag system — design locked, implementation not started
 
 ### Design (this Claude)
-- Specialization milestone effects — what does each specialization actually do?
-- Soft caps for damage / range / attack_speed upgrade stats
-- Damage threshold calibration — current prototype values (1250/1875/2500) are placeholders; real tuning needs playtest data
-- Home screen / level-select UX
-- Pause menu full spec
-- Leaderboard backend design (notes/leaderboards.md needs update for new mode decisions)
-- PVP LP curve (exact points per placement TBD)
+- Leaderboard backend design
+- PVP LP curve
 - Season pass point values and milestone thresholds
+- Damage threshold calibration — needs playtest data
+- Soft caps for damage / range / attack_speed
 
 ### Locked design decisions
-See `DESIGN.md` and `DESIGN_MODES.md`. Decisions there are not re-litigated without explicit reopening.
+See `DESIGN.md` and `DESIGN_MODES.md`.
