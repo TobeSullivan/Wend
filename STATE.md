@@ -35,7 +35,7 @@ Last updated: 2026-05-30
 - Default game speed applied via `Engine.time_scale` at match start (`main.gd`); reset to 1× on menu scenes (`SceneManager`). Damage-numbers toggle gates `mob.gd._spawn_damage_number`.
 - Verified headless (stderr captured): boot paths, match+pause+settings build, settings round-trip (set→save→reload→read-back), and the full run phase with the damage-numbers gate. Save reset for a clean first-launch test.
 
-**NOT COMMITTED.** Per the user: wrap/commit only after they playtest and approve. Suggested commits when approved: (1) resource framework, (2) navigation layer, (3) pause menu, (4) settings.
+**Committed** `66c5d17` on `main` (playtested & approved, 2026-05-30) — one cohesive commit (phases commingled within shared files, so a clean 4-way split wasn't practical). **Not yet pushed to origin.**
 
 **Next build focus (after playtest):**
 - Real procgen in `map_generator.gd` (still a stub) per the "Procgen constraints" spec.
