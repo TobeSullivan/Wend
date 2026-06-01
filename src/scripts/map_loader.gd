@@ -26,6 +26,7 @@ const RoundToastScript := preload("res://scripts/round_toast.gd")
 const PauseMenuScript := preload("res://scripts/pause_menu.gd")
 const ArenaViewScript := preload("res://scripts/arena_view.gd")
 const BotControllerScript := preload("res://scripts/bot_controller.gd")
+const PlaytestLogScript := preload("res://scripts/playtest_log.gd")
 const ObstacleScript := preload("res://scripts/obstacle.gd")
 const ZoneDefinitionScript := preload("res://resources/zone_definition.gd")
 const MapResourceScript := preload("res://resources/map_resource.gd")
@@ -69,6 +70,13 @@ static func build_match(host: Node2D, map, num_boards: int = 1) -> Array:
 
 	# On-screen UI is bound to the local player's board (board 0).
 	_build_match_ui(host, boards[0], boards[0].build_controller)
+
+	# Playtest telemetry for threshold calibration (local board only; user:// only).
+	var plog := PlaytestLogScript.new()
+	plog.board = boards[0]
+	plog.coordinator = coordinator
+	plog.map = map
+	host.add_child(plog)
 
 	# Spectator camera only for multi-board matches; solo frames as before (no camera).
 	if num_boards > 1:

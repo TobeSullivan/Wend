@@ -16,6 +16,18 @@ Last updated: 2026-05-31
 
 ---
 
+## ⏭️ NEXT SESSION (run it HERE in Claude Code, not the chat/design assistant)
+
+The user is play-testing (campaign 2–10 + PVP vs bots). When they return:
+
+1. **Read the playtest log** at `C:\Users\tobes\AppData\Roaming\Godot\app_userdata\Maze Battle TD\playtest_log.jsonl` (one JSON line per round + per completed match; `ev`:"round"/"match"). It was added this session (`src/scripts/playtest_log.gd`, wired in `map_loader.build_match` for the local board, writes to `user://` only, gated by `ENABLED` const).
+2. **Calibrate campaign thresholds** from the real `final_damage` per mission: edit `bronze/silver/gold_threshold` in `src/campaign/mission_0N.tres` so Gold is achievable-but-stretchy. Cross-check the per-round `cum_damage` curve. Same idea for PVE generator thresholds (`map_generator._derive_thresholds`) if PVE scores exist. Re-commit.
+3. **Triage their playtest feedback** against the checklist below (esp. the PVP-vs-bots items and the 2–3× stability risk).
+4. Once calibration is done, **flip `PlaytestLog.ENABLED` to false** (or delete the logger) and note it.
+Calibration needs the repo + that local file, which is why next session belongs here, not in chat.
+
+---
+
 ## Testing checklist — 2026-05-31 session (everything below is verified headless only; needs real-app play)
 
 ### A. Campaign missions 2–10 (feel + calibration)
@@ -40,6 +52,8 @@ Last updated: 2026-05-31
 ---
 
 ### Session log (chronological, most recent first)
+
+**Playtest logger added (2026-05-31).** `src/scripts/playtest_log.gd` — appends JSON lines to `user://playtest_log.jsonl` (one per completed round + per completed match, local board only): mission/seed/mode, supply, rounds, final + cumulative damage/kills, gold, tower count, medal, thresholds, PVP placement. Wired in `map_loader.build_match`; writes to `user://` only; gated by `ENABLED` (currently true). Verified headless (round + match lines emitted, valid JSON; test cleaned up the file). Purpose: real-score data to calibrate the soft campaign/PVE thresholds. See "NEXT SESSION" above.
 
 **Multiplayer Phase D — PVP ruleset + FIRST PLAYABLE (PVP vs 7 bots) done & verified (2026-05-31), not committed.** The headline mode is now launchable and self-contained (local sim; real netcode is the only thing left for actual multiplayer).
 - **Lives/transfers** (`match_coordinator.gd` + `round_manager.gd`): each board starts at `LIVES_PER_PLAYER` (100); `BoardState.kills_this_round` feeds Model B pairwise transfers after every run phase — `net_i = n*kills_i - total_kills` over active boards, zero-sum, no dampening. Boards at ≤0 are eliminated (lives leave the pool), recorded in `finish_order` worst-first; `placement_of(board)` gives 1-based placement (1 = last standing). Coordinator `is_pvp` flag: PVP ends on last-standing (≤1 active) or a `PVP_SAFETY_CAP` (60) stalemate guard — NOT `max_rounds`. Non-PVP keeps the round-count end. New signals `lives_resolved` / `board_eliminated`.
