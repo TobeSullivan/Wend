@@ -16,6 +16,29 @@ Last updated: 2026-05-31
 
 ---
 
+## Testing checklist — 2026-05-31 session (everything below is verified headless only; needs real-app play)
+
+### A. Campaign missions 2–10 (feel + calibration)
+- [ ] Play each of missions 2–10; does the **difficulty curve** rise sensibly and does each mission's single lesson land? (2 mazing · 3 checkpoints · 4 zones · 5 slow · 6 crit · 7 multishot · 8 obstacles/supply · 9 economy · 10 capstone)
+- [ ] **Thresholds are uncalibrated** (Bronze/Silver/Gold derived proportionally from mission 1). Is Gold achievable-but-stretchy? Note your scores per mission so I can calibrate.
+- [ ] Campaign select shows all 10 playable, medals persist after a run.
+
+### B. PVP vs 7 bots — the big untested-in-real-app area (Home → PVP)
+- [ ] Match launches and builds 8 boards; you build your maze during build phase.
+- [ ] **Spectator camera**: during run phase, Tab / ←→ cycle through boards; build phase snaps back to your board; the "Your board / Spectating board N" label is correct; framing/offsets look right; projectiles render on the correct board.
+- [ ] **Lives HUD**: "Lives: N · alive X/Y" updates; round number is uncapped.
+- [ ] **Lives transfers**: after each run phase, lives move by kill difference (out-kill → gain, get out-killed → lose); pool stays sensible.
+- [ ] **Elimination**: a board at 0 lives drops out. If **you** get eliminated → "Eliminated — placed Nth" overlay with Spectate (keep watching) / Quit to Menu, and the match keeps running.
+- [ ] **Match end**: last-standing → "Victory!" / placement result with Find New Match / Return Home.
+- [ ] **Pause in PVP**: Esc shows the multiplayer pause (does NOT freeze the match) with "Quit Match".
+- [ ] **STABILITY/PERF (key risk)**: play a PVP at **2× and 3×**, especially late rounds with dense mazes across 8 boards — watch memory/FPS. Headless showed an unconfirmed FX-related early-exit under heavy fast-forward; confirm the real renderer holds.
+
+### C. Regression (the coordinator/board refactor touched the core loop)
+- [ ] Solo **campaign mission 1** and a **solo PVE** map: full build→run→round→end, pause menu, settings, upgrade panel, fast-forward, partial-score saving all still work.
+- [ ] Build-mode hover path overlay still fine (the earlier render fix), incl. a dense Scale 4/5 PVE map.
+
+---
+
 ### Session log (chronological, most recent first)
 
 **Multiplayer Phase D — PVP ruleset + FIRST PLAYABLE (PVP vs 7 bots) done & verified (2026-05-31), not committed.** The headline mode is now launchable and self-contained (local sim; real netcode is the only thing left for actual multiplayer).
