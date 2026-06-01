@@ -12,6 +12,11 @@ var path_index: int = 0
 var max_hp: float = GameConstants.MOB_BASE_HP
 var hp: float = GameConstants.MOB_BASE_HP
 
+# The BoardState this mob belongs to (injected by its spawner). Damage and kills
+# credit only this board — NOT a global group, which would cross-contaminate every
+# board's score in a multiplayer match. Untyped to avoid the class-name cycle.
+var board
+
 var anim: AnimatedSprite2D
 
 # One SpriteFrames shared by every mob (built once). Rebuilding it per spawn was
@@ -86,7 +91,8 @@ func take_hit(damage: float, is_crit: bool = false, source: Node2D = null) -> vo
 	var credited := minf(damage, hp)
 	hp -= damage
 	_spawn_damage_number(damage, is_crit)
-	get_tree().call_group("round_manager", "_on_damage_dealt", credited)
+	if board != null:
+		board._on_damage_dealt(credited)
 	var killed := hp <= 0.0
 	if source != null and is_instance_valid(source):
 		source.register_damage(credited, killed)
@@ -107,4 +113,5 @@ func _explode_and_respawn() -> void:
 	get_parent().add_child(fx)
 	fx.setup(position, anim.rotation)
 	hp = max_hp
-	get_tree().call_group("round_manager", "_on_mob_killed")
+	if board != null:
+		board._on_mob_killed()

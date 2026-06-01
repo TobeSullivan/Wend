@@ -4,6 +4,7 @@ class_name Spawner
 const MobScript := preload("res://scripts/mob.gd")
 
 var mobs_array: Array  # shared reference with tower(s) + round_manager
+var board  # BoardState (round_manager) — injected into each mob it spawns
 
 var _mob_count: int = 0
 var _spawn_interval: float = 1.0
@@ -40,6 +41,7 @@ func _spawn_one() -> void:
 	var mob := MobScript.new()
 	mob.path = _wave_path
 	mob.max_hp = _mob_hp
+	mob.board = board
 	mobs_array.append(mob)
 	get_parent().add_child(mob)
 	_spawned += 1

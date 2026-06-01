@@ -1,66 +1,98 @@
 extends Node
 class_name RoundManager
 
-# Global tuning (economy, timings, mob HP growth) lives in the GameConstants
-# autoload. Per-map values below are injected by map_loader before tree entry.
+# Per-board state for one player's maze: gold/economy, damage + kill tallies,
+# this board's spawner, and run-completion detection. The SHARED match clock
+# (round number, phase, build timer, win condition) lives in MatchCoordinator —
+# this node is driven by it. A solo match is a coordinator with one board.
+#
+# NOTE: this used to own the whole match (clock + state). It was split for
+# multiplayer (N boards, one clock). The class is still named RoundManager and
+# consumers still hold a `round_manager` ref — it now means "this board." It
+# proxies the clock fields (phase/round/build_time/max_rounds/match_over) and
+# forwards the coordinator's clock signals, so HUD/build_controller/panels need
+# no changes whether there's one board or eight.
+#
+# Global tuning (economy, timings, HP growth) lives in the GameConstants autoload.
 
 # Per-map config — set by map_loader from the MapResource.
-var max_rounds: int = 10
 var mob_count: int = 8           # enemy supply, constant per match
 var bronze_threshold: int = 0
 var silver_threshold: int = 0
 var gold_threshold: int = 0
 
-signal phase_changed(phase: String)
+# The shared clock. Set by map_loader before tree entry.
+var coordinator  # MatchCoordinator — untyped to avoid class-name cycle
+
+# Per-board economy/score signals (owned here).
 signal gold_changed(new_gold: int)
-signal round_changed(new_round: int)
-signal build_timer_changed(time_left: float)
 signal damage_dealt_changed(total: int)
 signal kills_changed(total: int)
-signal match_ended
 signal gold_goal_reached  # total damage crossed the Gold threshold mid-match
 signal round_summary(round_completed: int, kill_gold: int, round_bonus: int, interest: int)
 
-var round_num: int = 1
+# Clock signals — forwarded verbatim from the coordinator so consumers can keep
+# connecting to `round_manager.<signal>` regardless of board count.
+signal phase_changed(phase: String)
+signal round_changed(new_round: int)
+signal build_timer_changed(time_left: float)
+signal match_ended
+
 var gold: int = GameConstants.STARTING_GOLD
-var phase: String = "build"  # "build", "run", or "ended"
-var build_time_left: float = GameConstants.BUILD_TIME_FIRST
 var total_damage_dealt: int = 0
 var total_kills: int = 0
-var match_over: bool = false
 var gold_goal_hit: bool = false  # has the Gold threshold been reached this match
+var eliminated: bool = false     # PVP only; always false in solo (Phase A)
 var _round_kill_gold: int = 0    # kill gold accumulated during the current round
 
 var spawner  # Spawner — untyped to avoid class-name cycle
 var build_controller  # BuildController — untyped to avoid class-name cycle
-var mobs_array: Array  # shared with towers + spawner
+var mobs_array: Array  # shared with this board's towers + spawner
+
+# --- Clock proxies: read straight from the coordinator so existing consumers
+# (HUD, build_controller, upgrade_panel, panels) keep reading round_manager.* ---
+
+var phase: String:
+	get:
+		return coordinator.phase if coordinator != null else "build"
+
+var round_num: int:
+	get:
+		return coordinator.round_num if coordinator != null else 1
+
+var build_time_left: float:
+	get:
+		return coordinator.build_time_left if coordinator != null else GameConstants.BUILD_TIME_FIRST
+
+var max_rounds: int:
+	get:
+		return coordinator.max_rounds if coordinator != null else 10
+
+var match_over: bool:
+	get:
+		return coordinator.match_over if coordinator != null else false
 
 func _ready() -> void:
-	add_to_group("round_manager")
+	if coordinator != null:
+		# Forward the shared clock signals so board consumers see them as ours.
+		coordinator.phase_changed.connect(func(p): emit_signal("phase_changed", p))
+		coordinator.round_changed.connect(func(r): emit_signal("round_changed", r))
+		coordinator.build_timer_changed.connect(func(t): emit_signal("build_timer_changed", t))
+		coordinator.match_ended.connect(func(): emit_signal("match_ended"))
+	# Seed consumers with current state (clock read from the coordinator).
 	emit_signal("gold_changed", gold)
-	emit_signal("round_changed", round_num)
-	emit_signal("phase_changed", phase)
-	emit_signal("build_timer_changed", build_time_left)
 	emit_signal("damage_dealt_changed", total_damage_dealt)
 	emit_signal("kills_changed", total_kills)
+	emit_signal("phase_changed", phase)
+	emit_signal("round_changed", round_num)
+	emit_signal("build_timer_changed", build_time_left)
 
-func _process(delta: float) -> void:
-	if match_over:
-		return
-	if phase == "build":
-		build_time_left = maxf(0.0, build_time_left - delta)
-		emit_signal("build_timer_changed", build_time_left)
-		if build_time_left <= 0.0:
-			_start_run_phase()
-	else:
-		if spawner != null and spawner.is_done() and _alive_mob_count() == 0:
-			_end_round()
+# --- Active flag (PVP elimination; always active in solo) ---
 
-func mob_hp_for_round() -> float:
-	if round_num <= GameConstants.MOB_HP_FLAT_ROUNDS:
-		return GameConstants.MOB_BASE_HP
-	var growth_rounds := round_num - GameConstants.MOB_HP_FLAT_ROUNDS
-	return GameConstants.MOB_BASE_HP * pow(GameConstants.MOB_HP_GROWTH, growth_rounds)
+func is_active() -> bool:
+	return not eliminated
+
+# --- Economy ---
 
 func can_afford(cost: int) -> bool:
 	return gold >= cost
@@ -83,13 +115,14 @@ func _on_mob_killed() -> void:
 	emit_signal("gold_changed", gold)
 	emit_signal("kills_changed", total_kills)
 
-# Called via group dispatch from mob.take_hit. Overkill is clamped at the
-# call site so a 100-damage shot on a 10-HP mob credits 10, not 100.
+# Called directly by this board's mobs (mob.board._on_damage_dealt). Overkill is
+# clamped at the call site so a 100-damage shot on a 10-HP mob credits 10.
 func _on_damage_dealt(amount: float) -> void:
 	total_damage_dealt += int(round(amount))
 	emit_signal("damage_dealt_changed", total_damage_dealt)
-	# Crossing the Gold threshold mid-match offers an early "you won" choice.
-	if not gold_goal_hit and not match_over and total_damage_dealt >= gold_threshold:
+	# Crossing the Gold threshold mid-match offers an early "you won" choice
+	# (campaign / solo PVE). gold_threshold is 0 in PVP, so this never fires there.
+	if gold_threshold > 0 and not gold_goal_hit and not match_over and total_damage_dealt >= gold_threshold:
 		gold_goal_hit = true
 		emit_signal("gold_goal_reached")
 
@@ -102,51 +135,30 @@ func medal_for(damage: int) -> String:
 		return "bronze"
 	return "none"
 
-# Public: skip the remaining build timer and start the run phase immediately.
-# In MP this will need to gate on all players pressing — TBD in DESIGN.
+# Convenience pass-through so HUD's "start now" button stays wired to the board.
 func request_start_now() -> void:
-	if phase != "build":
-		return
-	_start_run_phase()
+	if coordinator != null:
+		coordinator.request_start_now()
 
-func _start_run_phase() -> void:
-	phase = "run"
-	emit_signal("phase_changed", phase)
+# --- Driven by the coordinator ---
+
+# Start this board's run phase: spawn its train along its current maze path.
+func start_run(_round_num: int, mob_hp: float) -> void:
 	var wave_path: PackedVector2Array = build_controller.current_path_world()
-	spawner.start_wave(mob_count, GameConstants.SPAWN_INTERVAL, mob_hp_for_round(), wave_path)
+	spawner.start_wave(mob_count, GameConstants.SPAWN_INTERVAL, mob_hp, wave_path)
 
-func _end_round() -> void:
-	# Award completed-round bonus + interest for the round just finished.
-	var round_bonus := GameConstants.ROUND_BONUS_BASE + round_num
+# True once the train has fully spawned and no mobs remain on this board.
+func is_run_done() -> bool:
+	return spawner != null and spawner.is_done() and _alive_mob_count() == 0
+
+# Award the completed round's bonus + interest and emit this board's summary.
+func settle_round(round_completed: int) -> void:
+	var round_bonus := GameConstants.ROUND_BONUS_BASE + round_completed
 	var interest := mini(int(floor(gold * GameConstants.INTEREST_RATE)), GameConstants.INTEREST_CAP)
 	gold += round_bonus + interest
 	emit_signal("gold_changed", gold)
-	emit_signal("round_summary", round_num, _round_kill_gold, round_bonus, interest)
+	emit_signal("round_summary", round_completed, _round_kill_gold, round_bonus, interest)
 	_round_kill_gold = 0
-
-	if round_num >= max_rounds:
-		_end_match()
-		return
-
-	round_num += 1
-	emit_signal("round_changed", round_num)
-	phase = "build"
-	build_time_left = _build_duration_for(round_num)
-	emit_signal("phase_changed", phase)
-	emit_signal("build_timer_changed", build_time_left)
-
-func _end_match() -> void:
-	match_over = true
-	phase = "ended"
-	emit_signal("phase_changed", phase)
-	emit_signal("match_ended")
-
-func _build_duration_for(rn: int) -> float:
-	if rn == 1:
-		return GameConstants.BUILD_TIME_FIRST
-	if rn >= GameConstants.LATE_ROUND_THRESHOLD:
-		return GameConstants.BUILD_TIME_LATE
-	return GameConstants.BUILD_TIME_NORMAL
 
 func _alive_mob_count() -> int:
 	var n := 0

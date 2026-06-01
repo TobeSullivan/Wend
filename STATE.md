@@ -6,6 +6,10 @@ Last updated: 2026-05-31
 
 ## Current focus
 
+**Render-fix re-verify CLOSED (2026-05-31).** User playtested the build-mode hover overlay on a dense map on the real renderer — memory holds, no leak/spike. The MUST-reverify item from round-2 fixes is resolved; the `Line2D` fallback is no longer needed unless a future regression appears.
+
+**Active tracks (user-directed 2026-05-31):** (1) finish campaign missions 2–10; (2) get multiplayer (PVE group + PVP) working. Both have open design — see scoping below.
+
 **Playable through `8173085` (pushed to origin/main).** The game now boots through first-launch → home → and into either **Campaign** (mission 1 authored) or **solo PVE** (daily seeded Scale 1–5 generated maps). Full match loop, pause menu, settings, breakpoint-tuned upgrades, partial-score saving. Map resource framework + real procgen + UI/navigation all landed and verified.
 
 **Most likely next steps:** more campaign missions; PVE backend (weekly/monthly windows, lobbies, leaderboards — deferred); audio (bus layout + sounds, which would make the Music/SFX sliders live); threshold calibration from real scores; or PVP. Open render fallback: if the build-mode overlay ever regresses on perf, replace the immediate-mode `_draw` dashes with a `Line2D`.
@@ -13,6 +17,23 @@ Last updated: 2026-05-31
 ---
 
 ### Session log (chronological, most recent first)
+
+**Multiplayer Phase A — coordinator/board split done & verified (2026-05-31), not committed.** The enabling refactor for local-sim multiplayer (plan: build the full MP experience vs bots in one process, layer netcode on later — networking/hosting still deferred). The match is now **N independent boards + one MatchCoordinator** that owns the shared clock and (later) cross-board resolution. Solo = a coordinator with one board, so the single path serves every mode.
+- `match_coordinator.gd` (NEW) — owns round_num/phase/build_timer/max_rounds, the global mob-HP curve, the start-now gate, the run-phase-complete gate (waits for ALL active boards' trains to exit), round advance, match end, and a `_end_round` hook where PVP transfers / PVE aggregation will land. Emits phase_changed/round_changed/build_timer_changed/match_ended.
+- `round_manager.gd` slimmed to per-board **BoardState** (kept the filename/`class_name RoundManager` and the `round_manager` var name across consumers to avoid churn — it now means "this board"). Owns gold/economy/damage/kills/spawner/run-detection + lives flag (`eliminated`, for PVP). **Proxies** the clock fields (phase/round/build_time/max_rounds/match_over read from the coordinator) and **forwards** the coordinator's clock signals, so HUD/build_controller/upgrade_panel/panels needed ZERO changes. New methods the coordinator drives: `start_run`/`is_run_done`/`settle_round`/`is_active`.
+- `mob.gd` — replaced the `call_group("round_manager", ...)` **broadcast** (which would credit every board) with a direct `mob.board` reference injected by the spawner. `spawner.gd` carries `board` and injects it per mob. `map_loader.gd` builds the coordinator + one board and registers it.
+- **Verified headless** (throwaway harness, deleted): a real match built via map_loader ran the full build→run→round-advance→match-end cycle (rounds 1→2→3→ended), gold accrued via settle_round (250→421), and **per-board damage/kill crediting confirmed** (775 dmg / 7 kills to the right board). Used the game's own 3x fast-forward (HUD `_apply_time_scale` re-clamps `Engine.time_scale` every refresh — can't override it externally; FF caps at 3x).
+- **Known Phase-B item:** `mob.gd:_current_speed` still queries the global `bonus_zones` group — fine for one board / spatially-separated boards, must be board-scoped when boards coexist.
+- **Flagged for a real-renderer check (NOT a refactor regression):** under 3x fast-forward + heavy farming, the headless run exited early (~frame 600) — looks like death/damage-FX accumulation; unverified whether it affects the real renderer (could be a headless dummy-renderer artifact). Possibly related to the earlier run-phase FX churn work.
+- **Next:** Phase B — coordinator drives N boards in lockstep (human + idle dummies), spectate-switch to view a board; then Phase C bots, Phase D PVP ruleset (first playable: PVP vs 7 bots).
+
+**Campaign missions 2–10 authored (2026-05-31) — AWAITING PLAYTEST, not yet committed.** The campaign is now content-complete (10/10 missions playable):
+- Curriculum locked & recorded in `DESIGN_MODES.md` ("Mission curriculum"). M1 is the big sandbox intro; each later mission isolates one decision on a rising curve; M10 is the capstone bridge to PVE Scale 5. Crit/multishot taught via upgrades (no crit/multishot zones exist — only DAMAGE/ATTACK_SPEED/RANGE/SLOW).
+- `mission_02.tres`…`mission_10.tres` hand-authored (same schema/workflow as mission 1). Registered in `scene_manager.gd` `CAMPAIGN_MISSIONS` (all 10). `campaign_select.gd` is data-driven off `has_campaign_mission`, so the "Coming soon" cards auto-flipped to playable — no UI change needed.
+- Thresholds derived from mission 1's approved ratio (silver ≈ 1.875 × supply × rounds; bronze ⅔, gold 4⁄3), **soft/uncalibrated** — need playtest calibration like the PVE thresholds.
+- **Verified headless** (throwaway harnesses, since deleted): a data harness confirmed all 10 pass field/bounds/threshold checks AND have a valid base path (entry→checkpoints→exit) with obstacles in place and zero towers; a loader smoke test instantiated the real `prototype.tscn` on M8 (12 obstacles) and M10 (6 zones/3 cp/100 supply) and ran 120 frames each with zero errors. Note: `-s` script runs don't init autoloads — used the documented main_scene-swap pattern for the smoke test (see [[reference-godot-headless-verify]]).
+- **Next on this track:** playtest 2–10 for feel + threshold calibration, then commit. Then multiplayer (user picked campaign-first; MP approach = "no preference", my recommendation stands: build the full MP experience vs bots in one process first, layer netcode on later — networking/hosting model still deferred).
+
 
 **Map resource framework built and verified (Claude Code, 2026-05-30).** The mission/map resource architecture from `DESIGN_MODES.md` is now implemented in Godot:
 - `GameConstants` autoload holds all global tuning (economy, build timings, mob HP growth, tower base stats, crit/multishot caps, upgrade ramp, lives). Registered in `project.godot`.

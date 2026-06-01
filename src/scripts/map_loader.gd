@@ -11,6 +11,7 @@ const GridScript := preload("res://scripts/grid.gd")
 const BonusZoneScript := preload("res://scripts/bonus_zone.gd")
 const SpawnerScript := preload("res://scripts/spawner.gd")
 const BuildControllerScript := preload("res://scripts/build_controller.gd")
+const MatchCoordinatorScript := preload("res://scripts/match_coordinator.gd")
 const RoundManagerScript := preload("res://scripts/round_manager.gd")
 const HUDScript := preload("res://scripts/hud.gd")
 const MatchEndPanelScript := preload("res://scripts/match_end_panel.gd")
@@ -36,6 +37,12 @@ static func load_into(host: Node2D, map) -> void:
 
 	# Construct all and wire cross-references BEFORE adding to the scene tree —
 	# each node's _ready may depend on the others being injected.
+
+	# The shared match clock. Solo is a coordinator with a single board; the
+	# multi-board case registers additional boards the same way.
+	var coordinator := MatchCoordinatorScript.new()
+	coordinator.max_rounds = map.round_count
+
 	var spawner := SpawnerScript.new()
 	spawner.mobs_array = host.mobs
 
@@ -48,16 +55,19 @@ static func load_into(host: Node2D, map) -> void:
 	ctrl.grid_size = map.grid_size
 	ctrl.blocked = obstacle_blocked  # obstacles are permanent walls from the start
 
+	# Per-board state, driven by the coordinator.
 	var round_manager := RoundManagerScript.new()
+	round_manager.coordinator = coordinator
 	round_manager.spawner = spawner
 	round_manager.mobs_array = host.mobs
 	round_manager.build_controller = ctrl
-	round_manager.max_rounds = map.round_count
 	round_manager.mob_count = map.mob_count
 	round_manager.bronze_threshold = map.bronze_threshold
 	round_manager.silver_threshold = map.silver_threshold
 	round_manager.gold_threshold = map.gold_threshold
 
+	spawner.board = round_manager  # mobs credit damage/kills to this board
+	coordinator.register_board(round_manager)
 	ctrl.round_manager = round_manager
 
 	var hud := HUDScript.new()
@@ -77,6 +87,7 @@ static func load_into(host: Node2D, map) -> void:
 	pause_menu.build_controller = ctrl
 	pause_menu.round_manager = round_manager
 
+	host.add_child(coordinator)
 	host.add_child(spawner)
 	host.add_child(round_manager)
 	host.add_child(ctrl)
