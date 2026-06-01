@@ -48,6 +48,9 @@ var _round_kill_gold: int = 0    # kill gold accumulated during the current roun
 var spawner  # Spawner — untyped to avoid class-name cycle
 var build_controller  # BuildController — untyped to avoid class-name cycle
 var mobs_array: Array  # shared with this board's towers + spawner
+var bonus_zones: Array = []  # this board's BonusZone nodes (board-scoped, not a
+                             # global group — towers/mobs on other boards must not
+                             # see these once multiple boards coexist)
 
 # --- Clock proxies: read straight from the coordinator so existing consumers
 # (HUD, build_controller, upgrade_panel, panels) keep reading round_manager.* ---

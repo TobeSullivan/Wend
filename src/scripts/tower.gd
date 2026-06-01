@@ -26,6 +26,7 @@ const K_PER_TIER := 0.07
 const RANGE_SEGMENTS := 48
 
 var mobs: Array = []  # injected by build_controller / main
+var board  # BoardState (round_manager) — for board-scoped zone lookup. Untyped.
 var sprite: Sprite2D
 var cooldown: float = 0.0
 var _current_target: Node2D = null
@@ -71,7 +72,10 @@ func _ready() -> void:
 func _compute_zone_bonuses() -> void:
 	for stat in zone_bonus:
 		zone_bonus[stat] = 0
-	for zone in get_tree().get_nodes_in_group("bonus_zones"):
+	# Board-scoped: only this board's zones. Falls back to the global group if no
+	# board was injected (e.g. a scene opened directly).
+	var zones: Array = board.bonus_zones if board != null else get_tree().get_nodes_in_group("bonus_zones")
+	for zone in zones:
 		if not zone.touches_tower_cell(grid_cell):
 			continue
 		if zone.type in zone_bonus:

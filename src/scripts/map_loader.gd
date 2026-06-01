@@ -4,6 +4,12 @@ extends Node
 # single configuration path: campaign passes a hand-authored .tres, PVE/PVP pass
 # a generated MapResource in memory, and the loader treats them identically.
 #
+# A match is one MatchCoordinator (the shared clock) plus N boards. Each board is
+# a self-contained sim subtree under its own container node (its own background,
+# zones, markers, obstacles, spawner, build_controller, BoardState, and mobs
+# array). Only the local player's board is interactive and wired to the on-screen
+# HUD/panels. Solo (campaign / solo PVE) is simply num_boards == 1.
+#
 # The map argument is left untyped on purpose (duck-typed field access) to avoid
 # the typed cross-script reference pitfalls noted in the project memory.
 
@@ -18,6 +24,7 @@ const MatchEndPanelScript := preload("res://scripts/match_end_panel.gd")
 const WinPanelScript := preload("res://scripts/win_panel.gd")
 const RoundToastScript := preload("res://scripts/round_toast.gd")
 const PauseMenuScript := preload("res://scripts/pause_menu.gd")
+const ArenaViewScript := preload("res://scripts/arena_view.gd")
 const ObstacleScript := preload("res://scripts/obstacle.gd")
 const ZoneDefinitionScript := preload("res://resources/zone_definition.gd")
 
@@ -27,27 +34,71 @@ const GRASS_TEX := preload("res://assets/maps/summer_grass_tile.png")
 # obstacle cell renders with this single debris prop.
 const OBSTACLE_TEX := preload("res://assets/environment/props/rubble_pile_01.png")
 
-# Builds the full match into `host` from `map`. Returns nothing; everything is
-# parented under host.
+# Horizontal gap (in tiles) between adjacent board containers when more than one
+# board is laid out in world space.
+const BOARD_GAP_TILES := 6
+
+# Solo entry point (unchanged signature): a one-board match. Returns nothing.
 static func load_into(host: Node2D, map) -> void:
-	_setup_background(host, map.grid_size)
-	_setup_zones(host, map.bonus_zones)
-	_setup_markers(host, map.checkpoint_cells)
-	var obstacle_blocked := _setup_obstacles(host, map.obstacle_cells)
+	build_match(host, map, 1)
 
-	# Construct all and wire cross-references BEFORE adding to the scene tree —
-	# each node's _ready may depend on the others being injected.
-
-	# The shared match clock. Solo is a coordinator with a single board; the
-	# multi-board case registers additional boards the same way.
+# Builds an N-board match into `host`. Board 0 is the local (interactive) player;
+# its sim subtree sits at the world origin so existing mouse/cell math is exact.
+# Additional boards are offset to the right (for spectating / the arena view).
+# Returns the array of BoardState nodes (board 0 is the local player).
+static func build_match(host: Node2D, map, num_boards: int = 1) -> Array:
 	var coordinator := MatchCoordinatorScript.new()
 	coordinator.max_rounds = map.round_count
+	host.add_child(coordinator)
+
+	var boards: Array = []
+	var containers: Array = []
+	for i in range(num_boards):
+		var container := Node2D.new()
+		container.name = "Board%d" % i
+		container.position = _board_offset(i, map.grid_size)
+		host.add_child(container)
+		containers.append(container)
+		var board = _build_board(container, map, coordinator, i == 0)
+		boards.append(board)
+
+	# On-screen UI is bound to the local player's board (board 0).
+	_build_match_ui(host, boards[0], boards[0].build_controller)
+
+	# Spectator camera only for multi-board matches; solo frames as before (no camera).
+	if num_boards > 1:
+		var arena := ArenaViewScript.new()
+		arena.coordinator = coordinator
+		arena.board_containers = containers
+		arena.grid_size = map.grid_size
+		arena.local_index = 0
+		host.add_child(arena)
+
+	return boards
+
+static func _board_offset(index: int, grid_size: Vector2i) -> Vector2:
+	if index == 0:
+		return Vector2.ZERO
+	var stride := (grid_size.x + BOARD_GAP_TILES) * GridScript.TILE_SIZE
+	return Vector2(index * stride, 0.0)
+
+# Builds one board's full sim subtree under `container` and returns its BoardState.
+static func _build_board(container: Node2D, map, coordinator, is_local: bool):
+	_setup_background(container, map.grid_size)
+	var zones := _setup_zones(container, map.bonus_zones)
+	_setup_markers(container, map.checkpoint_cells)
+	var obstacle_blocked := _setup_obstacles(container, map.obstacle_cells)
+
+	# Each board owns its own mob list (NOT shared — that would cross-contaminate
+	# targeting and run-completion detection across boards).
+	var mobs: Array = []
 
 	var spawner := SpawnerScript.new()
-	spawner.mobs_array = host.mobs
+	spawner.mobs_array = mobs
 
 	var ctrl := BuildControllerScript.new()
-	ctrl.mobs_array = host.mobs
+	ctrl.interactive = is_local
+	ctrl.mobs_array = mobs
 	ctrl.entry_cell = map.entry_cell
 	ctrl.exit_cell = map.exit_cell
 	ctrl.checkpoint_cells = map.checkpoint_cells
@@ -55,78 +106,85 @@ static func load_into(host: Node2D, map) -> void:
 	ctrl.grid_size = map.grid_size
 	ctrl.blocked = obstacle_blocked  # obstacles are permanent walls from the start
 
-	# Per-board state, driven by the coordinator.
-	var round_manager := RoundManagerScript.new()
-	round_manager.coordinator = coordinator
-	round_manager.spawner = spawner
-	round_manager.mobs_array = host.mobs
-	round_manager.build_controller = ctrl
-	round_manager.mob_count = map.mob_count
-	round_manager.bronze_threshold = map.bronze_threshold
-	round_manager.silver_threshold = map.silver_threshold
-	round_manager.gold_threshold = map.gold_threshold
+	var board := RoundManagerScript.new()
+	board.coordinator = coordinator
+	board.spawner = spawner
+	board.mobs_array = mobs
+	board.build_controller = ctrl
+	board.bonus_zones = zones
+	board.mob_count = map.mob_count
+	board.bronze_threshold = map.bronze_threshold
+	board.silver_threshold = map.silver_threshold
+	board.gold_threshold = map.gold_threshold
 
-	spawner.board = round_manager  # mobs credit damage/kills to this board
-	coordinator.register_board(round_manager)
-	ctrl.round_manager = round_manager
+	spawner.board = board  # mobs credit damage/kills to this board
+	ctrl.round_manager = board
+	coordinator.register_board(board)
 
+	container.add_child(spawner)
+	container.add_child(board)
+	container.add_child(ctrl)
+	return board
+
+static func _build_match_ui(host: Node2D, local_board, local_ctrl) -> void:
 	var hud := HUDScript.new()
-	hud.round_manager = round_manager
-	hud.build_controller = ctrl
+	hud.round_manager = local_board
+	hud.build_controller = local_ctrl
 
 	var match_end := MatchEndPanelScript.new()
-	match_end.round_manager = round_manager
+	match_end.round_manager = local_board
 
 	var win_panel := WinPanelScript.new()
-	win_panel.round_manager = round_manager
+	win_panel.round_manager = local_board
 
 	var round_toast := RoundToastScript.new()
-	round_toast.round_manager = round_manager
+	round_toast.round_manager = local_board
 
 	var pause_menu := PauseMenuScript.new()
-	pause_menu.build_controller = ctrl
-	pause_menu.round_manager = round_manager
+	pause_menu.build_controller = local_ctrl
+	pause_menu.round_manager = local_board
 
-	host.add_child(coordinator)
-	host.add_child(spawner)
-	host.add_child(round_manager)
-	host.add_child(ctrl)
 	host.add_child(hud)
 	host.add_child(match_end)
 	host.add_child(win_panel)
 	host.add_child(round_toast)
 	host.add_child(pause_menu)
 
-static func _setup_background(host: Node2D, grid_size: Vector2i) -> void:
+static func _setup_background(parent: Node2D, grid_size: Vector2i) -> void:
 	var bg := TextureRect.new()
 	bg.texture = GRASS_TEX
 	bg.stretch_mode = TextureRect.STRETCH_TILE
 	bg.size = Vector2(grid_size.x * GridScript.TILE_SIZE, grid_size.y * GridScript.TILE_SIZE)
 	bg.z_index = -100
-	host.add_child(bg)
+	parent.add_child(bg)
 
-static func _setup_obstacles(host: Node2D, obstacle_cells: Array) -> Dictionary:
+static func _setup_obstacles(parent: Node2D, obstacle_cells: Array) -> Dictionary:
 	# Each obstacle cell becomes a permanent wall (seeds the build controller's
 	# pathfinding/placement map) and renders a single-tile debris prop.
 	var blocked := {}
 	for cell in obstacle_cells:
 		var obs := ObstacleScript.new()
-		host.add_child(obs)
+		parent.add_child(obs)
 		obs.setup(OBSTACLE_TEX, cell, 1, 1)
 		for c in obs.cells:
 			blocked[c] = true
 	return blocked
 
-static func _setup_zones(host: Node2D, zone_defs: Array) -> void:
+# Builds this board's zones and returns them as an Array (kept on the BoardState
+# so towers/mobs query only their own board's zones, not a global group).
+static func _setup_zones(parent: Node2D, zone_defs: Array) -> Array:
+	var zones: Array = []
 	for z in zone_defs:
 		var zone := BonusZoneScript.new()
 		zone.type = z.type_name()
 		zone.magnitude = z.magnitude
 		zone.radius = BonusZoneScript.radius_for_magnitude(z.magnitude)
 		zone.position = GridScript.cell_to_world(z.cell)
-		host.add_child(zone)
+		parent.add_child(zone)
+		zones.append(zone)
+	return zones
 
-static func _setup_markers(host: Node2D, checkpoint_cells: Array) -> void:
+static func _setup_markers(parent: Node2D, checkpoint_cells: Array) -> void:
 	# Entry and exit are off-screen (mobs spawn/despawn beyond the map edge), so
 	# only checkpoint markers are drawn.
 	for cell in checkpoint_cells:
@@ -135,4 +193,4 @@ static func _setup_markers(host: Node2D, checkpoint_cells: Array) -> void:
 		marker.position = GridScript.cell_to_world(cell)
 		marker.scale = Vector2(0.55, 0.55)
 		marker.z_index = -40
-		host.add_child(marker)
+		parent.add_child(marker)

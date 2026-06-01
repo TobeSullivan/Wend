@@ -78,7 +78,10 @@ func _current_speed() -> float:
 	# Sum magnitudes of all slow zones the mob currently overlaps.
 	# Same-type additive per DESIGN stacking rule; speed capped at SLOW_FLOOR.
 	var slow_total := 0
-	for zone in get_tree().get_nodes_in_group("bonus_zones"):
+	# Board-scoped: only this board's zones (falls back to the global group if no
+	# board was injected). Prevents a mob from being slowed by another board's zone.
+	var zones: Array = board.bonus_zones if board != null else get_tree().get_nodes_in_group("bonus_zones")
+	for zone in zones:
 		if zone.type != "slow":
 			continue
 		if zone.contains_world(position):

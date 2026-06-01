@@ -32,6 +32,10 @@ var checkpoint_cells: Array  # Array[Vector2i] in visit order
 var max_towers: int = 50  # supply cap — per-map (DESIGN: map variable)
 var grid_size: Vector2i = Vector2i(GridScript.COLS, GridScript.ROWS)  # per-map logical play area
 var round_manager  # RoundManager — untyped to avoid class-name cycle
+# Only the local player's board is interactive. Bot/remote boards still need a
+# controller (for the maze path their spawner walks) but take no input and build
+# no ghost/upgrade-panel/hint/overlay.
+var interactive: bool = true
 
 var towers: Array = []
 var blocked: Dictionary = {}  # Vector2i -> true
@@ -62,27 +66,33 @@ func _ready() -> void:
 	# Draw path overlay under towers and mobs (which are z=0) but over background/markers.
 	z_index = -10
 
-	_ghost = Sprite2D.new()
-	_ghost.texture = LOADED_TEX
-	_ghost.scale = Vector2(TOWER_SCALE, TOWER_SCALE)
-	_ghost.visible = false
-	add_child(_ghost)
+	if interactive:
+		_ghost = Sprite2D.new()
+		_ghost.texture = LOADED_TEX
+		_ghost.scale = Vector2(TOWER_SCALE, TOWER_SCALE)
+		_ghost.visible = false
+		add_child(_ghost)
 
-	_ghost_range = Line2D.new()
-	_ghost_range.width = 2.0
-	_ghost_range.closed = true
-	_ghost_range.visible = false
-	add_child(_ghost_range)
+		_ghost_range = Line2D.new()
+		_ghost_range.width = 2.0
+		_ghost_range.closed = true
+		_ghost_range.visible = false
+		add_child(_ghost_range)
 
-	_upgrade_panel = UpgradePanelScript.new()
-	_upgrade_panel.round_manager = round_manager
-	add_child(_upgrade_panel)
+		_upgrade_panel = UpgradePanelScript.new()
+		_upgrade_panel.round_manager = round_manager
+		add_child(_upgrade_panel)
 
-	if round_manager != null:
-		round_manager.phase_changed.connect(_on_phase_changed)
+		if round_manager != null:
+			round_manager.phase_changed.connect(_on_phase_changed)
 
-	_build_hint_label()
-	_refresh_hint()
+		_build_hint_label()
+		_refresh_hint()
+	else:
+		# Non-interactive board: no input, no per-frame ghost/overlay work.
+		set_process(false)
+		set_process_input(false)
+
 	recompute_path()
 	emit_signal("towers_changed", towers.size(), max_towers)
 
@@ -245,6 +255,7 @@ func _place_tower(cell: Vector2i) -> void:
 	tower.grid_cell = cell
 	tower.position = GridScript.cell_to_world(cell)
 	tower.mobs = mobs_array
+	tower.board = round_manager  # board-scoped zone lookup (set before _ready)
 	tower.total_invested = GameConstants.TOWER_COST
 	get_parent().add_child(tower)
 	towers.append(tower)
