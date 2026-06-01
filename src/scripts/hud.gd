@@ -10,6 +10,7 @@ var _phase_label: Label
 var _score_label: Label
 var _kills_label: Label
 var _towers_label: Label
+var _lives_label: Label  # PVP only
 var _start_button: Button
 var _ff_button: Button
 var _towers_count: int = 0
@@ -45,6 +46,10 @@ func _ready() -> void:
 
 	_round_label = _make_label(22)
 	vbox.add_child(_round_label)
+	_lives_label = _make_label(22)  # PVP only; hidden otherwise
+	_lives_label.add_theme_color_override("font_color", Color(1.0, 0.5, 0.5))
+	_lives_label.visible = false
+	vbox.add_child(_lives_label)
 	_gold_label = _make_label(22)
 	vbox.add_child(_gold_label)
 	_score_label = _make_label(22)
@@ -97,10 +102,21 @@ func _make_label(font_size: int) -> Label:
 	l.add_theme_constant_override("outline_size", 3)
 	return l
 
+func _is_pvp() -> bool:
+	return round_manager != null and round_manager.coordinator != null and round_manager.coordinator.is_pvp
+
 func _refresh() -> void:
 	if round_manager == null:
 		return
-	_round_label.text = "Round %d / %d" % [round_manager.round_num, round_manager.max_rounds]
+	if _is_pvp():
+		var coord = round_manager.coordinator
+		_round_label.text = "Round %d" % round_manager.round_num  # last-standing: no cap
+		_lives_label.visible = true
+		_lives_label.text = "Lives: %d   ·   alive %d/%d" % [
+			round_manager.lives, coord.active_boards().size(), coord.boards.size()]
+	else:
+		_round_label.text = "Round %d / %d" % [round_manager.round_num, round_manager.max_rounds]
+		_lives_label.visible = false
 	_gold_label.text = "Gold: %d" % round_manager.gold
 	_score_label.text = "Score: %d" % round_manager.total_damage_dealt
 	_kills_label.text = "Kills: %d" % round_manager.total_kills

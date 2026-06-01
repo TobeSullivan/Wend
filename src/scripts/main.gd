@@ -20,4 +20,4 @@ func _ready() -> void:
 	# Apply the player's default game speed for the match (menus reset to 1× via
 	# SceneManager). Engine.time_scale scales mobs, towers, and the build timer.
 	Engine.time_scale = float(SaveData.get_setting("default_game_speed"))
-	MapLoader.load_into(self, map)
+	MapLoader.build_match(self, map, SceneManager.pending_board_count)

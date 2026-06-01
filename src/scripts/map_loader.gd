@@ -28,6 +28,7 @@ const ArenaViewScript := preload("res://scripts/arena_view.gd")
 const BotControllerScript := preload("res://scripts/bot_controller.gd")
 const ObstacleScript := preload("res://scripts/obstacle.gd")
 const ZoneDefinitionScript := preload("res://resources/zone_definition.gd")
+const MapResourceScript := preload("res://resources/map_resource.gd")
 
 const CHECKPOINT_TEX := preload("res://assets/maps/level_marker_01.png")
 const GRASS_TEX := preload("res://assets/maps/summer_grass_tile.png")
@@ -50,6 +51,7 @@ static func load_into(host: Node2D, map) -> void:
 static func build_match(host: Node2D, map, num_boards: int = 1) -> Array:
 	var coordinator := MatchCoordinatorScript.new()
 	coordinator.max_rounds = map.round_count
+	coordinator.is_pvp = (map.mode == MapResourceScript.Mode.PVP)
 	host.add_child(coordinator)
 
 	var boards: Array = []
@@ -61,6 +63,8 @@ static func build_match(host: Node2D, map, num_boards: int = 1) -> Array:
 		host.add_child(container)
 		containers.append(container)
 		var board = _build_board(container, map, coordinator, i == 0)
+		if coordinator.is_pvp:
+			board.lives = GameConstants.LIVES_PER_PLAYER
 		boards.append(board)
 
 	# On-screen UI is bound to the local player's board (board 0).

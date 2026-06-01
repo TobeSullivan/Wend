@@ -7,6 +7,10 @@ extends Node
 # exit and the home screen").
 
 const MapResourceScript := preload("res://resources/map_resource.gd")
+const MapGeneratorScript := preload("res://scripts/map_generator.gd")
+
+# PVP: 1 local player + 7 bots (DESIGN_MODES: 8-player solo-queue ranked).
+const PVP_BOARD_COUNT := 8
 
 const HOME_SCENE := "res://scenes/home_screen.tscn"
 const CAMPAIGN_SELECT_SCENE := "res://scenes/campaign_select.tscn"
@@ -32,12 +36,16 @@ const CAMPAIGN_MISSION_COUNT := 10  # design cap; only authored entries are play
 
 # Set before a scene change; consumed by the match scene.
 var pending_map = null
+# Number of boards the match scene builds (1 = solo; PVP = PVP_BOARD_COUNT).
+var pending_board_count := 1
 # Drives the pause-menu variant (single-player pauses the tree; multiplayer does
 # not). Campaign and solo PVE are single-player.
 var current_is_multiplayer := false
 
 func goto_home() -> void:
 	pending_map = null
+	pending_board_count = 1
+	current_is_multiplayer = false
 	get_tree().paused = false
 	Engine.time_scale = 1.0  # menus always run at normal speed
 	get_tree().change_scene_to_file(HOME_SCENE)
@@ -55,7 +63,19 @@ func goto_pve_select() -> void:
 # Solo PVE: a generated map played for score. Single-player for pause purposes.
 func start_pve_map(map) -> void:
 	pending_map = map
+	pending_board_count = 1
 	current_is_multiplayer = false
+	get_tree().paused = false
+	get_tree().change_scene_to_file(MATCH_SCENE)
+
+# PVP: a fully-randomized seeded map played against 7 bots (local sim; real netcode
+# later). Last-standing, lives-based — no score/medals. Multiplayer pause variant.
+func start_pvp() -> void:
+	var match_seed := int(Time.get_unix_time_from_system())  # a fresh map each match
+	var tier := (match_seed % 5) + 1
+	pending_map = MapGeneratorScript.generate(match_seed, tier, MapResourceScript.Mode.PVP)
+	pending_board_count = PVP_BOARD_COUNT
+	current_is_multiplayer = true
 	get_tree().paused = false
 	get_tree().change_scene_to_file(MATCH_SCENE)
 
@@ -67,6 +87,7 @@ func start_campaign_mission(index: int) -> void:
 		push_warning("SceneManager: campaign mission %d is not authored" % index)
 		return
 	pending_map = load(CAMPAIGN_MISSIONS[index])
+	pending_board_count = 1
 	current_is_multiplayer = false
 	get_tree().paused = false
 	get_tree().change_scene_to_file(MATCH_SCENE)

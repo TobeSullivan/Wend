@@ -42,7 +42,10 @@ var gold: int = GameConstants.STARTING_GOLD
 var total_damage_dealt: int = 0
 var total_kills: int = 0
 var gold_goal_hit: bool = false  # has the Gold threshold been reached this match
-var eliminated: bool = false     # PVP only; always false in solo (Phase A)
+# PVP lives (zero-sum across boards). Set by map_loader for PVP; unused otherwise.
+var lives: int = 0
+var kills_this_round: int = 0    # reset by the coordinator after lives resolution
+var eliminated: bool = false     # PVP only; always false in solo
 var _round_kill_gold: int = 0    # kill gold accumulated during the current round
 
 var spawner  # Spawner — untyped to avoid class-name cycle
@@ -115,6 +118,7 @@ func _on_mob_killed() -> void:
 	gold += GameConstants.KILL_BONUS
 	_round_kill_gold += GameConstants.KILL_BONUS
 	total_kills += 1
+	kills_this_round += 1  # drives PVP pairwise lives transfers
 	emit_signal("gold_changed", gold)
 	emit_signal("kills_changed", total_kills)
 

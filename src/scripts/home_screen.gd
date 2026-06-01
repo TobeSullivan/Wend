@@ -85,13 +85,12 @@ func _build_center() -> void:
 	vbox.add_child(pve)
 
 	var pvp := _primary_button("PVP")
-	pvp.disabled = true
-	pvp.tooltip_text = "Coming soon"
+	pvp.pressed.connect(func(): SceneManager.start_pvp())
 	vbox.add_child(pvp)
 
-	var soon := _label("PVP coming soon", 14, Color(0.5, 0.55, 0.65))
-	soon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(soon)
+	var pvp_note := _label("8-player last-standing — vs bots", 14, Color(0.5, 0.55, 0.65))
+	pvp_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(pvp_note)
 
 	vbox.add_child(_spacer(10))
 
