@@ -7,6 +7,8 @@ class_name SettingsPanel
 # (pause menu in-match, home screen otherwise) closes it on Esc, so there's a
 # single Esc arbiter per context and no input race.
 
+const UiStyle := preload("res://scripts/ui_style.gd")
+
 signal closed
 
 var _root: Control
@@ -52,8 +54,16 @@ func _build_ui() -> void:
 
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(460, 0)
-	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	# Centre + grow both so it stays centred as it sizes to its content (PRESET_CENTER
+	# froze the offsets from the pre-content size — same fix as the pause menu).
+	panel.anchor_left = 0.5
+	panel.anchor_top = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_bottom = 0.5
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	UiStyle.apply_panel(panel, 12)
 	_root.add_child(panel)
 
 	var margin := MarginContainer.new()

@@ -1,36 +1,68 @@
 extends Control
 
-# Solo PVE map select (DESIGN_MODES "Navigation from PVE", solo path). Shows the
-# five maps for the current daily window (Scale 1–5); solo players go straight
-# into a match on select. Maps are seeded from the date, so the set is stable for
-# the day and changes daily — locally, with no backend. Leaderboards, time-window
-# variants, and group lobbies are deferred; only a local best score is shown.
+# Solo PVE map select (DESIGN_MODES "Navigation from PVE", solo path). Each time
+# window — Daily / Weekly / Monthly — offers five curated seeded maps (Scale 1–5).
+# Maps are seeded from the window's identity (today's date / this week / this
+# month), so each set is stable for its window and rolls over when the window
+# does, and the three windows never share a map. Local-only, no backend:
+# leaderboards and group lobbies are still deferred; only a local best is shown.
 
 const BG_COLOR := Color(0.07, 0.09, 0.13)
 const MapGen := preload("res://scripts/map_generator.gd")
 const MapResourceScript := preload("res://resources/map_resource.gd")
 
-var _maps: Array = []        # 5 generated MapResources, index 0 = Scale 1
-var _window_date := ""
+# A distinct seed salt per window so Daily/Weekly/Monthly can never collide even
+# if their identity hashes land near each other.
+const WINDOW_SALT := {
+	MapResourceScript.WindowType.DAILY: 0,
+	MapResourceScript.WindowType.WEEKLY: 1_000_003,
+	MapResourceScript.WindowType.MONTHLY: 2_000_003,
+}
+const WEEK_SECONDS := 604800.0  # 7 * 86400
+
+var _windows: Dictionary = {}   # WindowType -> Array of 5 MapResources (Scale 1–5)
+var _current: int = MapResourceScript.WindowType.DAILY
+
+var _title: Label
+var _subtitle: Label
+var _list_box: VBoxContainer
+var _tab_buttons: Dictionary = {}  # WindowType -> Button
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_window_date = _today()
-	_generate_window()
+	_generate_all_windows()
 	_build_background()
 	_build_header()
-	_build_list()
+	_build_tabs()
+	_build_list_container()
+	_show_window(MapResourceScript.WindowType.DAILY)
 
-func _today() -> String:
+# --- Window identity + generation ---
+
+func _generate_all_windows() -> void:
+	for wt in [MapResourceScript.WindowType.DAILY, MapResourceScript.WindowType.WEEKLY, MapResourceScript.WindowType.MONTHLY]:
+		var meta: Dictionary = _window_meta(wt)
+		var base: int = hash(meta.date) + int(WINDOW_SALT[wt])
+		var maps: Array = []
+		for tier in range(1, 6):
+			var map_seed: int = base + tier * 1013
+			maps.append(MapGen.generate(map_seed, tier, MapResourceScript.Mode.PVE, wt, meta.date))
+		_windows[wt] = maps
+
+# Returns {date, label, sub} for a window. `date` is the stable per-window key
+# used for both seeding and local score storage, so the three never overlap.
+func _window_meta(window_type: int) -> Dictionary:
 	var d := Time.get_date_dict_from_system()
-	return "%04d-%02d-%02d" % [d.year, d.month, d.day]
+	match window_type:
+		MapResourceScript.WindowType.WEEKLY:
+			var week := int(Time.get_unix_time_from_system() / WEEK_SECONDS)
+			return {"date": "%04d-W%03d" % [d.year, week % 1000], "label": "Weekly", "sub": "Five maps, Scale 1–5. New set each week."}
+		MapResourceScript.WindowType.MONTHLY:
+			return {"date": "%04d-%02d" % [d.year, d.month], "label": "Monthly", "sub": "Five maps, Scale 1–5. New set each month."}
+		_:
+			return {"date": "%04d-%02d-%02d" % [d.year, d.month, d.day], "label": "Daily", "sub": "Five maps, Scale 1–5. New set each day. Solo run for high score."}
 
-func _generate_window() -> void:
-	# One stable base seed per day; each tier gets a distinct derived seed.
-	var base: int = hash(_window_date)
-	for tier in range(1, 6):
-		var map_seed: int = base + tier * 1013
-		_maps.append(MapGen.generate(map_seed, tier, MapResourceScript.Mode.PVE, MapResourceScript.WindowType.DAILY, _window_date))
+# --- Layout ---
 
 func _build_background() -> void:
 	var bg := ColorRect.new()
@@ -40,17 +72,17 @@ func _build_background() -> void:
 	add_child(bg)
 
 func _build_header() -> void:
-	var title := _label("PVE — Daily", 36, Color.WHITE)
-	title.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	title.offset_left = 40
-	title.offset_top = 28
-	add_child(title)
+	_title = _label("PVE — Daily", 36, Color.WHITE)
+	_title.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_title.offset_left = 40
+	_title.offset_top = 28
+	add_child(_title)
 
-	var subtitle := _label("Five maps, Scale 1–5. New set each day. Solo run for high score.", 16, Color(0.6, 0.65, 0.75))
-	subtitle.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	subtitle.offset_left = 40
-	subtitle.offset_top = 74
-	add_child(subtitle)
+	_subtitle = _label("", 16, Color(0.6, 0.65, 0.75))
+	_subtitle.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_subtitle.offset_left = 40
+	_subtitle.offset_top = 74
+	add_child(_subtitle)
 
 	var back := Button.new()
 	back.text = "← Back"
@@ -63,23 +95,53 @@ func _build_header() -> void:
 	back.pressed.connect(func(): SceneManager.goto_home())
 	add_child(back)
 
-func _build_list() -> void:
+func _build_tabs() -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	row.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	row.offset_left = 40
+	row.offset_top = 108
+	add_child(row)
+
+	for wt in [MapResourceScript.WindowType.DAILY, MapResourceScript.WindowType.WEEKLY, MapResourceScript.WindowType.MONTHLY]:
+		var b := Button.new()
+		b.toggle_mode = true
+		b.text = _window_meta(wt).label
+		b.custom_minimum_size = Vector2(130, 40)
+		b.add_theme_font_size_override("font_size", 16)
+		b.pressed.connect(func(): _show_window(wt))
+		row.add_child(b)
+		_tab_buttons[wt] = b
+
+func _build_list_container() -> void:
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.offset_top = 60  # nudge below the tab bar
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(center)
 
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 12)
-	center.add_child(vbox)
+	_list_box = VBoxContainer.new()
+	_list_box.add_theme_constant_override("separation", 12)
+	center.add_child(_list_box)
 
-	for i in range(_maps.size()):
-		vbox.add_child(_map_card(i))
+# --- Window switching ---
 
-func _map_card(index: int) -> Control:
-	var map: Variant = _maps[index]
+func _show_window(window_type: int) -> void:
+	_current = window_type
+	var meta: Dictionary = _window_meta(window_type)
+	_title.text = "PVE — %s" % meta.label
+	_subtitle.text = meta.sub
+	for wt in _tab_buttons:
+		_tab_buttons[wt].button_pressed = (wt == window_type)
+
+	for child in _list_box.get_children():
+		child.queue_free()
+	for map in _windows[window_type]:
+		_list_box.add_child(_map_card(map))
+
+func _map_card(map) -> Control:
 	var tier: int = map.scale_tier
-	var best: int = SaveData.best_pve_score(_window_date, tier)
+	var best: int = SaveData.best_pve_score(map.window_date, tier)
 
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(560, 0)

@@ -20,6 +20,7 @@ signal build_timer_changed(time_left: float)
 signal match_ended
 signal lives_resolved          # PVP: emitted after each round's lives transfer
 signal board_eliminated(board) # PVP: a board dropped to 0 lives
+signal ready_changed           # PVP: a board's build-phase ready vote changed
 
 var max_rounds: int = 10  # set by map_loader from the MapResource
 
@@ -30,10 +31,22 @@ const PVP_SAFETY_CAP := 60
 
 var round_num: int = 1
 var phase: String = "build"  # "build", "run", or "ended"
+# PVP ready votes for the current build phase. The run starts early only when every
+# active board has readied; otherwise it waits for the build timer (lockstep — no
+# unilateral start, and no fast-forward, in multiplayer).
+var _ready_set: Dictionary = {}
 var build_time_left: float = GameConstants.BUILD_TIME_FIRST
 var match_over: bool = false
 
 var boards: Array = []  # BoardState nodes, registered by map_loader
+
+# Per-frame cap on bot build actions across ALL boards. Each bot action runs a
+# burst of A* path computations; with 7 bots created together their timers fired on
+# the same frame (~90 A* runs at once), producing multi-second build-phase hitches
+# that could trip the OS GPU watchdog. This serializes them to a few per frame —
+# they still build over the (seconds-long) build phase, just without the spike.
+const MAX_BOT_ACTIONS_PER_FRAME := 2
+var _bot_actions_this_frame := 0
 # PVP placement, worst-first: boards are appended as they're eliminated, and the
 # surviving winner(s) are appended last. placement_of() reads this.
 var finish_order: Array = []
@@ -41,7 +54,17 @@ var finish_order: Array = []
 func register_board(board) -> void:
 	boards.append(board)
 
+# A bot asks permission to act this frame; returns false once the frame's budget is
+# spent (the bot keeps its timer and retries next frame). Caps total bot pathfinding
+# per frame regardless of how many bots are ready at once.
+func try_consume_bot_action() -> bool:
+	if _bot_actions_this_frame >= MAX_BOT_ACTIONS_PER_FRAME:
+		return false
+	_bot_actions_this_frame += 1
+	return true
+
 func _process(delta: float) -> void:
+	_bot_actions_this_frame = 0  # reset the per-frame bot budget (coordinator runs first)
 	if match_over:
 		return
 	if phase == "build":
@@ -60,14 +83,40 @@ func mob_hp_for_round() -> float:
 	var growth_rounds := round_num - GameConstants.MOB_HP_FLAT_ROUNDS
 	return GameConstants.MOB_BASE_HP * pow(GameConstants.MOB_HP_GROWTH, growth_rounds)
 
-# Skip the remaining build timer and start the run phase now. In solo this fires
-# immediately; in MP it will gate on all players being ready (a later phase).
+# Single-player (campaign / solo PVE): skip the remaining build timer and start now.
+# Ignored in PVP, where the run is gated on the ready vote (set_board_ready).
 func request_start_now() -> void:
-	if phase != "build":
+	if phase != "build" or is_pvp:
 		return
 	_start_run_phase()
 
+# PVP ready vote. The run starts early once every active board has readied; until
+# then the build timer keeps running and the round simply waits.
+func set_board_ready(board, value: bool) -> void:
+	if not is_pvp or phase != "build":
+		return
+	if value:
+		_ready_set[board] = true
+	else:
+		_ready_set.erase(board)
+	emit_signal("ready_changed")
+	for b in boards:
+		if b.is_active() and not _ready_set.has(b):
+			return  # someone still isn't ready — keep waiting
+	_start_run_phase()
+
+func is_board_ready(board) -> bool:
+	return _ready_set.has(board)
+
+func ready_count() -> int:
+	var n := 0
+	for b in active_boards():
+		if _ready_set.has(b):
+			n += 1
+	return n
+
 func _start_run_phase() -> void:
+	_ready_set.clear()  # ready votes are per build phase
 	phase = "run"
 	emit_signal("phase_changed", phase)
 	var hp := mob_hp_for_round()

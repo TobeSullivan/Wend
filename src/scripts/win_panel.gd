@@ -5,6 +5,8 @@ class_name WinPanel
 # game and lets the player either stop here (they've "won" the level) or keep
 # playing for a higher leaderboard score.
 
+const UiStyle := preload("res://scripts/ui_style.gd")
+
 var round_manager  # RoundManager — untyped to avoid class-name cycle
 
 var _panel: PanelContainer
@@ -21,6 +23,7 @@ func _ready() -> void:
 
 func _build_ui() -> void:
 	_panel = PanelContainer.new()
+	UiStyle.apply_panel(_panel, 12)
 	_panel.anchor_left = 0.5
 	_panel.anchor_top = 0.5
 	_panel.anchor_right = 0.5

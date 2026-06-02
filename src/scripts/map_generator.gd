@@ -111,19 +111,24 @@ static func generate(seed: int, scale_tier: int, mode: int, window_type: int = 0
 
 	return map
 
-# Serpentine checkpoints: spread across the width, alternating top/bottom extremes.
+# Fully randomized checkpoint positions, spread across the interior with a minimum
+# separation so they don't clump. Traversal is NOT enforced here — the caller rolls
+# this several times and keeps the set with the longest entry->...->exit path (and
+# requires a minimum path ratio), so each seed gets genuinely different checkpoint
+# locations rather than the same spots every map.
 static func _place_checkpoints(rng: RandomNumberGenerator, n: int, cols: int, rows: int) -> Array[Vector2i]:
 	var cps: Array[Vector2i] = []
-	for i in range(n):
-		var frac := (float(i) + 1.0) / (float(n) + 1.0)
-		var x := int(round(lerpf(cols * 0.22, cols * 0.82, frac)))
-		x = clampi(x + rng.randi_range(-2, 2), 2, cols - 3)
-		var y: int
-		if i % 2 == 0:
-			y = rng.randi_range(1, int(rows * 0.30))
-		else:
-			y = rng.randi_range(int(rows * 0.70), rows - 2)
-		cps.append(Vector2i(x, y))
+	var attempts := 0
+	while cps.size() < n and attempts < 80:
+		attempts += 1
+		var cand := Vector2i(rng.randi_range(3, cols - 4), rng.randi_range(1, rows - 2))
+		var ok := true
+		for e in cps:
+			if absi(e.x - cand.x) < 4 and absi(e.y - cand.y) < 3:
+				ok = false
+				break
+		if ok:
+			cps.append(cand)
 	return cps
 
 static func _place_zones(rng: RandomNumberGenerator, map, params: Dictionary, blocked: Dictionary, cols: int, rows: int) -> Array:

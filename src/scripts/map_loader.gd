@@ -20,11 +20,13 @@ const BuildControllerScript := preload("res://scripts/build_controller.gd")
 const MatchCoordinatorScript := preload("res://scripts/match_coordinator.gd")
 const RoundManagerScript := preload("res://scripts/round_manager.gd")
 const HUDScript := preload("res://scripts/hud.gd")
+const ActionRailScript := preload("res://scripts/action_rail.gd")
 const MatchEndPanelScript := preload("res://scripts/match_end_panel.gd")
 const WinPanelScript := preload("res://scripts/win_panel.gd")
 const RoundToastScript := preload("res://scripts/round_toast.gd")
 const PauseMenuScript := preload("res://scripts/pause_menu.gd")
-const ArenaViewScript := preload("res://scripts/arena_view.gd")
+const GameViewScript := preload("res://scripts/game_view.gd")
+const MinimapPanelScript := preload("res://scripts/minimap_panel.gd")
 const BotControllerScript := preload("res://scripts/bot_controller.gd")
 const PlaytestLogScript := preload("res://scripts/playtest_log.gd")
 const ObstacleScript := preload("res://scripts/obstacle.gd")
@@ -78,14 +80,25 @@ static func build_match(host: Node2D, map, num_boards: int = 1) -> Array:
 	plog.map = map
 	host.add_child(plog)
 
-	# Spectator camera only for multi-board matches; solo frames as before (no camera).
+	# Game camera in EVERY mode — fits the board into the reserved play rect so the
+	# UI frame never overlaps the play area.
+	var game_view := GameViewScript.new()
+	game_view.coordinator = coordinator
+	game_view.board_containers = containers
+	game_view.grid_size = map.grid_size
+	game_view.local_index = 0
+	game_view.is_pvp = coordinator.is_pvp
+	host.add_child(game_view)
+
+	# Arena minimap only for multi-board matches (PVP).
 	if num_boards > 1:
-		var arena := ArenaViewScript.new()
-		arena.coordinator = coordinator
-		arena.board_containers = containers
-		arena.grid_size = map.grid_size
-		arena.local_index = 0
-		host.add_child(arena)
+		var minimap := MinimapPanelScript.new()
+		minimap.coordinator = coordinator
+		minimap.boards = boards
+		minimap.local_index = 0
+		minimap.grid_size = map.grid_size
+		minimap.arena = game_view
+		host.add_child(minimap)
 
 	return boards
 
@@ -154,6 +167,10 @@ static func _build_match_ui(host: Node2D, local_board, local_ctrl) -> void:
 	hud.round_manager = local_board
 	hud.build_controller = local_ctrl
 
+	var rail := ActionRailScript.new()
+	rail.round_manager = local_board
+	rail.build_controller = local_ctrl
+
 	var match_end := MatchEndPanelScript.new()
 	match_end.round_manager = local_board
 
@@ -168,11 +185,16 @@ static func _build_match_ui(host: Node2D, local_board, local_ctrl) -> void:
 	pause_menu.round_manager = local_board
 
 	host.add_child(hud)
+	host.add_child(rail)
 	host.add_child(match_end)
 	host.add_child(win_panel)
 	host.add_child(round_toast)
 	host.add_child(pause_menu)
 
+# Grass covers exactly the play grid — its edge IS the buildable boundary, so the
+# player can see where they can place (the old over-pad made the off-grid margin
+# look buildable and read as an "invisible blocker"). The area around the board
+# inside the play rect is the dark clear colour (see project.godot), framing it.
 static func _setup_background(parent: Node2D, grid_size: Vector2i) -> void:
 	var bg := TextureRect.new()
 	bg.texture = GRASS_TEX

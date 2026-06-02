@@ -17,7 +17,7 @@ class_name BotController
 const PathfinderScript := preload("res://scripts/pathfinder.gd")
 
 const ACTION_INTERVAL := 0.2   # seconds between actions (run-phase FF speeds this up)
-const SAMPLE_K := 12           # candidate cells evaluated per placement (bounds cost)
+const SAMPLE_K := 8            # candidate cells evaluated per placement (bounds cost)
 # Upgrade preference order (repeats bias the spend toward damage/attack speed).
 const UPGRADE_PREF := ["damage", "attack_speed", "damage", "range", "crit_chance",
 	"attack_speed", "crit_damage", "damage", "multishot"]
@@ -39,6 +39,10 @@ func _process(delta: float) -> void:
 	_accum += delta
 	if _accum < ACTION_INTERVAL:
 		return
+	# Respect the coordinator's per-frame bot budget so all the bots can't run their
+	# pathfinding bursts on the same frame (which caused build-phase spikes/crashes).
+	if not coordinator.try_consume_bot_action():
+		return  # over budget this frame — keep the timer and retry next frame
 	_accum = 0.0
 	_take_one_action()
 
@@ -48,7 +52,12 @@ func _take_one_action() -> void:
 		if cell != null and ctrl.bot_place_tower(cell):
 			return
 	# At target, or no useful placement, or out of tower money: invest in upgrades.
-	_try_upgrade()
+	if _try_upgrade():
+		return
+	# Nothing useful left to do this build phase — vote ready so PVP rounds can start
+	# early once every board (incl. the human) is done.
+	if coordinator.is_pvp:
+		coordinator.set_board_ready(board, true)
 
 func _target_towers() -> int:
 	var t := int((6 + coordinator.round_num * 3) * difficulty)

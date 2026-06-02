@@ -33,17 +33,19 @@ Each mission has a per-mission leaderboard (total damage dealt). Bronze/Silver/G
 
 Mission 1 is the forgiving big-sandbox intro that exposes everything at once. Each later mission **isolates one decision** on a rising curve; mission 10 integrates all of it as a bridge into PVE Scale 5. Difficulty climbs mainly via round count (mob HP scales ×1.12/round after round 5) and mob count, with supply deliberately *tightened* on the missions whose lesson is investment efficiency. Crit and multishot are taught through the upgrade stats (there are no crit/multishot bonus zones — only DAMAGE/ATTACK_SPEED/RANGE/SLOW exist).
 
+**Grid is uniform: every mission is the full 40×22 board (updated 2026-06-01).** Variable per-mission grid sizes were dropped — the playfield must never change size between missions. The original authored layouts (missions 2–9 were smaller) were proportionally rescaled to fill the full grid; each mission's gameplay tuning (CP/zones/obstacles/supply/rounds/mobs) is unchanged, so the curriculum's lessons are intact. (Soft thresholds and supply may want re-tuning on the larger boards once playtest scores come in — same uncalibrated status as before.)
+
 | # | Name | Teaches (the one decision) | Grid | CP | Zones | Obst. | Supply | Rounds | Mobs |
 |---|------|------|------|----|-------|------|--------|--------|------|
 | 1 | First Contact | Basics — maze, upgrade, use zones | 40×22 | 3 | 4 | 8 | 100 | 10 | 8 |
-| 2 | The Long Way | Mazing — path length *is* damage | 26×16 | 1 | 0 | 0 | 35 | 9 | 8 |
-| 3 | Switchback | Checkpoints force the route | 30×18 | 2 | 0 | 2 | 45 | 10 | 10 |
-| 4 | Hot Spots | Tower-buff zones + color synergy | 32×18 | 2 | 3 (dmg/atk/rng) | 3 | 50 | 11 | 12 |
-| 5 | Cold Feet | Slow zones — time-on-tower as a weapon | 34×20 | 2 | 3 (2 slow + dmg) | 4 | 60 | 12 | 14 |
-| 6 | Sharp Shooters | Crit upgrades — go *tall*, not wide | 30×18 | 2 | 2 (dmg/atk) | 4 | 40 (tight) | 12 | 12 |
-| 7 | Spread the Love | Multishot — punish a bunched train | 34×20 | 3 | 2 (atk/rng) | 4 | 60 | 13 | 16 |
-| 8 | Tight Quarters | Maze around heavy obstacles, low supply | 32×20 | 2 | 2 | 12 | 45 (tight) | 13 | 14 |
-| 9 | Compound Interest | Economy — save vs. spend, interest cap | 36×20 | 2 | 3 | 5 | 80 | 16 | 16 |
+| 2 | The Long Way | Mazing — path length *is* damage | 40×22 | 1 | 0 | 0 | 35 | 9 | 8 |
+| 3 | Switchback | Checkpoints force the route | 40×22 | 2 | 0 | 2 | 45 | 10 | 10 |
+| 4 | Hot Spots | Tower-buff zones + color synergy | 40×22 | 2 | 3 (dmg/atk/rng) | 3 | 50 | 11 | 12 |
+| 5 | Cold Feet | Slow zones — time-on-tower as a weapon | 40×22 | 2 | 3 (2 slow + dmg) | 4 | 60 | 12 | 14 |
+| 6 | Sharp Shooters | Crit upgrades — go *tall*, not wide | 40×22 | 2 | 2 (dmg/atk) | 4 | 40 (tight) | 12 | 12 |
+| 7 | Spread the Love | Multishot — punish a bunched train | 40×22 | 3 | 2 (atk/rng) | 4 | 60 | 13 | 16 |
+| 8 | Tight Quarters | Maze around heavy obstacles, low supply | 40×22 | 2 | 2 | 12 | 45 (tight) | 13 | 14 |
+| 9 | Compound Interest | Economy — save vs. spend, interest cap | 40×22 | 2 | 3 | 5 | 80 | 16 | 16 |
 | 10 | The Gauntlet | Capstone — everything, incl. zone stacking | 40×22 | 3 | 6 (2 dmg stack + atk/rng + 2 slow) | 8 | 100 | 18 | 20 |
 
 Thresholds for 2–10 follow mission 1's approved ratio (silver ≈ 1.875 × supply × rounds; bronze ≈ ⅔ silver; gold ≈ 4⁄3 silver), rounded clean. They are **soft and uncalibrated** — same status as the PVE thresholds, to be tuned once real campaign scores come in.
@@ -339,6 +341,18 @@ Win modal "Return Home", pause menu "Quit to Menu", and post-match screens all l
 
 ---
 
+## In-match UI frame (added 2026-06-01)
+
+The board no longer fills the whole screen. The play area is **fit by a game camera into a reserved play rect**, with fixed UI zones around it so HUD chrome can never overlap placeable tiles (the old full-screen board made every panel overlap the play area). Layout:
+
+- **Top bar** (full width): round / phase / build timer on the left; gold / score / kills (+ lives in PVP) on the right.
+- **Right rail** (always present): action cluster (Build toggle, Start Round, Speed) and a **docked tower inspector** — selecting a tower shows its six upgrade stats here instead of a panel floating over the board. When nothing is selected it shows the map objectives (Bronze/Silver/Gold + score) in Campaign/PVE, else a controls hint.
+- **Left dock** (PVP only): the arena minimap.
+- **Play rect**: the remaining centre; the board is camera-fit and centred there. Tradeoff: the board renders smaller than full-screen (~82% solo/PVE, ~71% PVP) but is fully visible and never occluded.
+- Modals (pause, settings, win, match-end) are centred overlays.
+
+Geometry lives in one place (`ui_layout.gd`) shared by the camera, the bars/dock, and the board click gate (clicks outside the play rect are ignored by the board). Implemented by `game_view.gd` (camera, all modes), `hud.gd` (top bar), `action_rail.gd` (rail + inspector), `minimap_panel.gd` (dock), styled via `ui_style.gd`.
+
 ## Pause menu
 
 ### Trigger
@@ -348,6 +362,10 @@ Esc key. Uses a priority stack — deepest open UI layer closes first:
 1. Upgrade panel open → Esc closes upgrade panel
 2. Build mode active (no upgrade panel) → Esc exits build mode
 3. Neither → Esc opens pause menu
+
+### Objectives readout (added 2026-06-01)
+
+In Campaign and PVE (any window, solo or group), the pause menu shows the map's medal targets — Bronze / Silver / Gold — alongside the player's current score, with reached targets highlighted. PVP carries no medals, so it shows no objectives block. Gated on the map having a Gold threshold.
 
 ### Single player (Campaign + solo PVE)
 

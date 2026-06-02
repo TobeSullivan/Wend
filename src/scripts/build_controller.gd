@@ -2,9 +2,9 @@ extends Node2D
 class_name BuildController
 
 const TowerScript := preload("res://scripts/tower.gd")
-const UpgradePanelScript := preload("res://scripts/upgrade_panel.gd")
 const GridScript := preload("res://scripts/grid.gd")
 const PathfinderScript := preload("res://scripts/pathfinder.gd")
+const UiLayout := preload("res://scripts/ui_layout.gd")
 const LOADED_TEX := preload("res://assets/towers/arrow_box_loaded.png")
 
 const TOWER_SCALE := 0.12
@@ -23,6 +23,9 @@ const DASH_FLOW_SPEED := 70.0  # pixels/sec — speed dashes scroll along the pa
 const OFFSCREEN_PAD := 160.0
 
 signal towers_changed(count: int, cap: int)
+# The action rail listens to these to show/hide the docked tower inspector.
+signal tower_selected(tower)
+signal selection_cleared
 
 # Configured by main.gd before tree entry.
 var mobs_array: Array
@@ -42,9 +45,7 @@ var blocked: Dictionary = {}  # Vector2i -> true
 
 var _ghost: Sprite2D
 var _ghost_range: Line2D
-var _upgrade_panel  # UpgradePanel
-var _hint_layer: CanvasLayer
-var _hint_label: Label
+var _selected_tower  # Tower currently shown in the action-rail inspector (or null)
 
 var _build_mode: bool = false
 var _current_path: PackedVector2Array = PackedVector2Array()
@@ -79,15 +80,10 @@ func _ready() -> void:
 		_ghost_range.visible = false
 		add_child(_ghost_range)
 
-		_upgrade_panel = UpgradePanelScript.new()
-		_upgrade_panel.round_manager = round_manager
-		add_child(_upgrade_panel)
-
+		# The tower inspector now lives in the action rail (built by map_loader); the
+		# controller just emits tower_selected / selection_cleared for it to react to.
 		if round_manager != null:
 			round_manager.phase_changed.connect(_on_phase_changed)
-
-		_build_hint_label()
-		_refresh_hint()
 	else:
 		# Non-interactive board: no input, no per-frame ghost/overlay work.
 		set_process(false)
@@ -95,18 +91,6 @@ func _ready() -> void:
 
 	recompute_path()
 	emit_signal("towers_changed", towers.size(), max_towers)
-
-func _build_hint_label() -> void:
-	_hint_layer = CanvasLayer.new()
-	_hint_layer.layer = 5
-	add_child(_hint_layer)
-	_hint_label = Label.new()
-	_hint_label.position = Vector2(20, 20)
-	_hint_label.add_theme_font_size_override("font_size", 18)
-	_hint_label.add_theme_color_override("font_color", Color.WHITE)
-	_hint_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	_hint_label.add_theme_constant_override("outline_size", 4)
-	_hint_layer.add_child(_hint_label)
 
 func _process(delta: float) -> void:
 	_anim_time += delta
@@ -154,10 +138,17 @@ func _input(event: InputEvent) -> void:
 		return
 
 	var mouse_event: InputEventMouseButton = event
-	if _upgrade_panel != null and _upgrade_panel.contains_screen_point(mouse_event.position):
+	# Ignore clicks on the reserved UI chrome (top bar / right rail / left dock) —
+	# only clicks inside the play rect act on the board. This one screen-space gate
+	# keeps board logic from firing (e.g. deselecting a tower) when you click a HUD
+	# control, replacing the old floating-panel hit test.
+	var is_pvp: bool = round_manager != null and round_manager.coordinator != null and round_manager.coordinator.is_pvp
+	if not UiLayout.play_rect(is_pvp, get_viewport_rect().size).has_point(mouse_event.position):
 		return
 
-	var cell := GridScript.world_to_cell(mouse_event.position)
+	# The placement cell comes from the WORLD mouse position, not the raw event
+	# (screen) position — they diverge under the game camera (zoom + offset).
+	var cell := GridScript.world_to_cell(get_global_mouse_position())
 
 	if event.button_index == MOUSE_BUTTON_LEFT:
 		if _build_mode:
@@ -172,14 +163,14 @@ func _input(event: InputEvent) -> void:
 		else:
 			var tower_at := _tower_at_cell(cell)
 			if tower_at != null:
-				_upgrade_panel.show_for(tower_at)
+				_select_tower(tower_at)
 			else:
-				_upgrade_panel.hide_panel()
+				_clear_selection()
 	elif event.button_index == MOUSE_BUTTON_RIGHT:
 		if _build_mode:
 			_set_build_mode(false)
 		else:
-			_upgrade_panel.hide_panel()
+			_clear_selection()
 			if _in_build_phase():
 				_sell_tower_at_cell(cell)
 
@@ -187,15 +178,37 @@ func _set_build_mode(value: bool) -> void:
 	if value and not _in_build_phase():
 		return
 	_build_mode = value
-	_ghost.visible = value
-	_ghost_range.visible = value
+	if _ghost != null:
+		_ghost.visible = value
+	if _ghost_range != null:
+		_ghost_range.visible = value
 	_last_ghost_cell = _NO_CELL  # force a fresh validity/path compute on next hover
 	if value:
 		_ghost_range.points = _circle_points(GameConstants.TOWER_BASE_RANGE)
-		_upgrade_panel.hide_panel()
+		_clear_selection()  # can't inspect a tower while placing
 	else:
 		_show_projected = false
-	_refresh_hint()
+
+# Public toggle for the action-rail Build button.
+func toggle_build_mode() -> void:
+	_set_build_mode(not _build_mode)
+
+# --- Tower selection (drives the action-rail inspector) ---
+
+func _select_tower(tower: Node2D) -> void:
+	if _selected_tower != null and _selected_tower != tower and is_instance_valid(_selected_tower):
+		_selected_tower.set_selected(false)
+	_selected_tower = tower
+	if is_instance_valid(_selected_tower):
+		_selected_tower.set_selected(true)
+	emit_signal("tower_selected", tower)
+
+func _clear_selection() -> void:
+	if _selected_tower != null and is_instance_valid(_selected_tower):
+		_selected_tower.set_selected(false)
+	if _selected_tower != null:
+		_selected_tower = null
+		emit_signal("selection_cleared")
 
 # --- Esc priority-stack hooks, driven by PauseMenu ---
 
@@ -203,11 +216,10 @@ func is_build_mode() -> bool:
 	return _build_mode
 
 func is_upgrade_panel_open() -> bool:
-	return _upgrade_panel != null and _upgrade_panel.is_visible_panel()
+	return _selected_tower != null
 
 func close_upgrade_panel() -> void:
-	if _upgrade_panel != null:
-		_upgrade_panel.hide_panel()
+	_clear_selection()
 
 func exit_build_mode() -> void:
 	_set_build_mode(false)
@@ -218,12 +230,6 @@ func _in_build_phase() -> bool:
 func _on_phase_changed(phase: String) -> void:
 	if phase == "run" and _build_mode:
 		_set_build_mode(false)
-
-func _refresh_hint() -> void:
-	if _build_mode:
-		_hint_label.text = "BUILD MODE — left-click to place (%dg), right-click / Esc to exit" % GameConstants.TOWER_COST
-	else:
-		_hint_label.text = "[B] build  |  click tower to upgrade  |  right-click tower to sell (30%% refund)"
 
 func _tower_at_cell(cell: Vector2i) -> Node2D:
 	for t in towers:
@@ -282,6 +288,8 @@ func _sell_tower_at_cell(cell: Vector2i) -> void:
 			towers.remove_at(i)
 			continue
 		if t.grid_cell == cell:
+			if t == _selected_tower:
+				_clear_selection()  # close the inspector for the tower being sold
 			var refund := int(floor(t.total_invested * GameConstants.SELL_REFUND_RATE))
 			if round_manager != null:
 				round_manager.refund(refund)

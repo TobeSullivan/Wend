@@ -1,78 +1,75 @@
 extends CanvasLayer
 class_name HUD
 
+# Top status bar (part of the reserved UI frame). Full-width strip across the top
+# showing match state: round / phase / timer on the left, resources on the right.
+# The Start-Round and Speed controls live here for now; Phase 3 moves them into the
+# right action rail and slims this bar to pure status.
+
+const UiLayout := preload("res://scripts/ui_layout.gd")
+const UiStyle := preload("res://scripts/ui_style.gd")
+
 var round_manager  # RoundManager — untyped to avoid class-name cycle
 var build_controller  # BuildController — untyped to avoid class-name cycle
 
-var _gold_label: Label
 var _round_label: Label
 var _phase_label: Label
+var _gold_label: Label
 var _score_label: Label
 var _kills_label: Label
 var _towers_label: Label
 var _lives_label: Label  # PVP only
-var _start_button: Button
-var _ff_button: Button
 var _towers_count: int = 0
 var _towers_cap: int = 0
-
-# Fast-forward (single-player). Cycles 1x -> 2x -> 3x -> 1x. The selected
-# multiplier only applies during the run phase; build phase always runs at 1x
-# so the build timer isn't drained faster.
-const FF_MULTS := [1.0, 2.0, 3.0]
-var _ff_index: int = 0
 
 func _ready() -> void:
 	layer = 6
 
 	var panel := PanelContainer.new()
-	panel.anchor_left = 1.0
+	panel.anchor_left = 0.0
 	panel.anchor_right = 1.0
-	panel.offset_left = -260
-	panel.offset_right = -20
-	panel.offset_top = 20
+	panel.anchor_top = 0.0
+	panel.anchor_bottom = 0.0
+	panel.offset_left = 0.0
+	panel.offset_right = 0.0
+	panel.offset_top = 0.0
+	panel.offset_bottom = UiLayout.TOP_BAR_H
+	UiStyle.apply_bar(panel)
 	add_child(panel)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 14)
-	margin.add_theme_constant_override("margin_right", 14)
-	margin.add_theme_constant_override("margin_top", 10)
-	margin.add_theme_constant_override("margin_bottom", 10)
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_top", 4)
+	margin.add_theme_constant_override("margin_bottom", 4)
 	panel.add_child(margin)
 
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 4)
-	margin.add_child(vbox)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 18)
+	margin.add_child(row)
 
-	_round_label = _make_label(22)
-	vbox.add_child(_round_label)
-	_lives_label = _make_label(22)  # PVP only; hidden otherwise
-	_lives_label.add_theme_color_override("font_color", Color(1.0, 0.5, 0.5))
+	_round_label = _make_label(20)
+	row.add_child(_round_label)
+	_phase_label = _make_label(20)
+	row.add_child(_phase_label)
+
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(spacer)
+
+	_lives_label = _make_label(20)  # PVP only
+	_lives_label.add_theme_color_override("font_color", Color(1.0, 0.55, 0.55))
 	_lives_label.visible = false
-	vbox.add_child(_lives_label)
-	_gold_label = _make_label(22)
-	vbox.add_child(_gold_label)
-	_score_label = _make_label(22)
-	vbox.add_child(_score_label)
-	_kills_label = _make_label(18)
-	vbox.add_child(_kills_label)
-	_towers_label = _make_label(18)
-	vbox.add_child(_towers_label)
-	_phase_label = _make_label(18)
-	vbox.add_child(_phase_label)
-
-	_start_button = Button.new()
-	_start_button.text = "Start Round"
-	_start_button.custom_minimum_size = Vector2(0, 38)
-	_start_button.add_theme_font_size_override("font_size", 16)
-	_start_button.pressed.connect(_on_start_pressed)
-	vbox.add_child(_start_button)
-
-	_ff_button = Button.new()
-	_ff_button.custom_minimum_size = Vector2(0, 34)
-	_ff_button.add_theme_font_size_override("font_size", 16)
-	_ff_button.pressed.connect(_on_ff_pressed)
-	vbox.add_child(_ff_button)
+	row.add_child(_lives_label)
+	_gold_label = _make_label(20)
+	_gold_label.add_theme_color_override("font_color", Color(1.0, 0.92, 0.5))
+	row.add_child(_gold_label)
+	_score_label = _make_label(20)
+	row.add_child(_score_label)
+	_kills_label = _make_label(20)
+	row.add_child(_kills_label)
+	_towers_label = _make_label(20)
+	row.add_child(_towers_label)
 
 	if round_manager != null:
 		round_manager.gold_changed.connect(func(_g): _refresh())
@@ -100,6 +97,7 @@ func _make_label(font_size: int) -> Label:
 	l.add_theme_color_override("font_color", Color.WHITE)
 	l.add_theme_color_override("font_outline_color", Color.BLACK)
 	l.add_theme_constant_override("outline_size", 3)
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	return l
 
 func _is_pvp() -> bool:
@@ -109,11 +107,9 @@ func _refresh() -> void:
 	if round_manager == null:
 		return
 	if _is_pvp():
-		var coord = round_manager.coordinator
 		_round_label.text = "Round %d" % round_manager.round_num  # last-standing: no cap
 		_lives_label.visible = true
-		_lives_label.text = "Lives: %d   ·   alive %d/%d" % [
-			round_manager.lives, coord.active_boards().size(), coord.boards.size()]
+		_lives_label.text = "Lives: %d" % round_manager.lives
 	else:
 		_round_label.text = "Round %d / %d" % [round_manager.round_num, round_manager.max_rounds]
 		_lives_label.visible = false
@@ -123,29 +119,7 @@ func _refresh() -> void:
 	_towers_label.text = "Towers: %d / %d" % [_towers_count, _towers_cap]
 	if round_manager.match_over:
 		_phase_label.text = "MATCH ENDED"
-		_start_button.visible = false
 	elif round_manager.phase == "build":
 		_phase_label.text = "BUILD — %.0fs" % round_manager.build_time_left
-		_start_button.visible = true
 	else:
 		_phase_label.text = "RUN"
-		_start_button.visible = false
-
-	_ff_button.text = "Speed: %dx" % int(FF_MULTS[_ff_index])
-	_apply_time_scale()
-
-func _on_start_pressed() -> void:
-	if round_manager != null:
-		round_manager.request_start_now()
-
-func _on_ff_pressed() -> void:
-	_ff_index = (_ff_index + 1) % FF_MULTS.size()
-	_ff_button.text = "Speed: %dx" % int(FF_MULTS[_ff_index])
-	_apply_time_scale()
-
-# FF only speeds the run phase. Build phase and post-match run at 1x.
-func _apply_time_scale() -> void:
-	if round_manager != null and round_manager.phase == "run" and not round_manager.match_over:
-		Engine.time_scale = FF_MULTS[_ff_index]
-	else:
-		Engine.time_scale = 1.0

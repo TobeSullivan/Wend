@@ -105,6 +105,11 @@ func take_hit(damage: float, is_crit: bool = false, source: Node2D = null) -> vo
 func _spawn_damage_number(amount: float, is_crit: bool) -> void:
 	if not bool(SaveData.get_setting("damage_numbers")):
 		return
+	# Only the board currently on screen spawns cosmetic FX. In PVP the other 7
+	# boards sim invisibly; spawning their damage numbers / death poofs was pure
+	# waste and the main FX load behind the fast-forward stalls.
+	if not is_visible_in_tree():
+		return
 	var dn := DamageNumberScript.new()
 	get_parent().add_child(dn)
 	dn.setup(amount, is_crit, position)
@@ -112,9 +117,12 @@ func _spawn_damage_number(amount: float, is_crit: bool) -> void:
 # Per DESIGN: the mob never stops. It "explodes" (visual only) and instantly
 # resets HP, continuing along the path without any pause in movement.
 func _explode_and_respawn() -> void:
-	var fx := DeathFxScript.new()
-	get_parent().add_child(fx)
-	fx.setup(position, anim.rotation)
+	# Cosmetic only — skip the death poof on off-screen boards (kept the gameplay
+	# reset + kill credit below, which must run on every board regardless).
+	if is_visible_in_tree():
+		var fx := DeathFxScript.new()
+		get_parent().add_child(fx)
+		fx.setup(position, anim.rotation)
 	hp = max_hp
 	if board != null:
 		board._on_mob_killed()

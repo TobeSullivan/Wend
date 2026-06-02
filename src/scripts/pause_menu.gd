@@ -13,6 +13,7 @@ class_name PauseMenu
 
 const MapResourceScript := preload("res://resources/map_resource.gd")
 const SettingsPanelScript := preload("res://scripts/settings_panel.gd")
+const UiStyle := preload("res://scripts/ui_style.gd")
 
 var build_controller  # BuildController — untyped to avoid class-name cycle
 var round_manager     # RoundManager — untyped to avoid class-name cycle
@@ -27,6 +28,10 @@ var _confirm_dim: ColorRect
 var _confirm_panel: PanelContainer
 var _confirm_label: Label
 var _pending_confirm: Callable = Callable()
+
+# Objectives readout (Bronze/Silver/Gold) — Campaign & PVE only; PVP has no medals.
+var _obj_score: Label
+var _obj_rows: Array = []  # [{name, threshold, color, label}]
 
 func _ready() -> void:
 	layer = 30  # above HUD/upgrade panel; match-end/win guard prevents stacking
@@ -63,6 +68,8 @@ func _populate_menu() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
 	vbox.add_child(_spacer(8))
+
+	_build_objectives(vbox)
 
 	vbox.add_child(_menu_button("Resume", _resume))
 
@@ -143,6 +150,7 @@ func _can_open() -> bool:
 
 func _open_menu() -> void:
 	_open = true
+	_refresh_objectives()  # reflect the score as of this open (live in group PVE)
 	_dim.visible = true
 	_menu_panel.visible = true
 	if not is_multiplayer:
@@ -155,6 +163,52 @@ func _resume() -> void:
 	_menu_panel.visible = false
 	if not is_multiplayer:
 		get_tree().paused = false
+
+# --- Objectives (Bronze / Silver / Gold) ---
+
+# Campaign and PVE carry medal thresholds; PVP leaves them at 0 (last-standing,
+# no medals), so the objectives block is shown only when a Gold threshold exists.
+func _has_objectives() -> bool:
+	return round_manager != null and round_manager.gold_threshold > 0
+
+func _build_objectives(vbox: VBoxContainer) -> void:
+	if not _has_objectives():
+		return
+
+	var header := _label("Objectives", 18, Color(0.78, 0.84, 0.96))
+	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(header)
+
+	_obj_score = _label("", 16, Color(1.0, 0.95, 0.7))
+	_obj_score.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(_obj_score)
+
+	_obj_rows = [
+		{"name": "Gold", "threshold": int(round_manager.gold_threshold), "color": Color(1.0, 0.84, 0.3)},
+		{"name": "Silver", "threshold": int(round_manager.silver_threshold), "color": Color(0.82, 0.86, 0.92)},
+		{"name": "Bronze", "threshold": int(round_manager.bronze_threshold), "color": Color(0.86, 0.62, 0.42)},
+	]
+	for row in _obj_rows:
+		var l := _label("", 16, row.color)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		row["label"] = l
+		vbox.add_child(l)
+
+	vbox.add_child(_spacer(10))
+	_refresh_objectives()
+
+func _refresh_objectives() -> void:
+	if not _has_objectives() or _obj_score == null:
+		return
+	var dmg: int = round_manager.total_damage_dealt
+	_obj_score.text = "Your score: %d" % dmg
+	for row in _obj_rows:
+		var reached: bool = dmg >= int(row.threshold)
+		row.label.text = "%s   %d%s" % [row.name, int(row.threshold), "   ·  reached" if reached else ""]
+		var c: Color = row.color
+		if not reached:
+			c = Color(c.r, c.g, c.b, 0.5)  # dim the targets not yet hit
+		row.label.add_theme_color_override("font_color", c)
 
 # --- Confirm dialog ---
 
@@ -212,8 +266,22 @@ func _make_dim() -> ColorRect:
 func _make_centered_panel(min_size: Vector2) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = min_size
-	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	# Anchor to the screen centre and grow in both directions so the panel stays
+	# truly centred as it sizes to its content. PRESET_CENTER froze the offsets
+	# from the panel's size at build time — before any children were added, so
+	# height was 0 — which left the finished menu sitting low and off-centre.
+	panel.anchor_left = 0.5
+	panel.anchor_top = 0.5
+	panel.anchor_right = 0.5
+	panel.anchor_bottom = 0.5
+	panel.offset_left = 0.0
+	panel.offset_top = 0.0
+	panel.offset_right = 0.0
+	panel.offset_bottom = 0.0
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	UiStyle.apply_panel(panel, 12)
 	return panel
 
 func _panel_vbox(panel: PanelContainer) -> VBoxContainer:

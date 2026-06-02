@@ -7,6 +7,8 @@ class_name MatchEndPanel
 #   - pvp_eliminated: local board knocked out mid-match — placement + Spectate /
 #     Quit to Menu (the match keeps running; the player can watch via the camera)
 
+const UiStyle := preload("res://scripts/ui_style.gd")
+
 var round_manager  # RoundManager (local board) — untyped to avoid class-name cycle
 
 var _panel: PanelContainer
@@ -38,6 +40,7 @@ func _ready() -> void:
 
 func _build_ui() -> void:
 	_panel = PanelContainer.new()
+	UiStyle.apply_panel(_panel, 12)
 	_panel.anchor_left = 0.5
 	_panel.anchor_top = 0.5
 	_panel.anchor_right = 0.5
