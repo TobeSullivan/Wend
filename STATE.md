@@ -53,7 +53,9 @@ Calibration needs the repo + that local file, which is why next session belongs 
 
 ### Session log (chronological, most recent first)
 
-**PVP ready-vote + no fast-forward (2026-06-02), not committed.** PVP is lockstep, so unilateral start / fast-forward were wrong.
+**Committed + pushed `a6c11a2` (2026-06-02).** The whole adjustment + UI-frame batch below landed on `main` and was pushed to origin. Also flipped `PlaytestLog.ENABLED` to false (off) — the `user://playtest_log.jsonl` data persists on disk, so thresholds can still be calibrated from it later; just re-enable to log more.
+
+**PVP ready-vote + no fast-forward (2026-06-02), committed in `a6c11a2`.** PVP is lockstep, so unilateral start / fast-forward were wrong.
 - `match_coordinator`: PVP ready system — `set_board_ready(board, value)` tracks per-build-phase votes (`_ready_set`, cleared at each run start); the run starts early only once every active board has readied, else it waits for the build timer. `request_start_now()` is now a no-op in PVP. New `ready_changed` signal + `is_board_ready`/`ready_count` for the UI. Bots auto-vote ready (`bot_controller`) once they've nothing useful left to build/upgrade.
 - `action_rail`: in PVP the Start button becomes a **Ready** toggle showing `✓/○ Ready (n/m)`; the **Speed button is omitted** and `_apply_time_scale` forces 1x. Solo/PVE keep Start Round + Speed. Verified headless (9/9): no speed button in PVP, unilateral start ignored, ready vote waits for all then starts, 1x forced; solo Start Round + Speed intact.
 - **Bot crash fix confirmed in-app** — the user's PVP no longer crashed.

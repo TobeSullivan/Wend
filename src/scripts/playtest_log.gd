@@ -10,7 +10,7 @@ class_name PlaytestLog
 # then flip ENABLED off (or delete this logger). Writes ONLY to user:// — never
 # the repo. See STATE.md "Threshold calibration".
 
-const ENABLED := true
+const ENABLED := false  # off after the UI/adjustment session; flip true to log again
 const PATH := "user://playtest_log.jsonl"
 
 var board        # local BoardState (round_manager) — untyped
