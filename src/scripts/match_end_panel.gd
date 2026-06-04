@@ -8,6 +8,7 @@ class_name MatchEndPanel
 #     Quit to Menu (the match keeps running; the player can watch via the camera)
 
 const UiStyle := preload("res://scripts/ui_style.gd")
+const StarRatingScript := preload("res://scripts/star_rating.gd")
 
 var round_manager  # RoundManager (local board) — untyped to avoid class-name cycle
 
@@ -15,17 +16,19 @@ var _panel: PanelContainer
 var _title_label: Label
 var _result_label: Label
 var _detail_label: Label
+var _stars_row: HBoxContainer    # medal mode: the earned star tier
 var _thresholds_vbox: VBoxContainer
 var _buttons_vbox: VBoxContainer
 
-const MEDAL_COLORS := {
+const STAR_FOR_MEDAL := {"gold": 3, "silver": 2, "bronze": 1, "none": 0}
+const MEDAL_RESULT := {
+	"gold": "Three stars!", "silver": "Two stars", "bronze": "One star", "none": "No stars — try again",
+}
+const MEDAL_RESULT_COLOR := {
 	"gold":   Color(1.0, 0.85, 0.2),
 	"silver": Color(0.85, 0.85, 0.9),
 	"bronze": Color(0.85, 0.55, 0.25),
-	"none":   Color(0.7, 0.7, 0.7),
-}
-const MEDAL_LABELS := {
-	"gold": "GOLD", "silver": "SILVER", "bronze": "BRONZE", "none": "No medal — try again",
+	"none":   Color(0.8, 0.8, 0.8),
 }
 
 func _ready() -> void:
@@ -40,7 +43,7 @@ func _ready() -> void:
 
 func _build_ui() -> void:
 	_panel = PanelContainer.new()
-	UiStyle.apply_panel(_panel, 12)
+	UiStyle.apply_card(_panel, 18)
 	_panel.anchor_left = 0.5
 	_panel.anchor_top = 0.5
 	_panel.anchor_right = 0.5
@@ -67,7 +70,13 @@ func _build_ui() -> void:
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(_title_label)
 
-	_result_label = _make_label(32, Color.WHITE)
+	# Earned star tier (medal mode only) — big stars above the result caption.
+	_stars_row = HBoxContainer.new()
+	_stars_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_stars_row.add_theme_constant_override("separation", 6)
+	vbox.add_child(_stars_row)
+
+	_result_label = _make_label(28, Color.WHITE)
 	_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(_result_label)
 
@@ -110,10 +119,11 @@ func _on_board_eliminated(board) -> void:
 	_result_label.text = "%s of %d" % [_ordinal(placement), coord.boards.size()]
 	_result_label.add_theme_color_override("font_color", Color(0.9, 0.5, 0.5))
 	_detail_label.text = "Your lives ran out. The match continues."
+	_stars_row.visible = false
 	_thresholds_vbox.visible = false
 	_set_buttons([
-		{"text": "Spectate", "cb": _hide_panel},
-		{"text": "Quit to Menu", "cb": _on_return_home},
+		{"text": "Spectate", "cb": _hide_panel, "role": "go"},
+		{"text": "Quit to Menu", "cb": _on_return_home, "role": "danger"},
 	])
 	_panel.visible = true
 
@@ -124,9 +134,10 @@ func _show_pvp_final(coord) -> void:
 	_result_label.text = "1st — Last Standing" if won else "%s of %d" % [_ordinal(placement), coord.boards.size()]
 	_result_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2) if won else Color.WHITE)
 	_detail_label.text = "Kills: %d" % round_manager.total_kills
+	_stars_row.visible = false
 	_thresholds_vbox.visible = false
 	_set_buttons([
-		{"text": "Find New Match", "cb": _on_find_new_match},
+		{"text": "Find New Match", "cb": _on_find_new_match, "role": "go"},
 		{"text": "Return Home", "cb": _on_return_home},
 	])
 	_panel.visible = true
@@ -135,14 +146,21 @@ func _show_medal() -> void:
 	var damage: int = round_manager.total_damage_dealt
 	var medal: String = round_manager.medal_for(damage)
 	_title_label.text = "Match Complete"
-	_result_label.text = MEDAL_LABELS[medal]
-	_result_label.add_theme_color_override("font_color", MEDAL_COLORS[medal])
+	# Big earned-star tier above the caption.
+	for child in _stars_row.get_children():
+		child.queue_free()
+	var stars = StarRatingScript.new()
+	stars.configure(int(STAR_FOR_MEDAL[medal]), 3, 40.0)
+	_stars_row.add_child(stars)
+	_stars_row.visible = true
+	_result_label.text = MEDAL_RESULT[medal]
+	_result_label.add_theme_color_override("font_color", MEDAL_RESULT_COLOR[medal])
 	_detail_label.text = "Total damage: %d  ·  Rounds: %d" % [damage, round_manager.max_rounds]
 	_thresholds_vbox.visible = true
 	_populate_thresholds(damage)
 	_set_buttons([
+		{"text": "Play Again", "cb": _on_play_again, "role": "go"},
 		{"text": "Return Home", "cb": _on_return_home},
-		{"text": "Play Again", "cb": _on_play_again},
 	])
 	_panel.visible = true
 	# Persist the result (campaign medal / PVE score).
@@ -158,25 +176,42 @@ func _set_buttons(specs: Array) -> void:
 		b.text = spec["text"]
 		b.custom_minimum_size = Vector2(0, 44)
 		b.add_theme_font_size_override("font_size", 16)
+		match spec.get("role", "menu"):
+			"go": UiStyle.style_go_button(b)
+			"danger": UiStyle.style_danger_button(b)
+			_: UiStyle.style_menu_button(b)
 		b.pressed.connect(spec["cb"])
 		_buttons_vbox.add_child(b)
 
 func _populate_thresholds(damage: int) -> void:
 	for child in _thresholds_vbox.get_children():
 		child.queue_free()
-	_add_threshold_row("Bronze", round_manager.bronze_threshold, damage, MEDAL_COLORS.bronze)
-	_add_threshold_row("Silver", round_manager.silver_threshold, damage, MEDAL_COLORS.silver)
-	_add_threshold_row("Gold",   round_manager.gold_threshold,   damage, MEDAL_COLORS.gold)
+	# Ascending star tiers, each with its score-to-beat; a tick when reached, dim when not.
+	_add_threshold_row(1, round_manager.bronze_threshold, damage)
+	_add_threshold_row(2, round_manager.silver_threshold, damage)
+	_add_threshold_row(3, round_manager.gold_threshold,   damage)
 
-func _add_threshold_row(name: String, threshold: int, achieved: int, color: Color) -> void:
+func _add_threshold_row(star_count: int, threshold: int, achieved: int) -> void:
+	var reached: bool = achieved >= threshold
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
-	var dot := _make_label(18, color)
-	dot.text = "●" if achieved >= threshold else "○"
-	row.add_child(dot)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+
+	var stars = StarRatingScript.new()
+	stars.configure(star_count, 3, 16.0)
+	stars.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(stars)
+
 	var text := _make_label(16, Color.WHITE)
-	text.text = "%s: %d" % [name, threshold]
+	text.text = "%d" % threshold
 	row.add_child(text)
+
+	var tick := UiStyle.icon_rect("tick", 16)
+	tick.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	tick.visible = reached
+	row.add_child(tick)
+
+	row.modulate = Color(1, 1, 1, 1.0) if reached else Color(1, 1, 1, 0.45)
 	_thresholds_vbox.add_child(row)
 
 func _hide_panel() -> void:

@@ -39,6 +39,16 @@ var build_time_left: float = GameConstants.BUILD_TIME_FIRST
 var match_over: bool = false
 
 var boards: Array = []  # BoardState nodes, registered by map_loader
+# PVP: display handles per board (same index as `boards`). Board 0 is the local
+# player ("You"); the rest are opponent handles. Set by map_loader for PVP matches.
+var board_names: Array = []
+
+# Display name for a board node (falls back to "Board N" if names aren't set).
+func name_for(board) -> String:
+	var i := boards.find(board)
+	if i >= 0 and i < board_names.size():
+		return board_names[i]
+	return "Board %d" % (i + 1) if i >= 0 else "—"
 
 # Per-frame cap on bot build actions across ALL boards. Each bot action runs a
 # burst of A* path computations; with 7 bots created together their timers fired on

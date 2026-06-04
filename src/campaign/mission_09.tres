@@ -1,42 +1,39 @@
-[gd_resource type="Resource" script_class="MapResource" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="MapResource" format=3]
 
 [ext_resource type="Script" path="res://resources/zone_definition.gd" id="1_zone"]
 [ext_resource type="Script" path="res://resources/map_resource.gd" id="2_map"]
 
 [sub_resource type="Resource" id="Zone_damage"]
 script = ExtResource("1_zone")
-type = 0
-cell = Vector2i(20, 7)
+cell = Vector2i(10, 4)
 magnitude = 30
 
 [sub_resource type="Resource" id="Zone_atkspd"]
 script = ExtResource("1_zone")
 type = 1
-cell = Vector2i(25, 14)
+cell = Vector2i(13, 7)
 magnitude = 30
 
 [sub_resource type="Resource" id="Zone_range"]
 script = ExtResource("1_zone")
 type = 2
-cell = Vector2i(13, 11)
+cell = Vector2i(7, 6)
 magnitude = 20
 
 [resource]
 script = ExtResource("2_map")
 seed = 9
-mode = 0
-grid_size = Vector2i(40, 22)
-entry_cell = Vector2i(0, 11)
-exit_cell = Vector2i(39, 11)
-checkpoint_cells = Array[Vector2i]([Vector2i(31, 4), Vector2i(9, 18)])
-obstacle_cells = Array[Vector2i]([Vector2i(17, 11), Vector2i(27, 9), Vector2i(11, 15), Vector2i(33, 7), Vector2i(7, 9)])
+grid_size = Vector2i(20, 11)
+entry_cell = Vector2i(0, 6)
+exit_cell = Vector2i(19, 6)
+checkpoint_cells = Array[Vector2i]([Vector2i(16, 2), Vector2i(5, 9)])
+obstacle_cells = Array[Vector2i]([Vector2i(9, 6), Vector2i(14, 5), Vector2i(6, 8), Vector2i(17, 4), Vector2i(4, 5)])
 bonus_zones = [SubResource("Zone_damage"), SubResource("Zone_atkspd"), SubResource("Zone_range")]
-supply_cap = 80
 round_count = 16
 mob_count = 16
-bronze_threshold = 1600
-silver_threshold = 2400
-gold_threshold = 3200
+bronze_threshold = 312300
+silver_threshold = 520450
+gold_threshold = 780700
 mission_index = 9
 mission_name = "Compound Interest"
 mission_description = "A long match rewards patience. Interest pays 1 gold per 10 saved, capped at 50 - so banking early compounds. But mob HP climbs every round. Decide when to save and when to commit."

@@ -13,7 +13,7 @@ enum WindowType { DAILY, WEEKLY, MONTHLY }
 @export var mode: Mode = Mode.CAMPAIGN
 
 # === Layout ===
-@export var grid_size: Vector2i = Vector2i(40, 22)
+@export var grid_size: Vector2i = Vector2i(20, 11)  # canonical board (every .tres overrides explicitly)
 @export var entry_cell: Vector2i = Vector2i.ZERO
 @export var exit_cell: Vector2i = Vector2i.ZERO
 @export var checkpoint_cells: Array[Vector2i] = []   # 1–3 entries, in visit order

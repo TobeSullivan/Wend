@@ -15,6 +15,7 @@ const MapResourceScript := preload("res://resources/map_resource.gd")
 const SettingsPanelScript := preload("res://scripts/settings_panel.gd")
 const UiStyle := preload("res://scripts/ui_style.gd")
 const UiLayout := preload("res://scripts/ui_layout.gd")
+const StarRatingScript := preload("res://scripts/star_rating.gd")
 
 var build_controller  # BuildController — untyped to avoid class-name cycle
 var round_manager     # RoundManager — untyped to avoid class-name cycle
@@ -72,15 +73,15 @@ func _populate_menu() -> void:
 
 	_build_objectives(vbox)
 
-	vbox.add_child(_menu_button("Resume", _resume))
+	vbox.add_child(_menu_button("Resume", _resume, "go"))
 
 	vbox.add_child(_menu_button("Settings", func(): _settings.open()))
 
 	if not is_multiplayer:
 		vbox.add_child(_menu_button("Restart", _on_restart))
-		vbox.add_child(_menu_button("Quit to Menu", _on_quit))
+		vbox.add_child(_menu_button("Quit to Menu", _on_quit, "danger"))
 	else:
-		vbox.add_child(_menu_button("Quit Match", _on_quit))
+		vbox.add_child(_menu_button("Quit Match", _on_quit, "danger"))
 
 func _populate_confirm() -> void:
 	var vbox := _panel_vbox(_confirm_panel)
@@ -102,6 +103,7 @@ func _populate_confirm() -> void:
 	cancel.text = "Cancel"
 	cancel.custom_minimum_size = Vector2(140, 44) * s
 	cancel.add_theme_font_size_override("font_size", int(16 * s))
+	UiStyle.style_menu_button(cancel)
 	cancel.pressed.connect(_close_confirm)
 	row.add_child(cancel)
 
@@ -109,6 +111,7 @@ func _populate_confirm() -> void:
 	confirm.text = "Confirm"
 	confirm.custom_minimum_size = Vector2(140, 44) * s
 	confirm.add_theme_font_size_override("font_size", int(16 * s))
+	UiStyle.style_danger_button(confirm)
 	confirm.pressed.connect(_on_confirm_yes)
 	row.add_child(confirm)
 
@@ -191,7 +194,7 @@ func _build_objectives(vbox: VBoxContainer) -> void:
 	if not _has_objectives():
 		return
 
-	var header := _label("Objectives", 18, Color(0.78, 0.84, 0.96))
+	var header := _label("Objectives", 18, UiStyle.LABEL_COL)
 	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(header)
 
@@ -199,16 +202,35 @@ func _build_objectives(vbox: VBoxContainer) -> void:
 	_obj_score.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(_obj_score)
 
+	# Three star tiers, ascending: 1★ Bronze · 2★ Silver · 3★ Gold, each with the
+	# score-to-beat and a tick when reached (unreached rows dim).
 	_obj_rows = [
-		{"name": "Gold", "threshold": int(round_manager.gold_threshold), "color": Color(1.0, 0.84, 0.3)},
-		{"name": "Silver", "threshold": int(round_manager.silver_threshold), "color": Color(0.82, 0.86, 0.92)},
-		{"name": "Bronze", "threshold": int(round_manager.bronze_threshold), "color": Color(0.86, 0.62, 0.42)},
+		{"stars": 1, "threshold": int(round_manager.bronze_threshold)},
+		{"stars": 2, "threshold": int(round_manager.silver_threshold)},
+		{"stars": 3, "threshold": int(round_manager.gold_threshold)},
 	]
 	for row in _obj_rows:
-		var l := _label("", 16, row.color)
-		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		row["label"] = l
-		vbox.add_child(l)
+		var hbox := HBoxContainer.new()
+		hbox.add_theme_constant_override("separation", 8)
+		hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+
+		var stars = StarRatingScript.new()
+		stars.configure(int(row.stars), 3, 18.0)
+		stars.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		hbox.add_child(stars)
+
+		var num := _label("%d" % int(row.threshold), 16, Color.WHITE)
+		hbox.add_child(num)
+
+		var tick := UiStyle.icon_rect("tick", 18)
+		tick.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		hbox.add_child(tick)
+
+		row["hbox"] = hbox
+		row["stars_ctrl"] = stars
+		row["num"] = num
+		row["tick"] = tick
+		vbox.add_child(hbox)
 
 	vbox.add_child(_spacer(10))
 	_refresh_objectives()
@@ -220,11 +242,8 @@ func _refresh_objectives() -> void:
 	_obj_score.text = "Your score: %d" % dmg
 	for row in _obj_rows:
 		var reached: bool = dmg >= int(row.threshold)
-		row.label.text = "%s   %d%s" % [row.name, int(row.threshold), "   ·  reached" if reached else ""]
-		var c: Color = row.color
-		if not reached:
-			c = Color(c.r, c.g, c.b, 0.5)  # dim the targets not yet hit
-		row.label.add_theme_color_override("font_color", c)
+		row.tick.visible = reached
+		row.hbox.modulate = Color(1, 1, 1, 1.0) if reached else Color(1, 1, 1, 0.45)
 
 # --- Confirm dialog ---
 
@@ -297,7 +316,7 @@ func _make_centered_panel(min_size: Vector2) -> PanelContainer:
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	UiStyle.apply_panel(panel, 12)
+	UiStyle.apply_card(panel, 18)
 	return panel
 
 func _panel_vbox(panel: PanelContainer) -> VBoxContainer:
@@ -312,12 +331,16 @@ func _panel_vbox(panel: PanelContainer) -> VBoxContainer:
 	margin.add_child(vbox)
 	return vbox
 
-func _menu_button(text: String, on_pressed: Callable) -> Button:
+func _menu_button(text: String, on_pressed: Callable, role := "menu") -> Button:
 	var b := Button.new()
 	var s := UiLayout.scale_factor()
 	b.text = text
-	b.custom_minimum_size = Vector2(0, 48 * s)
+	b.custom_minimum_size = Vector2(220 * s, 48 * s)
 	b.add_theme_font_size_override("font_size", int(18 * s))
+	match role:
+		"go": UiStyle.style_go_button(b)
+		"danger": UiStyle.style_danger_button(b)
+		_: UiStyle.style_menu_button(b)
 	b.pressed.connect(on_pressed)
 	return b
 

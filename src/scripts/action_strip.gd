@@ -75,7 +75,7 @@ func _ready() -> void:
 	cr.offset_bottom = -18 * s
 	add_child(cr)
 	if _is_pvp():
-		_minimap_button = _chip("Map", _on_minimap_pressed)
+		_minimap_button = _chip("Ranking", _on_minimap_pressed)
 		cr.add_child(_minimap_button)
 	if not _is_pvp():
 		_ff_button = _chip("Speed 1×", _on_ff_pressed)

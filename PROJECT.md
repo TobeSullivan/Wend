@@ -10,11 +10,15 @@ One-line index of what exists in this project. Read at start of every session fo
 - `RULES.md` — Project-specific addendum to claude-rules
 - `STATE.md` — Current focus, last session, next step, open questions
 - `PROJECT.md` — This file. Map of what exists.
-- `DESIGN.md` — Locked design decisions for the game
 - `.gitignore` — Ignores `art/` (third-party asset pack source), dev artifacts, OS junk
 
 ## Directories
 
+- `design/` — All locked design docs:
+  - `DESIGN.md` — core game design decisions
+  - `DESIGN_MODES.md` — modes, maps, progression, seasons, UI, map-resource architecture
+  - `VISUAL_SYSTEM.md` — canonical visual language (palette, type, icons), menu + PVP UI specs
+  - `INMATCH_FIXES.md` — scoped Claude Code in-match tasks (obstacle schema, movement chevron)
 - `src/` — Godot 4 project (open `src/project.godot` in Godot). Contains `scenes/`, `scripts/`, `resources/`, `campaign/`, `assets/`, and its own `.gitignore` for the `.godot/` cache.
 - `src/scenes/prototype.tscn` — Main scene. Single Node2D root with `main.gd` attached. `main.gd` is a thin host: it loads a `MapResource` and hands it to `map_loader`.
 - `src/scripts/` — All gameplay scripts (`main`, `mob`, `tower`, `projectile`, `spawner`, `build_controller`, `upgrade_panel`, `round_manager`, `hud`, `pathfinder`, `bonus_zone`, `obstacle`, plus `map_loader` and `map_generator`).

@@ -63,7 +63,7 @@ func _build_ui() -> void:
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	UiStyle.apply_panel(panel, 12)
+	UiStyle.apply_card(panel, 18)
 	_root.add_child(panel)
 
 	var margin := MarginContainer.new()
@@ -77,9 +77,29 @@ func _build_ui() -> void:
 	vbox.add_theme_constant_override("separation", 12)
 	margin.add_child(vbox)
 
+	# Header row: title (left, expanding) + top-right close button. Settings auto-saves
+	# on close, so the close button is the primary dismissal.
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 12)
+	vbox.add_child(header)
+
 	var title := _label("Settings", 28, Color.WHITE)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(title)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+
+	var close_btn := Button.new()
+	close_btn.add_theme_font_size_override("font_size", 16)
+	var x_ic := UiStyle.icon_texture("cross")
+	if x_ic != null:
+		close_btn.icon = x_ic
+		close_btn.add_theme_constant_override("icon_max_width", 18)
+	else:
+		close_btn.text = "✕"
+	close_btn.custom_minimum_size = Vector2(40, 40)
+	UiStyle.style_menu_button(close_btn)
+	close_btn.pressed.connect(close)
+	header.add_child(close_btn)
+
 	vbox.add_child(_hsep())
 
 	_master = _add_volume_row(vbox, "Master volume")
@@ -118,6 +138,7 @@ func _build_ui() -> void:
 	back.text = "Back"
 	back.custom_minimum_size = Vector2(0, 46)
 	back.add_theme_font_size_override("font_size", 18)
+	UiStyle.style_menu_button(back)
 	back.pressed.connect(close)
 	vbox.add_child(back)
 

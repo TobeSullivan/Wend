@@ -18,11 +18,20 @@ var local_index: int = 0
 var is_pvp: bool = false
 var local_build_controller        # BuildController for board 0 — receives tap dispatch
 var tower_drawer                  # TowerDrawer — taps over its open panel skip the board
-var minimap                       # MinimapPanel (PVP) — taps over its open panel skip too
+var minimap                       # LeaderboardPanel (PVP) — taps over its open panel skip too
+var board_names: Array = []       # PVP display handles (index = board index)
+
+const UiStyle := preload("res://scripts/ui_style.gd")
 
 var _camera: Camera2D
 var _spectate_index: int = 0
-var _label: Label
+# Spectate safeguards (PVP): a green inset frame + "Spectating <name>" banner + an
+# always-present "Back to your board" button make it unmistakable you are NOT on your
+# own board. Build phase force-returns the camera home, so these never show then.
+var _frame: Panel
+var _banner: PanelContainer
+var _banner_label: Label
+var _back_button: Button
 
 # --- Touch: a still single-finger tap builds/selects. The board is a FIXED, fully-
 # visible view — pan and pinch-zoom are intentionally disabled (they felt wrong and
@@ -38,20 +47,64 @@ func _ready() -> void:
 	_camera.make_current()
 
 	var layer := CanvasLayer.new()
-	layer.layer = 6
+	layer.layer = 7  # above HUD/strip so the spectate chrome is unmistakable
 	add_child(layer)
-	_label = Label.new()
-	var play := UiLayout.play_rect(is_pvp, get_viewport_rect().size)
-	_label.position = play.position + Vector2(14, 10)
-	_label.add_theme_font_size_override("font_size", 18)
-	_label.add_theme_color_override("font_color", Color(0.8, 0.95, 1.0))
-	_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	_label.add_theme_constant_override("outline_size", 4)
-	layer.add_child(_label)
+	_build_spectate_chrome(layer)
 
 	if coordinator != null:
 		coordinator.phase_changed.connect(_on_phase_changed)
 	_focus(local_index)
+
+# Green inset frame + top-centre banner + "Back to your board" button. All hidden until
+# the player spectates an opponent during the run; the frame is mouse-transparent.
+func _build_spectate_chrome(layer: CanvasLayer) -> void:
+	var s := UiLayout.scale_factor()
+
+	_frame = Panel.new()
+	_frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var fsb := StyleBoxFlat.new()
+	fsb.bg_color = Color(0, 0, 0, 0)        # border only — see the live board through it
+	fsb.draw_center = false
+	fsb.border_color = UiStyle.START_BG     # green
+	fsb.set_border_width_all(int(6 * s))
+	fsb.set_corner_radius_all(0)
+	_frame.add_theme_stylebox_override("panel", fsb)
+	_frame.visible = false
+	layer.add_child(_frame)
+
+	_banner = PanelContainer.new()
+	var bsb := StyleBoxFlat.new()
+	bsb.bg_color = UiStyle.START_BG
+	bsb.border_color = UiStyle.START_BORDER
+	bsb.set_border_width_all(2)
+	bsb.set_corner_radius_all(14)
+	bsb.content_margin_left = 18 * s
+	bsb.content_margin_right = 18 * s
+	bsb.content_margin_top = 8 * s
+	bsb.content_margin_bottom = 8 * s
+	_banner.add_theme_stylebox_override("panel", bsb)
+	_banner.anchor_left = 0.5
+	_banner.anchor_right = 0.5
+	_banner.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_banner.offset_top = 14 * s
+	_banner.visible = false
+	layer.add_child(_banner)
+	_banner_label = Label.new()
+	_banner_label.add_theme_font_size_override("font_size", int(18 * s))
+	_banner.add_child(_banner_label)
+
+	_back_button = Button.new()
+	_back_button.text = "← Back to your board"
+	_back_button.add_theme_font_size_override("font_size", int(16 * s))
+	UiStyle.style_flat_button(_back_button, UiStyle.PILL_BG, 14, UiStyle.PILL_BORDER)
+	_back_button.anchor_left = 0.5
+	_back_button.anchor_right = 0.5
+	_back_button.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_back_button.offset_top = 58 * s
+	_back_button.visible = false
+	_back_button.pressed.connect(func(): focus_board(local_index))
+	layer.add_child(_back_button)
 
 func _on_phase_changed(phase: String) -> void:
 	# Build / post-match: always your own board. Run: keep whoever is being watched.
@@ -92,12 +145,20 @@ func _focus(i: int) -> void:
 	_update_label()
 
 func _update_label() -> void:
-	if _label == null:
+	if _frame == null:
 		return
-	if _spectate_index == local_index or (coordinator != null and coordinator.phase != "run"):
-		_label.text = ""
-	else:
-		_label.text = "Spectating Board %d" % (_spectate_index + 1)
+	var spectating: bool = _spectate_index != local_index \
+		and coordinator != null and coordinator.phase == "run"
+	_frame.visible = spectating
+	_banner.visible = spectating
+	_back_button.visible = spectating
+	if spectating:
+		_banner_label.text = "Spectating %s" % _name_for(_spectate_index)
+
+func _name_for(i: int) -> String:
+	if i >= 0 and i < board_names.size() and String(board_names[i]) != "":
+		return board_names[i]
+	return "Board %d" % (i + 1)
 
 # --- Touch gestures + tap dispatch ----------------------------------------------
 # Touch lives here (not build_controller) because the camera owns screen↔world. A

@@ -32,6 +32,7 @@ window/handheld/orientation="landscape"
 
 [gui]
 
+theme/custom="res://assets/ui/app_theme.tres"
 theme/custom_font="res://assets/fonts/fredoka_bold.tres"
 
 [rendering]

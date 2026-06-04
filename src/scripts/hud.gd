@@ -20,6 +20,7 @@ var _kills_val: Label
 var _score_val: Label
 var _score_medal_lab: Label
 var _medal_icon: TextureRect
+var _score_pill: Control
 var _lives_pill: Control
 var _lives_val: Label
 var _supply_val: Label
@@ -80,7 +81,10 @@ func _ready() -> void:
 	_label(score_pill, "SCORE", true)
 	_score_val = _label(score_pill, "0", false)
 	_score_medal_lab = _label(score_pill, "", true, Color("e0a55a"))
-	right.add_child(score_pill["root"])
+	_score_pill = score_pill["root"]
+	# PVP is judged by placement/lives, not a score number — drop the SCORE pill there.
+	_score_pill.visible = not _is_pvp()
+	right.add_child(_score_pill)
 
 	if round_manager != null:
 		round_manager.gold_changed.connect(func(_g): _refresh())

@@ -27,7 +27,14 @@ const WinPanelScript := preload("res://scripts/win_panel.gd")
 const RoundToastScript := preload("res://scripts/round_toast.gd")
 const PauseMenuScript := preload("res://scripts/pause_menu.gd")
 const GameViewScript := preload("res://scripts/game_view.gd")
-const MinimapPanelScript := preload("res://scripts/minimap_panel.gd")
+const LeaderboardPanelScript := preload("res://scripts/leaderboard_panel.gd")
+
+# Opponent display handles for solo-queue PVP (board 0 is always "You"). A fixed pool,
+# spread by index so a given match's names are stable.
+const OPPONENT_HANDLES := [
+	"ShadowFox", "MazeKing", "Vortex", "NightOwl", "IronWall", "Specter",
+	"BlazeUp", "Quibble", "RogueAI", "Hexed", "Tidal", "Grimlock", "Pyre", "Zenith",
+]
 const RoadRendererScript := preload("res://scripts/road_renderer.gd")
 const GridOverlayScript := preload("res://scripts/grid_overlay.gd")
 const BotControllerScript := preload("res://scripts/bot_controller.gd")
@@ -98,19 +105,28 @@ static func build_match(host: Node2D, map, num_boards: int = 1) -> Array:
 	boards[0].build_controller.tower_drawer = drawer  # same guard for the mouse path
 	host.add_child(game_view)
 
-	# Arena minimap only for multi-board matches (PVP). It floats over the board's left
-	# edge as a collapsible drawer toggled by the action strip's Map button.
+	# Arena leaderboard only for multi-board matches (PVP). It floats over the board's
+	# left edge as a collapsible drawer toggled by the action strip's leaderboard button.
 	if num_boards > 1:
-		var minimap := MinimapPanelScript.new()
-		minimap.coordinator = coordinator
-		minimap.boards = boards
-		minimap.local_index = 0
-		minimap.grid_size = map.grid_size
-		minimap.arena = game_view
-		host.add_child(minimap)
-		strip.minimap = minimap  # the strip's PVP Map button toggles it
-		game_view.minimap = minimap  # taps over the open minimap don't poke the board
-		boards[0].build_controller.minimap = minimap  # same guard for the mouse path
+		# Assign display handles: board 0 is "You", the rest get spread-out pool handles.
+		var names: Array = []
+		names.resize(num_boards)
+		names[0] = "You"
+		for i in range(1, num_boards):
+			names[i] = OPPONENT_HANDLES[(i * 5) % OPPONENT_HANDLES.size()]
+		coordinator.board_names = names
+		game_view.board_names = names
+
+		var leaderboard := LeaderboardPanelScript.new()
+		leaderboard.coordinator = coordinator
+		leaderboard.boards = boards
+		leaderboard.local_index = 0
+		leaderboard.grid_size = map.grid_size
+		leaderboard.arena = game_view
+		host.add_child(leaderboard)
+		strip.minimap = leaderboard  # the strip's PVP leaderboard button toggles it
+		game_view.minimap = leaderboard  # taps over the open panel don't poke the board
+		boards[0].build_controller.minimap = leaderboard  # same guard for the mouse path
 
 	return boards
 

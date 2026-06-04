@@ -1,23 +1,19 @@
-[gd_resource type="Resource" script_class="MapResource" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="MapResource" format=3]
 
 [ext_resource type="Script" path="res://resources/map_resource.gd" id="2_map"]
 
 [resource]
 script = ExtResource("2_map")
 seed = 2
-mode = 0
-grid_size = Vector2i(40, 22)
-entry_cell = Vector2i(0, 11)
-exit_cell = Vector2i(39, 11)
-checkpoint_cells = Array[Vector2i]([Vector2i(20, 4)])
-obstacle_cells = Array[Vector2i]([])
-bonus_zones = []
-supply_cap = 35
+grid_size = Vector2i(20, 11)
+entry_cell = Vector2i(0, 6)
+exit_cell = Vector2i(19, 6)
+checkpoint_cells = Array[Vector2i]([Vector2i(10, 2)])
+supply_cap = 20
 round_count = 9
-mob_count = 8
-bronze_threshold = 400
-silver_threshold = 600
-gold_threshold = 800
+bronze_threshold = 32700
+silver_threshold = 54500
+gold_threshold = 81700
 mission_index = 2
 mission_name = "The Long Way"
 mission_description = "No zones, no obstacles - just you and the path. Every tower you place forces the horde to walk farther. Wall them into the longest maze you can and watch the damage pile up."

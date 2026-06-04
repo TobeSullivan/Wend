@@ -1,21 +1,18 @@
 extends Control
 
-# Home screen for returning players (DESIGN_MODES "Home screen"). PVE and PVP are
-# the two primary buttons; Campaign is a deliberately secondary tertiary button;
-# a slim season strip sits at the top; Settings is tucked in a corner.
-#
-# PVE/PVP/Settings are disabled for now: PVE/PVP need the generator + matchmaking
-# (multiplayer is deferred per RULES), and Settings lands in a later UI phase.
-# Campaign is the live, fully wired path.
+# Home screen (design/VISUAL_SYSTEM.md "Home"). Hierarchy by SIZE, not colour: PVE and
+# PVP are two equal large hero buttons, centre; Campaign is a smaller, lower-contrast
+# tertiary button below (it's the tutorial). A slim ambient season strip sits top-centre;
+# Settings is top-right, Quit bottom-left. Everything floats on the inert grass backdrop.
 
-const BG_COLOR := Color(0.07, 0.09, 0.13)
-const SettingsPanelScript := preload("res://scripts/settings_panel.gd")
+const UiStyle := preload("res://scripts/ui_style.gd")
 
 var _settings
+const SettingsPanelScript := preload("res://scripts/settings_panel.gd")
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_build_background()
+	UiStyle.menu_backdrop(self)
 	_build_season_strip()
 	_build_center()
 	_settings = SettingsPanelScript.new()
@@ -29,35 +26,40 @@ func _input(event: InputEvent) -> void:
 			_settings.close()
 			get_viewport().set_input_as_handled()
 
-func _build_background() -> void:
-	var bg := ColorRect.new()
-	bg.color = BG_COLOR
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bg)
-
 func _build_season_strip() -> void:
-	# Ambient context, not a call to action: tier badge + a slim progress bar.
-	var strip := HBoxContainer.new()
-	strip.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	strip.offset_left = 24
-	strip.offset_right = -24
-	strip.offset_top = 16
-	strip.add_theme_constant_override("separation", 12)
-	add_child(strip)
+	# Ambient context, not a call to action: a slim pill with tier + season progress.
+	var pill := PanelContainer.new()
+	pill.add_theme_stylebox_override("panel", UiStyle.pill_box())
+	pill.anchor_left = 0.5
+	pill.anchor_right = 0.5
+	pill.anchor_top = 0.0
+	pill.offset_top = 16
+	pill.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	add_child(pill)
 
-	var tier := _label("Bronze", 16, Color(0.85, 0.55, 0.25))
-	strip.add_child(tier)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_bottom", 6)
+	pill.add_child(margin)
+
+	var strip := HBoxContainer.new()
+	strip.add_theme_constant_override("separation", 12)
+	strip.alignment = BoxContainer.ALIGNMENT_CENTER
+	margin.add_child(strip)
+
+	strip.add_child(_label("Season 1", 15, UiStyle.LABEL_COL))
 
 	var bar := ProgressBar.new()
-	bar.custom_minimum_size = Vector2(220, 10)
+	bar.custom_minimum_size = Vector2(200, 8)
 	bar.max_value = 100
 	bar.value = 0
 	bar.show_percentage = false
+	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	strip.add_child(bar)
 
-	var season := _label("Season 1", 16, Color(0.7, 0.75, 0.85))
-	strip.add_child(season)
+	strip.add_child(_label("Bronze", 15, Color("d79a52")))
 
 func _build_center() -> void:
 	var center := CenterContainer.new()
@@ -66,72 +68,89 @@ func _build_center() -> void:
 	add_child(center)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 16)
+	vbox.add_theme_constant_override("separation", 14)
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	center.add_child(vbox)
 
-	var title := _label("MAZE BATTLE TD", 44, Color.WHITE)
+	var title := _label("MAZE BATTLE TD", 48, Color.WHITE)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
 
-	var subtitle := _label("Build the maze. Milk the horde.", 18, Color(0.6, 0.65, 0.75))
+	var subtitle := _label("Build the maze. Milk the horde.", 18, UiStyle.LABEL_COL)
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(subtitle)
 
-	vbox.add_child(_spacer(18))
+	vbox.add_child(_spacer(20))
 
-	var pve := _primary_button("PVE")
-	pve.pressed.connect(func(): SceneManager.goto_pve_select())
-	vbox.add_child(pve)
+	# PVE and PVP: two equal hero buttons side by side. Size is the hierarchy.
+	var heroes := HBoxContainer.new()
+	heroes.add_theme_constant_override("separation", 18)
+	heroes.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(heroes)
 
-	var pvp := _primary_button("PVP")
-	pvp.pressed.connect(func(): SceneManager.start_pvp())
-	vbox.add_child(pvp)
+	heroes.add_child(_hero_button("PVE", "Co-op survival", func(): SceneManager.goto_pve_select()))
+	heroes.add_child(_hero_button("PVP", "8-player last-standing", func(): SceneManager.start_pvp()))
 
-	var pvp_note := _label("8-player last-standing — vs bots", 14, Color(0.5, 0.55, 0.65))
-	pvp_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(pvp_note)
+	vbox.add_child(_spacer(8))
 
-	vbox.add_child(_spacer(10))
-
-	# Campaign — clearly tertiary: smaller, muted, set apart from PVE/PVP.
+	# Campaign — clearly tertiary: smaller, lower contrast, set apart from PVE/PVP.
 	var campaign := Button.new()
-	campaign.text = "Campaign"
-	campaign.custom_minimum_size = Vector2(180, 40)
+	campaign.text = "Campaign  ·  Tutorial"
+	campaign.custom_minimum_size = Vector2(240, 0)
 	campaign.add_theme_font_size_override("font_size", 16)
+	campaign.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	UiStyle.style_menu_button(campaign)
 	campaign.pressed.connect(func(): SceneManager.goto_campaign_select())
 	vbox.add_child(campaign)
+
+func _hero_button(title: String, sub: String, on_pressed: Callable) -> Button:
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(300, 120)
+	b.add_theme_font_size_override("font_size", 30)
+	UiStyle.style_hero_button(b)
+	# Two-line label: big title over a small subtitle.
+	b.text = title
+	b.autowrap_mode = TextServer.AUTOWRAP_OFF
+	b.pressed.connect(on_pressed)
+	# Subtitle as a child label pinned under the title text.
+	var sub_lbl := _label(sub, 14, UiStyle.LABEL_COL)
+	sub_lbl.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	sub_lbl.offset_bottom = -14
+	sub_lbl.offset_top = -34
+	sub_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(sub_lbl)
+	return b
 
 func _build_corner_settings() -> void:
 	var settings := Button.new()
 	settings.text = "Settings"
-	settings.add_theme_font_size_override("font_size", 14)
+	settings.add_theme_font_size_override("font_size", 15)
+	UiStyle.style_menu_button(settings)
 	settings.pressed.connect(func(): _settings.open())
-	settings.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	settings.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	settings.offset_left = -150
-	settings.offset_top = -52
+	settings.offset_top = 16
 	settings.offset_right = -20
-	settings.offset_bottom = -16
+	settings.offset_bottom = 56
 	add_child(settings)
 
 func _build_corner_quit() -> void:
 	var quit := Button.new()
-	quit.text = "Quit Game"
-	quit.add_theme_font_size_override("font_size", 14)
+	quit.text = "Quit"
+	quit.add_theme_font_size_override("font_size", 15)
+	var ic := UiStyle.icon_texture("cross")
+	if ic != null:
+		quit.icon = ic
+		quit.add_theme_constant_override("icon_max_width", 18)
+	UiStyle.style_menu_button(quit)
 	quit.pressed.connect(func(): get_tree().quit())
 	quit.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	quit.offset_left = 20
-	quit.offset_top = -52
-	quit.offset_right = 150
+	quit.offset_top = -56
+	quit.offset_right = 140
 	quit.offset_bottom = -16
 	add_child(quit)
-
-func _primary_button(text: String) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.custom_minimum_size = Vector2(320, 60)
-	b.add_theme_font_size_override("font_size", 24)
-	return b
 
 func _spacer(h: int) -> Control:
 	var c := Control.new()
@@ -142,5 +161,6 @@ func _label(text: String, font_size: int, color: Color) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_size_override("font_size", font_size)
-	l.add_theme_color_override("font_color", color)
+	if color != Color.WHITE:
+		l.add_theme_color_override("font_color", color)
 	return l

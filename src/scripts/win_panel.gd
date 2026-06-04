@@ -23,7 +23,7 @@ func _ready() -> void:
 
 func _build_ui() -> void:
 	_panel = PanelContainer.new()
-	UiStyle.apply_panel(_panel, 12)
+	UiStyle.apply_card(_panel, 18)
 	_panel.anchor_left = 0.5
 	_panel.anchor_top = 0.5
 	_panel.anchor_right = 0.5
@@ -47,7 +47,7 @@ func _build_ui() -> void:
 	margin.add_child(vbox)
 
 	var title := _make_label(30, Color(1.0, 0.85, 0.2))
-	title.text = "GOLD REACHED — You won!"
+	title.text = "★★★  THREE STARS — You won!"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
 
@@ -63,6 +63,7 @@ func _build_ui() -> void:
 	keep.text = "Keep Playing"
 	keep.custom_minimum_size = Vector2(0, 48)
 	keep.add_theme_font_size_override("font_size", 18)
+	UiStyle.style_go_button(keep)
 	keep.pressed.connect(_on_keep_playing)
 	vbox.add_child(keep)
 
@@ -70,13 +71,14 @@ func _build_ui() -> void:
 	home.text = "Return Home"
 	home.custom_minimum_size = Vector2(0, 48)
 	home.add_theme_font_size_override("font_size", 18)
+	UiStyle.style_menu_button(home)
 	home.pressed.connect(_on_return_home)
 	vbox.add_child(home)
 
 func _on_gold_goal_reached() -> void:
 	var dmg: int = round_manager.total_damage_dealt if round_manager != null else 0
 	var goal: int = round_manager.gold_threshold if round_manager != null else 0
-	_damage_label.text = "Total damage: %d  (Gold: %d)" % [dmg, goal]
+	_damage_label.text = "Total damage: %d  (3★: %d)" % [dmg, goal]
 	_panel.visible = true
 	get_tree().paused = true
 
