@@ -1,5 +1,56 @@
 # State
 
+# STATE.md update — 2026-06-04
+
+Paste the session entry at the TOP of STATE.md's session log, and replace the
+"Next step" / relevant "Open questions" lines as noted. (Not reproducing the full
+STATE.md here — it's large and Claude-Code-log-heavy; this is the prepend + the field
+edits. Ask if you want the whole file rewritten instead.)
+
+---
+
+## Session-log entry (prepend to STATE.md)
+
+**UI/visual design pass — design assistant (2026-06-04). Spec written, no code.**
+Locked the game's visual system and applied it across every menu + PVP UI, all grounded
+in the real art pack (`art.zip`) so Claude Code isn't stuck on missing assets. Outputs:
+`design/VISUAL_SYSTEM.md` (canonical look, type fix, icon inventory, per-screen specs,
+PVP UI) and `design/INMATCH_FIXES.md` (two scoped CC tasks: obstacle schema reopen +
+chevron fix).
+- **Visual system:** warm flat theme (`ui_style.gd` mockup block) is canonical; **blue
+  dark-panel + wooden plank themes RETIRED** (delete from `ui_style.gd`).
+- **Font bug found:** `fredoka.ttf` defaults to **Light 300** (variable font, "Fredoka
+  Light") → text renders thin and "set bold" no-ops. Fix = ship static Fredoka-SemiBold,
+  or `variation_embolden`, or drive the wght axis via `name_to_tag("weight")` + point the
+  default font at the `.tres`. Promote weight+outline to a shared Theme.
+- **Medals → stars** everywhere (no medal sprites exist; star assets do). 3★/2★/1★/empty.
+- **Menus** (home, campaign select, PVE select, pause, settings) all redesigned to the
+  system, text-forward buttons + confirmed real icons, on an **inert** grass+vignette
+  backdrop (no fabricated decoration).
+- **In-match:** grass fine (optional seasonal tiles + rubble scatter); **letterbox dead**
+  (full-bleed grass confirmed in real screenshots); **obstacles** → real sized props w/
+  overhang (schema reopen); **movement chevron** → fenced CC spec.
+- **PVP UI:** drop the SCORE pill (placement is the judgment); arena wooden tray →
+  toggle-able **leaderboard** (ranked 1–8, **player names**, lives, your row highlighted,
+  OUT at bottom); tap name → spectate (live in run / last snapshot in build / "?" if
+  unseen; one live board at a time, never 8); spectate safeguards (banner + green frame +
+  Back button) and **hard rule: build phase force-returns to your own board**.
+
+## Field edits
+
+**Next step → add (design):**
+- Decide player-facing names for PVE/PVP (lean: Co-op / Versus), then update labels.
+- Hand `design/INMATCH_FIXES.md` tasks to Claude Code (chevron first — fully specced;
+  obstacles second — schema reopen).
+- Claude Code: migrate `pause_menu`, `settings_panel`, `win_panel`, `match_end_panel`,
+  `home_screen`, `campaign_select`, `pve_select` onto the system tokens; delete the blue +
+  wood styles from `ui_style.gd`; build the PVP leaderboard + spectate UI.
+
+**Open questions → resolved this session:** medal representation (→ stars); menu backdrop
+(→ inert static grass); PVP arena presentation (→ toggle leaderboard + spectate). **Still
+open:** PVE/PVP player-facing naming.
+
+
 Last updated: 2026-06-01
 
 ---
