@@ -17,6 +17,8 @@ var grid_size: Vector2i
 var local_index: int = 0
 var is_pvp: bool = false
 var local_build_controller        # BuildController for board 0 — receives tap dispatch
+var tower_drawer                  # TowerDrawer — taps over its open panel skip the board
+var minimap                       # MinimapPanel (PVP) — taps over its open panel skip too
 
 var _camera: Camera2D
 var _spectate_index: int = 0
@@ -115,6 +117,10 @@ func _on_touch(e: InputEventScreenTouch) -> void:
 		# those Controls (driven by mouse-from-touch emulation).
 		if not UiLayout.play_rect(is_pvp, get_viewport_rect().size).has_point(e.position):
 			return
+		# The tower drawer / arena minimap float OVER the full-width board; a tap on an
+		# open one is for that panel, not the board behind it.
+		if _over_open_overlay(e.position):
+			return
 		_touches[e.index] = e.position
 		_touch_start[e.index] = e.position
 		_touch_moved[e.index] = false
@@ -161,8 +167,17 @@ func _clamp_camera() -> void:
 		pos.y = clampf(pos.y, minf(lo.y, hi.y), maxf(lo.y, hi.y))
 	_camera.position = pos
 
+func _over_open_overlay(pos: Vector2) -> bool:
+	if tower_drawer != null and tower_drawer.covers(pos):
+		return true
+	if minimap != null and minimap.has_method("covers") and minimap.covers(pos):
+		return true
+	return false
+
 func _dispatch_tap(screen_pos: Vector2) -> void:
 	if local_build_controller == null:
+		return
+	if _over_open_overlay(screen_pos):
 		return
 	local_build_controller.handle_tap(_screen_to_world(screen_pos))
 

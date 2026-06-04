@@ -11,13 +11,6 @@ const TOWER_SCALE := 0.12
 const RANGE_SEGMENTS := 48
 
 # Animated path overlay tuning.
-const PATH_COLOR := Color(0.30, 0.65, 1.0, 0.85)
-const PATH_PROJECTED_COLOR := Color(0.55, 0.95, 1.0, 0.95)
-const PATH_WIDTH := 6.0
-const PATH_PROJECTED_WIDTH := 5.0
-const DASH_LEN := 22.0
-const DASH_GAP := 14.0
-const DASH_FLOW_SPEED := 70.0  # pixels/sec — speed dashes scroll along the path
 
 # How far past the map edge mobs spawn/despawn, so entry and exit are off-screen.
 const OFFSCREEN_PAD := 160.0
@@ -44,12 +37,18 @@ var round_manager  # RoundManager — untyped to avoid class-name cycle
 # controller (for the maze path their spawner walks) but take no input and build
 # no ghost/upgrade-panel/hint/overlay.
 var interactive: bool = true
+# UI overlays that float OVER the now-full-width board (set by map_loader for the
+# local board). A click over an open one is for that panel, not the board behind it.
+var tower_drawer    # TowerDrawer
+var minimap         # MinimapPanel (PVP only)
+var road_renderer   # RoadRenderer — live dirt-road for the mob path (committed + hover preview)
 
 var towers: Array = []
 var blocked: Dictionary = {}  # Vector2i -> true
 
 var _ghost: Sprite2D
 var _ghost_range: Line2D
+var _sel_range: Line2D   # high-contrast blue range ring shown for the selected tower
 var _selected_tower  # Tower currently shown in the action-rail inspector (or null)
 
 var _build_mode: bool = false
@@ -68,9 +67,6 @@ var _last_ghost_valid: bool = false
 # input is active (true → the ghost is parked, not following a cursor every frame).
 var _pending_cell: Vector2i = _NO_CELL
 var _touch_mode: bool = false
-var _anim_time: float = 0.0
-var _redraw_accum: float = 0.0
-const REDRAW_INTERVAL := 1.0 / 30.0  # overlay repaint cadence (seconds)
 
 func _ready() -> void:
 	# Draw path overlay under towers and mobs (which are z=0) but over background/markers.
@@ -90,6 +86,15 @@ func _ready() -> void:
 		_ghost_range.points = _circle_points(GameConstants.TOWER_BASE_RANGE)
 		add_child(_ghost_range)
 
+		# Blue range ring for a selected tower (mockup: high-contrast on grass).
+		_sel_range = Line2D.new()
+		_sel_range.width = 4.0
+		_sel_range.closed = true
+		_sel_range.visible = false
+		_sel_range.default_color = Color("aee9ff")
+		_sel_range.z_index = 2
+		add_child(_sel_range)
+
 		# Start in touch mode on touchscreen devices so build-mode-enter doesn't park a
 		# hover ghost at a stale cursor cell; a real mouse motion flips it back to hover.
 		_touch_mode = DisplayServer.is_touchscreen_available()
@@ -106,16 +111,7 @@ func _ready() -> void:
 	recompute_path()
 	emit_signal("towers_changed", towers.size(), max_towers)
 
-func _process(delta: float) -> void:
-	_anim_time += delta
-	# Throttle the flowing-dash repaint to ~30fps. Repainting every frame meant
-	# re-drawing the whole (now much longer, post-supply-bump) maze path 60×/sec,
-	# which hammered the GL-compat canvas renderer during build-mode hovering.
-	_redraw_accum += delta
-	if _redraw_accum >= REDRAW_INTERVAL:
-		_redraw_accum = 0.0
-		queue_redraw()
-
+func _process(_delta: float) -> void:
 	# Touch parks the ghost at the pending cell (set on tap); only the mouse path
 	# follows a cursor every frame.
 	if not _build_mode or _touch_mode:
@@ -147,6 +143,7 @@ func _apply_ghost_color(valid: bool) -> void:
 		_ghost.modulate = Color(1.0, 0.4, 0.4, 0.45)
 		_ghost_range.default_color = Color(1.0, 0.4, 0.4, 0.6)
 		_show_projected = false
+	_refresh_road_preview()
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -174,6 +171,12 @@ func _input(event: InputEvent) -> void:
 	# control, replacing the old floating-panel hit test.
 	var is_pvp: bool = round_manager != null and round_manager.coordinator != null and round_manager.coordinator.is_pvp
 	if not UiLayout.play_rect(is_pvp, get_viewport_rect().size).has_point(mouse_event.position):
+		return
+	# The drawer / minimap float over the full-width board; a click on an open one is
+	# for that panel (its Control also consumes it), not the board behind it.
+	if tower_drawer != null and tower_drawer.covers(mouse_event.position):
+		return
+	if minimap != null and minimap.has_method("covers") and minimap.covers(mouse_event.position):
 		return
 
 	# The placement cell comes from the WORLD mouse position, not the raw event
@@ -221,6 +224,7 @@ func _set_build_mode(value: bool) -> void:
 		_clear_selection()  # can't inspect a tower while placing
 	else:
 		_show_projected = false
+		_refresh_road_preview()
 		_clear_pending()  # drop any parked touch preview when leaving build mode
 
 # Public toggle for the action-rail Build button.
@@ -299,7 +303,6 @@ func _set_pending(cell: Vector2i) -> void:
 	_apply_ghost_color(valid)
 	var afford: bool = round_manager != null and round_manager.can_afford(GameConstants.TOWER_COST)
 	emit_signal("build_pending", cell, GameConstants.TOWER_COST, valid and afford)
-	queue_redraw()
 
 func _clear_pending() -> void:
 	if _pending_cell == _NO_CELL:
@@ -310,8 +313,8 @@ func _clear_pending() -> void:
 	if _ghost_range != null:
 		_ghost_range.visible = false
 	_show_projected = false
+	_refresh_road_preview()
 	emit_signal("build_pending_cleared")
-	queue_redraw()
 
 # --- Tower selection (drives the action-rail inspector) ---
 
@@ -321,9 +324,15 @@ func _select_tower(tower: Node2D) -> void:
 	_selected_tower = tower
 	if is_instance_valid(_selected_tower):
 		_selected_tower.set_selected(true)
+		if _sel_range != null:
+			_sel_range.points = _circle_points(_selected_tower.get_range())
+			_sel_range.position = _selected_tower.position
+			_sel_range.visible = true
 	emit_signal("tower_selected", tower)
 
 func _clear_selection() -> void:
+	if _sel_range != null:
+		_sel_range.visible = false
 	if _selected_tower != null and is_instance_valid(_selected_tower):
 		_selected_tower.set_selected(false)
 	if _selected_tower != null:
@@ -422,67 +431,53 @@ func _sell_tower_at_cell(cell: Vector2i) -> void:
 			return
 
 func recompute_path() -> void:
-	_current_path = PathfinderScript.compute_full_path(entry_cell, checkpoint_cells, exit_cell, blocked)
+	# Mobs AND the road follow the same ORTHOGONAL grid path (clean L corners, mockup
+	# look) so mobs stay ON the road (option B). An 8-dir no-corner-cut path always has
+	# an orthogonal equivalent, so this never fails where the old path succeeded.
+	_current_path = PathfinderScript.compute_orthogonal_path(entry_cell, checkpoint_cells, exit_cell, blocked)
+	if road_renderer != null:
+		# Feed the road the SAME horizontally-extended path the mobs walk, so it enters/
+		# exits straight off the left/right screen edges instead of forcing a stub in
+		# whatever direction the first/last in-grid segment happened to take.
+		road_renderer.set_path(current_path_world())
+
+# Push the build-phase hover preview (or clear it) to the road renderer, mirroring
+# _show_projected / _projected_path. Called wherever those change.
+func _refresh_road_preview() -> void:
+	if road_renderer == null:
+		return
+	if _show_projected and _projected_path.size() >= 2:
+		road_renderer.set_preview(_extend_offscreen(_projected_path))
+	else:
+		road_renderer.clear_preview()
 
 # Path the mobs actually walk: the in-grid path plus off-screen lead-in/lead-out
 # so they spawn and despawn beyond the visible map edges.
 func current_path_world() -> PackedVector2Array:
-	if _current_path.size() < 2:
-		return _current_path
-	var first: Vector2 = _current_path[0]
-	var last: Vector2 = _current_path[_current_path.size() - 1]
-	var extended := PackedVector2Array()
-	extended.append(Vector2(first.x - OFFSCREEN_PAD, first.y))
-	extended.append_array(_current_path)
-	extended.append(Vector2(last.x + OFFSCREEN_PAD, last.y))
-	return extended
+	return _extend_offscreen(_current_path)
+
+# Prepend/append off-screen lead-in/out that runs straight off the LEFT (entry) and
+# RIGHT (exit) edges at the endpoint's row — so the path/road never forces a vertical
+# stub even if the maze makes the first/last in-grid move vertical.
+func _extend_offscreen(p: PackedVector2Array) -> PackedVector2Array:
+	if p.size() < 2:
+		return p
+	var first: Vector2 = p[0]
+	var last: Vector2 = p[p.size() - 1]
+	var out := PackedVector2Array()
+	out.append(Vector2(first.x - OFFSCREEN_PAD, first.y))
+	out.append_array(p)
+	out.append(Vector2(last.x + OFFSCREEN_PAD, last.y))
+	return out
 
 func _compute_projected(cell: Vector2i) -> void:
+	# Only feeds the road hover-preview now, so it uses the orthogonal path too.
 	var trial: Dictionary = blocked.duplicate()
 	trial[cell] = true
-	_projected_path = PathfinderScript.compute_full_path(entry_cell, checkpoint_cells, exit_cell, trial)
+	_projected_path = PathfinderScript.compute_orthogonal_path(entry_cell, checkpoint_cells, exit_cell, trial)
 
-# --- Drawing ---
-
-func _draw() -> void:
-	if _show_projected and _projected_path.size() >= 2:
-		_draw_animated_dashes(_projected_path, PATH_PROJECTED_COLOR, PATH_PROJECTED_WIDTH)
-	elif _current_path.size() >= 2:
-		_draw_animated_dashes(_current_path, PATH_COLOR, PATH_WIDTH)
-
-# Draws a flowing dashed polyline. Dashes are clipped at polyline vertices so
-# bends look correct (no straight chords across corners).
-func _draw_animated_dashes(pts: PackedVector2Array, color: Color, width: float) -> void:
-	var period := DASH_LEN + DASH_GAP
-	var offset := fposmod(_anim_time * DASH_FLOW_SPEED, period)
-
-	var cumulative := 0.0
-	for i in range(pts.size() - 1):
-		var a: Vector2 = pts[i]
-		var b: Vector2 = pts[i + 1]
-		var seg_len: float = a.distance_to(b)
-		if seg_len <= 0.0001:
-			continue
-		var dir: Vector2 = (b - a) / seg_len
-		var seg_start_g := cumulative
-		var seg_end_g := cumulative + seg_len
-
-		var first_k: int = int(floor((seg_start_g - offset) / period)) - 1
-		var k := first_k
-		while true:
-			var dash_g_start := float(k) * period + offset
-			var dash_g_end := dash_g_start + DASH_LEN
-			if dash_g_start > seg_end_g:
-				break
-			if dash_g_end > seg_start_g:
-				var clip_s: float = maxf(dash_g_start, seg_start_g)
-				var clip_e: float = minf(dash_g_end, seg_end_g)
-				if clip_e > clip_s:
-					var p1: Vector2 = a + dir * (clip_s - seg_start_g)
-					var p2: Vector2 = a + dir * (clip_e - seg_start_g)
-					draw_line(p1, p2, color, width)  # no AA — AA polylines are heavy in GL compat
-			k += 1
-		cumulative = seg_end_g
+# The mob path is now drawn by RoadRenderer (a Line2D dirt road), updated on path/
+# preview change via set_path / set_preview — no per-frame _draw overlay.
 
 static func _circle_points(radius: float) -> PackedVector2Array:
 	var pts := PackedVector2Array()

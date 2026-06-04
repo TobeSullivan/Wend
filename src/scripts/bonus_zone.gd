@@ -65,10 +65,13 @@ func touches_tower_cell(cell: Vector2i) -> bool:
 func contains_world(pt: Vector2) -> bool:
 	return position.distance_to(pt) <= radius
 
-# Working magnitude → radius formula. Linear inverse: 10% mag → 4 tiles (the
-# largest possible zone), 100% mag → 1 tile (the smallest, but most powerful).
-# Tuned smaller than DESIGN's example numbers based on prototype playtest feel.
+# Working magnitude → radius formula. Linear inverse: weak effects are wide, strong
+# effects are tight. Scaled for the 20x11 board (half the old 40x22 grid): the widest
+# zone is ~2.25 tiles so an ~4.5-tile diameter still spans only ~20% of the board
+# width — the same screen proportion the 4-tile radius gave on the 40-wide board.
+# 10% mag → ~2.25 tiles (widest), 100% mag → ~0.85 tiles (tightest but most powerful).
 # Exact curve is TBD in STATE.md.
 static func radius_for_magnitude(mag: int) -> float:
-	var r_tiles: float = maxf(0.75, 4.0 - float(mag - 10) / 30.0)
+	var t: float = clampf(float(mag - 10) / 90.0, 0.0, 1.0)
+	var r_tiles: float = lerpf(2.25, 0.85, t)
 	return r_tiles * GridScript.TILE_SIZE

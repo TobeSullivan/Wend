@@ -20,6 +20,71 @@ const NEIGHBORS_8 := [
 	{"d": Vector2i(-1, -1), "cost": 14, "checks": [Vector2i(-1, 0), Vector2i(0, -1)]},
 ]
 
+const NEIGHBORS_4 := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+
+# Orthogonal (4-directional, grid-aligned) path for the ROAD render only — clean L
+# corners, no diagonals, to match the mockup. Mobs still walk compute_full_path (which
+# takes diagonal shortcuts). Collinear runs are collapsed so corners land only at turns.
+static func compute_orthogonal_path(start: Vector2i, waypoints: Array, goal: Vector2i, blocked: Dictionary) -> PackedVector2Array:
+	var cells: Array = [start]
+	var current := start
+	var stops: Array = waypoints.duplicate()
+	stops.append(goal)
+	for next_stop in stops:
+		var seg := _astar_4(current, next_stop, blocked)
+		if seg.is_empty():
+			return PackedVector2Array()
+		for i in range(1, seg.size()):
+			cells.append(seg[i])
+		current = next_stop
+	var simple := _collapse_collinear(cells)
+	var out := PackedVector2Array()
+	for c in simple:
+		out.append(GridScript.cell_to_world(c))
+	return out
+
+# Keep only cells where the travel direction changes (turns); drop straight-run interiors.
+static func _collapse_collinear(cells: Array) -> Array:
+	if cells.size() <= 2:
+		return cells
+	var out: Array = [cells[0]]
+	for i in range(1, cells.size() - 1):
+		if (cells[i] - cells[i - 1]) != (cells[i + 1] - cells[i]):
+			out.append(cells[i])
+	out.append(cells[cells.size() - 1])
+	return out
+
+static func _astar_4(start: Vector2i, goal: Vector2i, blocked: Dictionary) -> Array:
+	if start == goal:
+		return [start]
+	if not GridScript.in_bounds(start) or not GridScript.in_bounds(goal):
+		return []
+	var open: Array = [start]
+	var came_from: Dictionary = {}
+	var g_score: Dictionary = {start: 0}
+	var f_score: Dictionary = {start: _manhattan(start, goal)}
+	while open.size() > 0:
+		var current: Vector2i = _pop_lowest_f(open, f_score)
+		if current == goal:
+			return _reconstruct(came_from, current)
+		for d in NEIGHBORS_4:
+			var neighbor: Vector2i = current + d
+			if not GridScript.in_bounds(neighbor):
+				continue
+			if neighbor != goal and neighbor != start and blocked.has(neighbor):
+				continue
+			var tentative_g: int = (g_score[current] as int) + 10
+			if not g_score.has(neighbor) or tentative_g < (g_score[neighbor] as int):
+				came_from[neighbor] = current
+				g_score[neighbor] = tentative_g
+				f_score[neighbor] = tentative_g + _manhattan(neighbor, goal)
+				if not open.has(neighbor):
+					open.append(neighbor)
+	return []
+
+static func _manhattan(a: Vector2i, b: Vector2i) -> int:
+	return 10 * (absi(a.x - b.x) + absi(a.y - b.y))
+
 # Returns world-space polyline: entry → (... detour vertices ...) → cp1 → ... → exit.
 # Returns empty PackedVector2Array if any segment is impassable.
 static func compute_full_path(start: Vector2i, waypoints: Array, goal: Vector2i, blocked: Dictionary) -> PackedVector2Array:

@@ -23,8 +23,8 @@ var local_index: int = 0
 var grid_size: Vector2i = Vector2i(40, 22)
 var arena                      # GameView — for click-to-focus during run
 
-const COLS := 2
-const TILE := Vector2(150, 86)  # two columns inside the right rail's arena strip
+const COLS := 1  # single column stacked down the left-edge drawer band
+const TILE := Vector2(160, 90)
 const GAP := 8.0
 const BIG := Vector2(720, 400)
 
@@ -33,6 +33,12 @@ var _big  # MinimapTile — untyped to avoid the class-name cycle
 var _snapshots: Array = []     # per board: Array of {cell, color}
 var _seen: Array = []          # per board: bool
 var _selected: int = 0
+
+# Collapsible left-edge drawer (the old always-docked rail strip is gone). Hidden by
+# default; the action strip's Map button toggles it. Slides over the full-width board.
+var _panel: Control
+var _open: bool = false
+var _tween: Tween
 
 func _ready() -> void:
 	layer = 11  # above the action rail (10) so it shows in the rail's arena strip
@@ -58,21 +64,21 @@ func _build_ui() -> void:
 	var n := boards.size()
 
 	var root := Control.new()
-	root.mouse_filter = Control.MOUSE_FILTER_IGNORE  # only tiles catch clicks; gaps pass through
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE  # board taps pass through when the drawer is closed
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(root)
 
-	# The minimap occupies the bottom strip of the right rail.
-	var region := UiLayout.arena_region(vp)
-	var sep := ColorRect.new()  # a top divider so it reads as its own rail section
-	sep.color = UiStyle.BORDER
-	sep.position = region.position
-	sep.size = Vector2(region.size.x, 1)
-	sep.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(sep)
+	# The minimap is a left-edge drawer band over the full-width board.
+	var region := UiLayout.minimap_region(vp)
+	_panel = Panel.new()
+	UiStyle.apply_minimap(_panel)
+	_panel.size = region.size
+	_panel.position = Vector2(region.position.x - region.size.x, region.position.y)  # start off the left edge
+	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(_panel)
 
-	var start_x := region.position.x + 10.0
-	var start_y := region.position.y + 8.0
+	var start_x := 10.0
+	var start_y := 8.0
 
 	var title := Label.new()
 	title.text = "ARENA"
@@ -81,7 +87,7 @@ func _build_ui() -> void:
 	title.add_theme_color_override("font_color", Color(0.8, 0.85, 0.95))
 	title.add_theme_color_override("font_outline_color", Color.BLACK)
 	title.add_theme_constant_override("outline_size", 3)
-	root.add_child(title)
+	_panel.add_child(title)
 
 	for i in range(n):
 		var col := i % COLS
@@ -89,6 +95,7 @@ func _build_ui() -> void:
 		var tile := MinimapTileScript.new()
 		tile.custom_minimum_size = TILE
 		tile.size = TILE
+		# Positions are local to the sliding _panel.
 		tile.position = Vector2(start_x + GAP + col * (TILE.x + GAP), start_y + 24.0 + GAP + row * (TILE.y + GAP))
 		tile.mouse_filter = Control.MOUSE_FILTER_STOP
 		tile.index = i
@@ -97,7 +104,7 @@ func _build_ui() -> void:
 		tile.exit_cell = boards[i].build_controller.exit_cell
 		tile.checkpoints = boards[i].build_controller.checkpoint_cells
 		tile.clicked.connect(_on_tile_clicked)
-		root.add_child(tile)
+		_panel.add_child(tile)
 		_tiles.append(tile)
 
 	# Large "last seen" focus panel (build-phase opponent study), centred over the
@@ -112,6 +119,43 @@ func _build_ui() -> void:
 	_big.visible = false
 	_big.clicked.connect(func(_i): _dismiss_focus())
 	root.add_child(_big)
+
+# --- Drawer (slide in/out from the left edge) ---
+
+func toggle() -> void:
+	if _open:
+		_close_drawer()
+	else:
+		_open_drawer()
+
+func is_open() -> bool:
+	return _open
+
+# True when the open drawer covers the screen point (so the board ignores the tap).
+func covers(pos: Vector2) -> bool:
+	return _open and UiLayout.minimap_region(get_viewport().get_visible_rect().size).has_point(pos)
+
+func _open_drawer() -> void:
+	var region := UiLayout.minimap_region(get_viewport().get_visible_rect().size)
+	_panel.position.y = region.position.y
+	_panel.size = region.size
+	_kill_tween()
+	_tween = create_tween()
+	_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_tween.tween_property(_panel, "position:x", region.position.x, 0.18)
+	_open = true
+
+func _close_drawer() -> void:
+	var region := UiLayout.minimap_region(get_viewport().get_visible_rect().size)
+	_open = false  # taps pass through immediately while it slides out
+	_kill_tween()
+	_tween = create_tween()
+	_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	_tween.tween_property(_panel, "position:x", region.position.x - region.size.x, 0.16)
+
+func _kill_tween() -> void:
+	if _tween != null and _tween.is_valid():
+		_tween.kill()
 
 # --- Snapshots / fog ---
 

@@ -30,9 +30,9 @@ window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/handheld/orientation="landscape"
 
-[input_devices]
+[gui]
 
-pointing/emulate_mouse_from_touch=true
+theme/custom_font="res://assets/fonts/fredoka_bold.tres"
 
 [rendering]
 

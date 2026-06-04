@@ -20,20 +20,23 @@ const BuildControllerScript := preload("res://scripts/build_controller.gd")
 const MatchCoordinatorScript := preload("res://scripts/match_coordinator.gd")
 const RoundManagerScript := preload("res://scripts/round_manager.gd")
 const HUDScript := preload("res://scripts/hud.gd")
-const ActionRailScript := preload("res://scripts/action_rail.gd")
+const ActionStripScript := preload("res://scripts/action_strip.gd")
+const TowerDrawerScript := preload("res://scripts/tower_drawer.gd")
 const MatchEndPanelScript := preload("res://scripts/match_end_panel.gd")
 const WinPanelScript := preload("res://scripts/win_panel.gd")
 const RoundToastScript := preload("res://scripts/round_toast.gd")
 const PauseMenuScript := preload("res://scripts/pause_menu.gd")
 const GameViewScript := preload("res://scripts/game_view.gd")
 const MinimapPanelScript := preload("res://scripts/minimap_panel.gd")
+const RoadRendererScript := preload("res://scripts/road_renderer.gd")
+const GridOverlayScript := preload("res://scripts/grid_overlay.gd")
 const BotControllerScript := preload("res://scripts/bot_controller.gd")
 const PlaytestLogScript := preload("res://scripts/playtest_log.gd")
 const ObstacleScript := preload("res://scripts/obstacle.gd")
 const ZoneDefinitionScript := preload("res://resources/zone_definition.gd")
 const MapResourceScript := preload("res://resources/map_resource.gd")
 
-const CHECKPOINT_TEX := preload("res://assets/maps/level_marker_01.png")
+const CHECKPOINT_TEX := preload("res://assets/maps/level_marker_flag.png")
 const GRASS_TEX := preload("res://assets/maps/summer_grass_tile.png")
 # The schema stores obstacles as bare cells (no texture/footprint), so every
 # obstacle cell renders with this single debris prop.
@@ -71,7 +74,9 @@ static func build_match(host: Node2D, map, num_boards: int = 1) -> Array:
 		boards.append(board)
 
 	# On-screen UI is bound to the local player's board (board 0).
-	_build_match_ui(host, boards[0], boards[0].build_controller)
+	var ui = _build_match_ui(host, boards[0], boards[0].build_controller)
+	var strip = ui[0]
+	var drawer = ui[1]
 
 	# Playtest telemetry for threshold calibration (local board only; user:// only).
 	var plog := PlaytestLogScript.new()
@@ -89,9 +94,12 @@ static func build_match(host: Node2D, map, num_boards: int = 1) -> Array:
 	game_view.local_index = 0
 	game_view.is_pvp = coordinator.is_pvp
 	game_view.local_build_controller = boards[0].build_controller  # touch tap dispatch
+	game_view.tower_drawer = drawer  # so taps over the open drawer don't poke the board
+	boards[0].build_controller.tower_drawer = drawer  # same guard for the mouse path
 	host.add_child(game_view)
 
-	# Arena minimap only for multi-board matches (PVP).
+	# Arena minimap only for multi-board matches (PVP). It floats over the board's left
+	# edge as a collapsible drawer toggled by the action strip's Map button.
 	if num_boards > 1:
 		var minimap := MinimapPanelScript.new()
 		minimap.coordinator = coordinator
@@ -100,6 +108,9 @@ static func build_match(host: Node2D, map, num_boards: int = 1) -> Array:
 		minimap.grid_size = map.grid_size
 		minimap.arena = game_view
 		host.add_child(minimap)
+		strip.minimap = minimap  # the strip's PVP Map button toggles it
+		game_view.minimap = minimap  # taps over the open minimap don't poke the board
+		boards[0].build_controller.minimap = minimap  # same guard for the mouse path
 
 	return boards
 
@@ -112,6 +123,14 @@ static func _board_offset(index: int, grid_size: Vector2i) -> Vector2:
 # Builds one board's full sim subtree under `container` and returns its BoardState.
 static func _build_board(container: Node2D, map, coordinator, is_local: bool):
 	_setup_background(container, map.grid_size)
+
+	# Live dirt-road renderer for the mob path (replaces the old dashed overlay). Add
+	# THEN configure (configure needs _ready done). Above grass, below towers/mobs.
+	var road := RoadRendererScript.new()
+	container.add_child(road)
+	road.configure(float(GridScript.TILE_SIZE))
+	road.z_index = -50
+
 	var zones := _setup_zones(container, map.bonus_zones)
 	_setup_markers(container, map.checkpoint_cells)
 	var obstacle_blocked := _setup_obstacles(container, map.obstacle_cells)
@@ -146,6 +165,7 @@ static func _build_board(container: Node2D, map, coordinator, is_local: bool):
 
 	spawner.board = board  # mobs credit damage/kills to this board
 	ctrl.round_manager = board
+	ctrl.road_renderer = road  # set BEFORE add_child(ctrl): ctrl._ready calls recompute_path → set_path
 	coordinator.register_board(board)
 
 	container.add_child(spawner)
@@ -163,14 +183,20 @@ static func _build_board(container: Node2D, map, coordinator, is_local: bool):
 
 	return board
 
-static func _build_match_ui(host: Node2D, local_board, local_ctrl) -> void:
+# Builds the on-screen UI frame for the local board and returns [strip, drawer] (so
+# the caller can inject the PVP minimap ref and wire the game_view tap guard).
+static func _build_match_ui(host: Node2D, local_board, local_ctrl) -> Array:
 	var hud := HUDScript.new()
 	hud.round_manager = local_board
 	hud.build_controller = local_ctrl
 
-	var rail := ActionRailScript.new()
-	rail.round_manager = local_board
-	rail.build_controller = local_ctrl
+	var strip := ActionStripScript.new()
+	strip.round_manager = local_board
+	strip.build_controller = local_ctrl
+
+	var drawer := TowerDrawerScript.new()
+	drawer.round_manager = local_board
+	drawer.build_controller = local_ctrl
 
 	var match_end := MatchEndPanelScript.new()
 	match_end.round_manager = local_board
@@ -184,26 +210,38 @@ static func _build_match_ui(host: Node2D, local_board, local_ctrl) -> void:
 	var pause_menu := PauseMenuScript.new()
 	pause_menu.build_controller = local_ctrl
 	pause_menu.round_manager = local_board
-	rail.pause_menu = pause_menu  # the rail's on-screen Pause button drives the menu
+	strip.pause_menu = pause_menu  # the strip's on-screen Pause button drives the menu
 
 	host.add_child(hud)
-	host.add_child(rail)
+	host.add_child(strip)
+	host.add_child(drawer)
 	host.add_child(match_end)
 	host.add_child(win_panel)
 	host.add_child(round_toast)
 	host.add_child(pause_menu)
+	return [strip, drawer]
 
-# Grass covers exactly the play grid — its edge IS the buildable boundary, so the
-# player can see where they can place (the old over-pad made the off-grid margin
-# look buildable and read as an "invisible blocker"). The area around the board
-# inside the play rect is the dark clear colour (see project.godot), framing it.
+# Full-bleed battlefield (mockup): one toned-down grass fills the screen (no black
+# void, no bright/dark split), with a faint cell grid over the play area marking the
+# buildable cells. Grass is dimmed/desaturated so the road and towers pop.
 static func _setup_background(parent: Node2D, grid_size: Vector2i) -> void:
-	var bg := TextureRect.new()
-	bg.texture = GRASS_TEX
-	bg.stretch_mode = TextureRect.STRETCH_TILE
-	bg.size = Vector2(grid_size.x * GridScript.TILE_SIZE, grid_size.y * GridScript.TILE_SIZE)
-	bg.z_index = -100
-	parent.add_child(bg)
+	var tile := GridScript.TILE_SIZE
+	var pad := 18  # tiles of grass bleed each side — covers any screen aspect, never black
+	var grass := TextureRect.new()
+	grass.texture = GRASS_TEX
+	grass.stretch_mode = TextureRect.STRETCH_TILE
+	grass.size = Vector2((grid_size.x + pad * 2) * tile, (grid_size.y + pad * 2) * tile)
+	grass.position = Vector2(-pad * tile, -pad * tile)
+	grass.modulate = Color(0.72, 0.80, 0.62)  # mockup: saturate .62 / brightness .80, road pops
+	grass.z_index = -100
+	parent.add_child(grass)
+
+	var grid := GridOverlayScript.new()
+	grid.cols = grid_size.x
+	grid.rows = grid_size.y
+	grid.cell = float(tile)
+	grid.z_index = -90  # above grass, below the road (-50)
+	parent.add_child(grid)
 
 static func _setup_obstacles(parent: Node2D, obstacle_cells: Array) -> Dictionary:
 	# Each obstacle cell becomes a permanent wall (seeds the build controller's
@@ -238,6 +276,8 @@ static func _setup_markers(parent: Node2D, checkpoint_cells: Array) -> void:
 		var marker := Sprite2D.new()
 		marker.texture = CHECKPOINT_TEX
 		marker.position = GridScript.cell_to_world(cell)
-		marker.scale = Vector2(0.55, 0.55)
-		marker.z_index = -40
+		marker.scale = Vector2(0.42, 0.42)
+		# Flag is tall (pole) — anchor its BASE at the cell centre, not its middle.
+		marker.offset = Vector2(0, -CHECKPOINT_TEX.get_height() * 0.5)
+		marker.z_index = 3  # above the road so the flag reads on top of the path
 		parent.add_child(marker)
