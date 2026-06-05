@@ -218,13 +218,19 @@ func _hide_panel() -> void:
 	_panel.visible = false
 
 func _on_return_home() -> void:
+	SceneManager.net_close()  # leave the server cleanly (no-op for solo/campaign)
 	SceneManager.goto_home()
 
 func _on_play_again() -> void:
 	SceneManager.restart_current_match()
 
 func _on_find_new_match() -> void:
-	SceneManager.start_pvp()
+	# Networked: re-queue in the lobby (the dedicated server resets after a match so the
+	# same players can play again). Offline practice (no transport): a fresh local match.
+	if SceneManager.transport != null:
+		SceneManager.goto_lobby()
+	else:
+		SceneManager.start_pvp()
 
 func _ordinal(n: int) -> String:
 	if n <= 0:

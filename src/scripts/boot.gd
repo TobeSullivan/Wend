@@ -13,6 +13,11 @@ func _ready() -> void:
 	_route.call_deferred()
 
 func _route() -> void:
+	# Dedicated headless server (godot --headless -- --server): host the lobby authority,
+	# no UI, no player board. Every other launch is a normal client / solo game.
+	if "--server" in OS.get_cmdline_user_args():
+		SceneManager.start_dedicated_server()
+		return
 	if SaveData.is_first_launch():
 		SaveData.mark_first_launch_done()
 		if SceneManager.has_campaign_mission(1):

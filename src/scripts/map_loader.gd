@@ -83,6 +83,12 @@ static func build_match(host: Node2D, map, num_boards: int = 1, local_index: int
 			board.lives = GameConstants.LIVES_PER_PLAYER
 		boards.append(board)
 
+	# Dedicated server: authority-only build (local_index < 0 = no local player). Sim all
+	# boards for the authoritative kill tally + resolve_lives, but skip ALL on-screen UI,
+	# camera, leaderboard and telemetry — the server is headless and holds no seat.
+	if local_index < 0:
+		return boards
+
 	# On-screen UI is bound to the LOCAL player's board (their seat).
 	var local_board = boards[local_index]
 	var local_ctrl = local_board.build_controller

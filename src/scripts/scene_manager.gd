@@ -10,6 +10,7 @@ const MapResourceScript := preload("res://resources/map_resource.gd")
 const MapGeneratorScript := preload("res://scripts/map_generator.gd")
 const EnetTransportScript := preload("res://net/enet_transport.gd")
 const NetProtocolScript := preload("res://net/net_protocol.gd")
+const MatchServerScript := preload("res://net/match_server.gd")
 
 # PVP: 1 local player + 7 bots (DESIGN_MODES: 8-player solo-queue ranked).
 const PVP_BOARD_COUNT := 8
@@ -23,6 +24,8 @@ const MATCH_SCENE := "res://scenes/prototype.tscn"
 # --- Networked match (PVP). The transport is owned HERE (an autoload) so it persists
 # across the lobby→match scene change and sits at a stable tree path for RPCs. ---
 var transport = null            # active MatchTransport (EnetTransport) or null
+var is_dedicated_server := false  # true on the headless VPS authority (godot -- --server)
+var last_player_name := "Player"  # remembered so re-queue keeps your name
 var pending_local_index := 0    # the local player's seat in a networked match
 var pending_player_names: Array = []  # seat-indexed lobby handles
 var pending_seat_by_peer: Dictionary = {}  # {enet_peer_id: seat} — host uses it to map a disconnect to a board
@@ -117,6 +120,28 @@ func net_close() -> void:
 		transport.close()
 		transport.queue_free()
 		transport = null
+
+# Boot as the headless dedicated server (godot --headless -- --server): host the lobby
+# authority. The server is peer 1 / authority but never a player (no seat). A persistent
+# MatchServer child owns the lobby and loads the match scene authority-only on start.
+func start_dedicated_server() -> int:
+	var err := net_host()
+	if err != OK:
+		push_error("dedicated server: could not host (error %d)" % err)
+		return err
+	is_dedicated_server = true
+	var server := MatchServerScript.new()
+	server.name = "MatchServer"
+	add_child(server)
+	return OK
+
+# Called on the dedicated server when a match ends: hand the persistent MatchServer back
+# to lobby duty so the remaining players can re-queue. The finished match scene is freed
+# when the next match starts (change_scene), so nothing else to tear down here.
+func reset_dedicated_lobby() -> void:
+	var server = get_node_or_null("MatchServer")
+	if server != null:
+		server.reset_to_lobby()
 
 # Launch a networked PVP match: every client generates the IDENTICAL map from the
 # shared seed, then builds it with the local player on their own seat (no bots; the

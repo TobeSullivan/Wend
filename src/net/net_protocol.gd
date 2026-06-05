@@ -13,6 +13,7 @@ class_name NetProtocol
 const LOBBY_STATE := "lobby_state"   # H→C: {players:[{id,name,seat}], host_id, count, countdown}
 const SET_NAME := "set_name"         # C→H: {name}
 const START_MATCH := "start_match"   # H→C: {seed, tier, board_count, seat, names:[...]}
+const PLAY := "play"                 # C→H: the lobby leader asks the dedicated server to start
 
 # --- In-match: build phase ---
 const BUILD_INPUT := "build_input"   # both: {seat, action, cell?, stat?}  (host relays C→H to all)

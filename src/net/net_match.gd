@@ -36,10 +36,12 @@ func setup(t, coord, board_list: Array, seat: int, peer_seats: Dictionary = {}) 
 	coordinator.driven_externally = not transport.is_authority()
 
 	# Only the LOCAL interactive board relays its actions; opponent boards apply inbound
-	# relays (apply_remote_*) which never re-relay, so there's no loop.
-	var lc = boards[local_seat].build_controller
-	lc.net = self
-	lc.seat = local_seat
+	# relays (apply_remote_*) which never re-relay, so there's no loop. A dedicated server
+	# (local_seat < 0) holds no board, so there's nothing local to wire.
+	if local_seat >= 0 and local_seat < boards.size():
+		var lc = boards[local_seat].build_controller
+		lc.net = self
+		lc.seat = local_seat
 
 	transport.received.connect(_on_received)
 	transport.peer_left.connect(_on_peer_left)
@@ -140,6 +142,9 @@ func _broadcast_match_end() -> void:
 	for b in coordinator.finish_order:
 		order.append(boards.find(b))
 	transport.broadcast({"t": NetProtocol.MATCH_END, "order": order})
+	# Dedicated server: hand back to the lobby so the same players can re-queue.
+	if SceneManager.is_dedicated_server:
+		SceneManager.reset_dedicated_lobby()
 
 # --- Client ← applies ---
 

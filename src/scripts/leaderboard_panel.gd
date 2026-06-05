@@ -24,6 +24,7 @@ var _panel: Panel
 var _rows_box: VBoxContainer
 var _open: bool = false
 var _tween: Tween
+var _row_nodes: Dictionary = {}   # board idx -> {btn, rank, name, lives}; built once, updated in place
 
 func _ready() -> void:
 	layer = 11  # above the action strip (10)
@@ -110,25 +111,27 @@ func _process(dt: float) -> void:
 func _refresh() -> void:
 	if _rows_box == null:
 		return
-	for c in _rows_box.get_children():
-		c.queue_free()
-	var rank := 1
-	for idx in _ranking():
-		_rows_box.add_child(_make_row(rank, idx))
-		rank += 1
+	# Build the row buttons ONCE; afterwards update them IN PLACE (text + order + style).
+	# Rebuilding every poll used to queue_free the button under the cursor mid-click, so
+	# taps were silently dropped and spectating felt broken ("click over and over").
+	if _row_nodes.is_empty():
+		for idx in range(boards.size()):
+			var row := _make_row(idx)
+			_row_nodes[idx] = row
+			_rows_box.add_child(row["btn"])
+	var ranking := _ranking()
+	for pos in range(ranking.size()):
+		var idx: int = ranking[pos]
+		_update_row(_row_nodes[idx], pos + 1, idx)
+		_rows_box.move_child(_row_nodes[idx]["btn"], pos)
 
-func _make_row(rank: int, idx: int) -> Button:
+# Build one persistent row (structure only); content + style are set by _update_row.
+func _make_row(idx: int) -> Dictionary:
 	var s := UiLayout.scale_factor()
-	var b = boards[idx]
-	var is_local := (idx == local_index)
-	var pname: String = coordinator.name_for(b) if coordinator != null else "Board %d" % (idx + 1)
+	var pname: String = coordinator.name_for(boards[idx]) if coordinator != null else "Board %d" % (idx + 1)
 
 	var btn := Button.new()
 	btn.custom_minimum_size = Vector2(0, 42 * s)
-	var bg: Color = UiStyle.START_BG if is_local else UiStyle.PILL_BG
-	UiStyle.style_flat_button(btn, bg, 12, UiStyle.PILL_BORDER, 2, false, 0, 0)
-	if b.eliminated:
-		btn.modulate = Color(1, 1, 1, 0.5)
 	btn.pressed.connect(func(): _on_row(idx))
 
 	var hb := HBoxContainer.new()
@@ -139,7 +142,7 @@ func _make_row(rank: int, idx: int) -> Button:
 	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(hb)
 
-	var rank_lbl := _lbl("%d" % rank, int(15 * s), UiStyle.LABEL_COL)
+	var rank_lbl := _lbl("", int(15 * s), UiStyle.LABEL_COL)
 	rank_lbl.custom_minimum_size = Vector2(22 * s, 0)
 	hb.add_child(rank_lbl)
 
@@ -149,12 +152,27 @@ func _make_row(rank: int, idx: int) -> Button:
 	name_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	hb.add_child(name_lbl)
 
-	var lives_text := "OUT" if b.eliminated else "%d" % maxi(0, _lives_of(b))
-	var lives_col := Color(0.95, 0.6, 0.55) if b.eliminated else Color(1.0, 0.84, 0.55)
-	var lives_lbl := _lbl(lives_text, int(15 * s), lives_col)
+	var lives_lbl := _lbl("", int(15 * s), Color(1.0, 0.84, 0.55))
 	hb.add_child(lives_lbl)
 
-	return btn
+	return {"btn": btn, "rank": rank_lbl, "name": name_lbl, "lives": lives_lbl}
+
+# Update a persistent row in place: rank, lives, eliminated dimming, and style (your row
+# green; the board you're currently spectating gets a gold accent so the tap clearly took).
+func _update_row(row: Dictionary, rank: int, idx: int) -> void:
+	var b = boards[idx]
+	var is_local := (idx == local_index)
+	row["rank"].text = "%d" % rank
+	row["lives"].text = "OUT" if b.eliminated else "%d" % maxi(0, _lives_of(b))
+	row["lives"].add_theme_color_override("font_color", Color(0.95, 0.6, 0.55) if b.eliminated else Color(1.0, 0.84, 0.55))
+	row["btn"].modulate = Color(1, 1, 1, 0.5) if b.eliminated else Color(1, 1, 1, 1.0)
+	var bg: Color = UiStyle.START_BG if is_local else UiStyle.PILL_BG
+	var border: Color = UiStyle.PILL_BORDER
+	var bw := 2
+	if arena != null and not is_local and arena.current_index() == idx:
+		border = Color(1.0, 0.84, 0.55)  # gold accent = currently watching this board
+		bw = 3
+	UiStyle.style_flat_button(row["btn"], bg, 12, border, bw, false, 0, 0)
 
 func _lbl(text: String, size: int, col: Color) -> Label:
 	var l := Label.new()
@@ -173,8 +191,10 @@ func _on_row(idx: int) -> void:
 		return
 	if coordinator.phase == "run":
 		arena.focus_board(idx)
+		_refresh()  # instant: highlight the row you just tapped (don't wait for the 0.2s poll)
 	elif idx == local_index:
 		arena.focus_board(local_index)
+		_refresh()
 
 # --- Drawer (slide in/out from the left edge) ---
 

@@ -1,42 +1,56 @@
 extends Control
 
-# PVP lobby (built from the locked visual system — no separate design doc exists yet;
-# follows ui_style.gd + the home/pve_select patterns). Two views on one card:
-#   CONNECT — name field, Host Game / Join Game (+ address), Back.
-#   ROOM    — ranked player list, host's Play (≥2), auto-countdown from 10 at 8, Leave.
-#
-# Networking: host-authoritative over the SceneManager-owned MatchTransport. The host
-# owns the authoritative player list + seats and broadcasts LOBBY_STATE; clients render
-# it. On start the host picks the shared seed and broadcasts START_MATCH; everyone then
-# generates the identical map and loads the match on their own seat (SceneManager).
+# PVP lobby — a thin CLIENT of the dedicated match server (src/net/match_server.gd on a
+# headless VPS). The old P2P "Host / Join by IP" model is gone: everyone connects to the
+# same server, which owns the authoritative player list + seats and starts the match.
+#   CONNECT — name field, Play Online, Back.
+#   ROOM    — player list; the leader (first to join) gets Start; Leave.
+# 4-digit room codes (multiple lobbies on one server) are the next step; for now everyone
+# who connects shares the single lobby. Built from the locked visual system (ui_style.gd).
 
 const UiStyle := preload("res://scripts/ui_style.gd")
 const NetProtocol := preload("res://net/net_protocol.gd")
 
+# Server the client dials. Overridable via the MBTD_SERVER env var for PC testing
+# (e.g. MBTD_SERVER=127.0.0.1 against a local headless server); the shipped build bakes
+# the VPS address in here.
+const DEFAULT_SERVER := "127.0.0.1"
+
 var _t                                  # MatchTransport (from SceneManager)
-var _is_host := false
 var _my_id := 1
 var _my_seat := 0
-var _players: Array = []                # [{id, name, seat}] — authoritative on host, mirror on client
-var _countdown := -1.0                  # >=0 = auto-start ticking (host-driven)
-var _broadcast_accum := 0.0
+var _leader_id := 0
+var _players: Array = []                # [{id, name, seat}] — mirror of the server's list
 
 # UI
 var _card: PanelContainer
 var _connect_box: VBoxContainer
 var _room_box: VBoxContainer
 var _name_edit: LineEdit
-var _addr_edit: LineEdit
 var _status: Label
 var _rows: VBoxContainer
-var _play_btn: Button
-var _addr_info: Label
+var _start_btn: Button
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	UiStyle.menu_backdrop(self)
 	_build_ui()
-	_show_connect()
+	_name_edit.text = SceneManager.last_player_name
+	# Returning from a finished match still connected to the dedicated server: skip the
+	# connect step, go straight to the room, and re-register so the server (which has reset
+	# to its lobby) resends the current state.
+	if SceneManager.transport != null:
+		_t = SceneManager.transport
+		_my_id = _t.unique_id()
+		_wire_transport()
+		_show_room()
+		_t.send_to_authority({"t": NetProtocol.SET_NAME, "name": _my_name()})
+	else:
+		_show_connect()
+
+func _server_address() -> String:
+	var env := OS.get_environment("MBTD_SERVER")
+	return env if env != "" else DEFAULT_SERVER
 
 # ============================================================================
 # UI
@@ -86,26 +100,12 @@ func _build_connect_box() -> VBoxContainer:
 	_name_edit.custom_minimum_size = Vector2(0, 40)
 	box.add_child(_name_edit)
 
-	var host_btn := Button.new()
-	host_btn.text = "Host Game"
-	host_btn.add_theme_font_size_override("font_size", 18)
-	UiStyle.style_go_button(host_btn)
-	host_btn.pressed.connect(_on_host_pressed)
-	box.add_child(host_btn)
-
-	box.add_child(_field_label("Join a host (address)"))
-	_addr_edit = LineEdit.new()
-	_addr_edit.text = "127.0.0.1"
-	_addr_edit.placeholder_text = "host IP or address"
-	_addr_edit.custom_minimum_size = Vector2(0, 40)
-	box.add_child(_addr_edit)
-
-	var join_btn := Button.new()
-	join_btn.text = "Join Game"
-	join_btn.add_theme_font_size_override("font_size", 18)
-	UiStyle.style_hero_button(join_btn)
-	join_btn.pressed.connect(_on_join_pressed)
-	box.add_child(join_btn)
+	var play_btn := Button.new()
+	play_btn.text = "Play Online"
+	play_btn.add_theme_font_size_override("font_size", 18)
+	UiStyle.style_hero_button(play_btn)
+	play_btn.pressed.connect(_on_play_online_pressed)
+	box.add_child(play_btn)
 
 	box.add_child(_spacer(6))
 	var back := Button.new()
@@ -121,10 +121,6 @@ func _build_room_box() -> VBoxContainer:
 	box.add_theme_constant_override("separation", 10)
 	box.visible = false
 
-	_addr_info = _label("", 12, UiStyle.LABEL_COL)
-	_addr_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(_addr_info)
-
 	var hdr := _label("PLAYERS", 14, UiStyle.LABEL_COL)
 	box.add_child(hdr)
 
@@ -134,12 +130,12 @@ func _build_room_box() -> VBoxContainer:
 
 	box.add_child(_spacer(4))
 
-	_play_btn = Button.new()
-	_play_btn.text = "Play"
-	_play_btn.add_theme_font_size_override("font_size", 18)
-	UiStyle.style_go_button(_play_btn)
-	_play_btn.pressed.connect(_on_play_pressed)
-	box.add_child(_play_btn)
+	_start_btn = Button.new()
+	_start_btn.text = "Start"
+	_start_btn.add_theme_font_size_override("font_size", 18)
+	UiStyle.style_go_button(_start_btn)
+	_start_btn.pressed.connect(_on_start_pressed)
+	box.add_child(_start_btn)
 
 	var leave := Button.new()
 	leave.text = "Leave"
@@ -162,34 +158,15 @@ func _show_room() -> void:
 # Connect / leave
 # ============================================================================
 
-func _on_host_pressed() -> void:
-	var err = SceneManager.net_host()
+func _on_play_online_pressed() -> void:
+	SceneManager.last_player_name = _my_name()  # remembered across re-queue
+	var err = SceneManager.net_join(_server_address())
 	if err != OK:
-		_status.text = "Could not host (error %d)" % err
+		_status.text = "Could not reach server (error %d)" % err
 		return
 	_t = SceneManager.transport
-	_is_host = true
-	_my_id = 1
-	_my_seat = 0
-	_players = [{"id": 1, "name": _my_name(), "seat": 0}]
 	_wire_transport()
-	_status.text = "Hosting on port %d — waiting for players" % NetProtocol.DEFAULT_PORT
-	_addr_info.text = "Same Wi-Fi: others Join at %s:%d\nInternet: forward UDP %d to this PC, share your public IP" % [_local_ip(), NetProtocol.DEFAULT_PORT, NetProtocol.DEFAULT_PORT]
-	_show_room()
-
-func _on_join_pressed() -> void:
-	var addr := _addr_edit.text.strip_edges()
-	if addr == "":
-		_status.text = "Enter a host address"
-		return
-	var err = SceneManager.net_join(addr)
-	if err != OK:
-		_status.text = "Could not connect (error %d)" % err
-		return
-	_t = SceneManager.transport
-	_is_host = false
-	_wire_transport()
-	_status.text = "Connecting to %s…" % addr
+	_status.text = "Connecting to %s…" % _server_address()
 	_show_room()
 
 func _on_back_pressed() -> void:
@@ -199,27 +176,24 @@ func _on_back_pressed() -> void:
 func _on_leave_pressed() -> void:
 	SceneManager.net_close()
 	_t = null
-	_is_host = false
 	_players = []
-	_countdown = -1.0
+	_leader_id = 0
 	_status.text = ""
 	_show_connect()
 
 # ============================================================================
-# Transport wiring
+# Transport wiring (client only — the server owns the lobby authority)
 # ============================================================================
 
 func _wire_transport() -> void:
 	_t.received.connect(_on_received)
-	_t.peer_joined.connect(_on_peer_joined)
-	_t.peer_left.connect(_on_peer_left)
 	_t.connection_succeeded.connect(_on_connected)
 	_t.connection_failed.connect(_on_conn_failed)
 	_t.server_closed.connect(_on_server_closed)
 
 func _on_connected() -> void:
 	_my_id = _t.unique_id()
-	_status.text = "Connected — waiting for host"
+	_status.text = "Connected — waiting for players"
 	_t.send_to_authority({"t": NetProtocol.SET_NAME, "name": _my_name()})
 
 func _on_conn_failed() -> void:
@@ -229,108 +203,41 @@ func _on_conn_failed() -> void:
 	_show_connect()
 
 func _on_server_closed() -> void:
-	_status.text = "Host left the lobby"
+	_status.text = "Lost connection to server"
 	SceneManager.net_close()
 	_t = null
 	_show_connect()
 
-# Host: a client connected → assign the next seat, announce.
-func _on_peer_joined(id: int) -> void:
-	if not _is_host:
-		return
-	_players.append({"id": id, "name": "Player", "seat": 0})
-	_reassign_seats()
-	_broadcast_lobby_state()
-	_maybe_start_countdown()
-
-func _on_peer_left(id: int) -> void:
-	if not _is_host:
-		return
-	for i in range(_players.size() - 1, -1, -1):
-		if _players[i]["id"] == id:
-			_players.remove_at(i)
-	_reassign_seats()
-	if _players.size() < NetProtocol.MAX_PLAYERS:
-		_countdown = -1.0
-	_broadcast_lobby_state()
-
-func _on_received(from_id: int, msg: Dictionary) -> void:
+func _on_received(_from_id: int, msg: Dictionary) -> void:
 	match msg.get("t", ""):
-		NetProtocol.SET_NAME:
-			if _is_host:
-				for p in _players:
-					if p["id"] == from_id:
-						p["name"] = String(msg.get("name", "Player")).substr(0, 16)
-				_broadcast_lobby_state()
 		NetProtocol.LOBBY_STATE:
-			if not _is_host:
-				_players = msg.get("players", [])
-				_countdown = msg.get("countdown", -1.0)
-				_my_seat = _seat_of(_my_id)
-				_refresh_room()
+			_players = msg.get("players", [])
+			_leader_id = int(msg.get("host_id", 0))
+			_my_seat = _seat_of(_my_id)
+			_refresh_room()
 		NetProtocol.START_MATCH:
-			if not _is_host:
-				_my_seat = _seat_of(_my_id)
-				SceneManager.start_networked_pvp(msg["seed"], msg["tier"], msg["count"], _my_seat, msg["names"])
+			_my_seat = _seat_of(_my_id)
+			SceneManager.start_networked_pvp(msg["seed"], msg["tier"], msg["count"], _my_seat, msg["names"])
 
 # ============================================================================
-# Host: countdown + start
+# Start (leader only — asks the server to begin)
 # ============================================================================
 
-func _process(dt: float) -> void:
-	if not _is_host or _countdown < 0.0:
+func _on_start_pressed() -> void:
+	if not _is_leader() or _players.size() < 2:
 		return
-	_countdown -= dt
-	_broadcast_accum += dt
-	if _broadcast_accum >= 0.5:
-		_broadcast_accum = 0.0
-		_broadcast_lobby_state()
-	_refresh_room()
-	if _countdown <= 0.0:
-		_start_match()
-
-func _maybe_start_countdown() -> void:
-	if _players.size() >= NetProtocol.MAX_PLAYERS and _countdown < 0.0:
-		_countdown = 10.0
-
-func _on_play_pressed() -> void:
-	if not _is_host or _players.size() < 2:
-		return
-	_start_match()
-
-func _start_match() -> void:
-	if not _is_host:
-		return
-	_countdown = -1.0
-	var seed := int(Time.get_unix_time_from_system())
-	var tier := (seed % 5) + 1
-	var count := _players.size()
-	var names: Array = []
-	names.resize(count)
-	var seat_by_peer := {}
-	for p in _players:
-		names[p["seat"]] = p["name"]
-		seat_by_peer[p["id"]] = p["seat"]
-	_t.broadcast({"t": NetProtocol.START_MATCH, "seed": seed, "tier": tier, "count": count, "names": names})
-	SceneManager.start_networked_pvp(seed, tier, count, 0, names, seat_by_peer)
+	_t.send_to_authority({"t": NetProtocol.PLAY})
 
 # ============================================================================
 # Helpers
 # ============================================================================
 
-func _broadcast_lobby_state() -> void:
-	_t.broadcast({"t": NetProtocol.LOBBY_STATE, "players": _players, "host_id": 1, "count": _players.size(), "countdown": _countdown})
-	_refresh_room()
-
-# Host: keep seats contiguous 0..n-1 in current seat order (host stays seat 0).
-func _reassign_seats() -> void:
-	_players.sort_custom(func(a, b): return a["seat"] < b["seat"])
-	for i in range(_players.size()):
-		_players[i]["seat"] = i
+func _is_leader() -> bool:
+	return _my_id == _leader_id
 
 func _seat_of(id: int) -> int:
 	for p in _players:
-		if p["id"] == id:
+		if int(p["id"]) == id:
 			return int(p["seat"])
 	return 0
 
@@ -340,20 +247,19 @@ func _refresh_room() -> void:
 	for c in _rows.get_children():
 		c.queue_free()
 	var ordered: Array = _players.duplicate()
-	ordered.sort_custom(func(a, b): return a["seat"] < b["seat"])
+	ordered.sort_custom(func(a, b): return int(a["seat"]) < int(b["seat"]))
 	for p in ordered:
 		_rows.add_child(_player_row(p))
-	# status / countdown
-	if _countdown >= 0.0:
-		_status.text = "Starting in %d…" % int(ceil(_countdown))
-	elif _is_host:
+	# Status: only the leader can start; everyone else waits.
+	if _is_leader():
 		if _players.size() < 2:
 			_status.text = "Waiting for players (need 2+)"
 		else:
-			_status.text = "%d players — press Play, or wait for 8" % _players.size()
-	# Only the host has a working Play button.
-	_play_btn.visible = _is_host
-	_play_btn.disabled = _players.size() < 2
+			_status.text = "%d players — press Start" % _players.size()
+	else:
+		_status.text = "%d players — waiting for the leader to start" % maxi(_players.size(), 1)
+	_start_btn.visible = _is_leader()
+	_start_btn.disabled = _players.size() < 2
 
 func _player_row(p: Dictionary) -> PanelContainer:
 	var row := PanelContainer.new()
@@ -378,21 +284,14 @@ func _player_row(p: Dictionary) -> PanelContainer:
 	hb.add_child(seat_lbl)
 
 	var tag := ""
-	if int(p["id"]) == 1:
-		tag = "  (host)"
+	if int(p["id"]) == _leader_id:
+		tag = "  (leader)"
 	if is_me:
 		tag += "  (you)"
 	var name_lbl := _label(String(p["name"]) + tag, 16, Color.WHITE)
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hb.add_child(name_lbl)
 	return row
-
-# Best-guess LAN IPv4 to display to the host (skip loopback + link-local).
-func _local_ip() -> String:
-	for a in IP.get_local_addresses():
-		if a.count(".") == 3 and not a.begins_with("127.") and not a.begins_with("169.254"):
-			return a
-	return "127.0.0.1"
 
 func _my_name() -> String:
 	var n := _name_edit.text.strip_edges() if _name_edit != null else "Player"
