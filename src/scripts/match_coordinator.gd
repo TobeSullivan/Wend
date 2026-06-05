@@ -204,17 +204,51 @@ func resolve_lives() -> void:
 	var total_kills := 0
 	for b in active:
 		total_kills += b.kills_this_round
-	# Apply transfers (compute all deltas first; they only depend on this round).
+	# Raw zero-sum pairwise deltas: n*my_kills - total_kills (depend only on this round).
+	var deltas := {}
 	for b in active:
-		b.lives += n * b.kills_this_round - total_kills
+		deltas[b] = n * b.kills_this_round - total_kills
+	# A losing board can only forfeit the lives it actually HAS. Any extra it "owes"
+	# beyond that is phantom — crediting it to the winners would inflate the pool (the
+	# old code added the full delta then clamped losers up to 0, leaking those lives, so
+	# a 2-player match could end at 209/0 instead of 200/0). Sum the shortfall and pull
+	# it back out of the winners, split by each winner's share of the gains, so the pool
+	# stays EXACTLY conserved and no board ends below 0.
+	var shortfall := 0
+	var total_gain := 0
+	for b in active:
+		if b.lives + deltas[b] < 0:
+			shortfall += -(b.lives + deltas[b])
+		if deltas[b] > 0:
+			total_gain += deltas[b]
+	var reduce := {}
+	if shortfall > 0 and total_gain > 0:
+		var assigned := 0
+		var rema: Array = []  # [board, fractional remainder] for exact integer split
+		for b in active:
+			if deltas[b] > 0:
+				var exact := float(shortfall) * float(deltas[b]) / float(total_gain)
+				reduce[b] = int(floor(exact))
+				assigned += reduce[b]
+				rema.append([b, exact - floor(exact)])
+		# Hand the leftover units to the largest remainders so reductions sum to shortfall.
+		rema.sort_custom(func(a, c): return a[1] > c[1])
+		for i in range(shortfall - assigned):
+			reduce[rema[i % rema.size()][0]] += 1
+	# Apply; keep the pre-clamp value to order eliminations (worst deficit places worst).
+	var raw_new := {}
+	for b in active:
+		var d: int = deltas[b] - int(reduce.get(b, 0))
+		raw_new[b] = b.lives + d
+		b.lives = max(0, raw_new[b])
 	for b in active:
 		b.kills_this_round = 0
-	# Eliminate, worst (most negative) first so placement ties resolve sensibly.
+	# Eliminate, worst (most negative pre-clamp) first so placement ties resolve sensibly.
 	var newly: Array = []
 	for b in active:
 		if b.lives <= 0:
 			newly.append(b)
-	newly.sort_custom(func(a, b): return a.lives < b.lives)
+	newly.sort_custom(func(a, c): return raw_new[a] < raw_new[c])
 	for b in newly:
 		b.lives = 0
 		b.eliminated = true
@@ -235,9 +269,14 @@ func projected_lives(board) -> int:
 	if n <= 1 or not active.has(board):
 		return board.lives
 	var total_kills := 0
+	var pool := 0
 	for b in active:
 		total_kills += b.kills_this_round
-	return board.lives + n * board.kills_this_round - total_kills
+		pool += b.lives
+	# Same zero-sum formula as resolve_lives, but a board can never end up holding more
+	# than the whole live pool (no board can take lives the others don't have). Upper-cap
+	# keeps the HUD from briefly showing >pool mid-run; callers still clamp the low side.
+	return mini(board.lives + n * board.kills_this_round - total_kills, pool)
 
 # 1-based placement (1 = winner / last standing). 0 if not yet decided.
 func placement_of(board) -> int:

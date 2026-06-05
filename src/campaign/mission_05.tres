@@ -29,12 +29,12 @@ footprint = Vector2i(2, 2)
 
 [sub_resource type="Resource" id="Resource_1l8cj"]
 script = ExtResource("2_x5d0l")
-prop_id = "street_lamp_01"
+prop_id = "trash_can"
 origin = Vector2i(14, 5)
 
 [sub_resource type="Resource" id="Resource_l4ftk"]
 script = ExtResource("2_x5d0l")
-prop_id = "street_lamp_02"
+prop_id = "wheelie_bin"
 origin = Vector2i(6, 8)
 
 [sub_resource type="Resource" id="Resource_bkvka"]

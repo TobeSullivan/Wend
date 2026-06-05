@@ -22,8 +22,10 @@ const PROPS := {
 	"dead_tree_02":     {"tex": preload(P + "dead_tree_02.png"),     "footprint": Vector2i(1, 1), "overhang": 1.05, "weight": 8},
 	"oil_drum_fallen":  {"tex": preload(P + "oil_drum_fallen.png"),  "footprint": Vector2i(1, 1), "overhang": 1.0,  "weight": 8},
 	"oil_drum_top":     {"tex": preload(P + "oil_drum_top.png"),     "footprint": Vector2i(1, 1), "overhang": 0.9,  "weight": 6},
-	"street_lamp_01":   {"tex": preload(P + "street_lamp_01.png"),   "footprint": Vector2i(1, 1), "overhang": 1.0,  "weight": 6},
-	"street_lamp_02":   {"tex": preload(P + "street_lamp_02.png"),   "footprint": Vector2i(1, 1), "overhang": 1.0,  "weight": 6},
+	# NOTE: street_lamp_01/02 deliberately omitted — their art is ~7x taller than wide,
+	# so a 1x1 base renders a 3-cell pole upward whose overhang cells stay buildable,
+	# reading as a "bridge" with a non-blocking top. Removed from the pool (cars/ruins
+	# cover large props). PNGs kept on disk, just unreferenced.
 	"hydrant":          {"tex": preload(P + "hydrant.png"),          "footprint": Vector2i(1, 1), "overhang": 0.85, "weight": 6},
 	"tire_01":          {"tex": preload(P + "tire_01.png"),          "footprint": Vector2i(1, 1), "overhang": 0.9,  "weight": 5},
 	"tire_02":          {"tex": preload(P + "tire_02.png"),          "footprint": Vector2i(1, 1), "overhang": 0.9,  "weight": 5},
