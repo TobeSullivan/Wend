@@ -38,6 +38,13 @@ var _ready_set: Dictionary = {}
 var build_time_left: float = GameConstants.BUILD_TIME_FIRST
 var match_over: bool = false
 
+# Networked PVP: on a CLIENT the authoritative host owns the clock, so the client's
+# coordinator does NOT self-tick — NetMatch drives it via the net_* methods below.
+# The host (authority) leaves this false and runs the clock normally. `net` is the
+# NetMatch driver (set by map_loader/NetMatch); null for solo / offline-bot matches.
+var driven_externally: bool = false
+var net = null
+
 var boards: Array = []  # BoardState nodes, registered by map_loader
 # PVP: display handles per board (same index as `boards`). Board 0 is the local
 # player ("You"); the rest are opponent handles. Set by map_loader for PVP matches.
@@ -75,8 +82,8 @@ func try_consume_bot_action() -> bool:
 
 func _process(delta: float) -> void:
 	_bot_actions_this_frame = 0  # reset the per-frame bot budget (coordinator runs first)
-	if match_over:
-		return
+	if match_over or driven_externally:
+		return  # a networked client follows the host's clock (see net_* below), not its own
 	if phase == "build":
 		build_time_left = maxf(0.0, build_time_left - delta)
 		emit_signal("build_timer_changed", build_time_left)
@@ -103,6 +110,10 @@ func request_start_now() -> void:
 # PVP ready vote. The run starts early once every active board has readied; until
 # then the build timer keeps running and the round simply waits.
 func set_board_ready(board, value: bool) -> void:
+	# Networked client: the host owns ready resolution — send the vote up, don't apply.
+	if driven_externally and net != null:
+		net.send_local_ready(value)
+		return
 	if not is_pvp or phase != "build":
 		return
 	if value:
@@ -116,9 +127,14 @@ func set_board_ready(board, value: bool) -> void:
 	_start_run_phase()
 
 func is_board_ready(board) -> bool:
+	# Networked client tracks only its OWN vote locally (host owns the rest).
+	if driven_externally and net != null:
+		return net.local_ready if net.is_local_board(board) else false
 	return _ready_set.has(board)
 
 func ready_count() -> int:
+	if driven_externally and net != null:
+		return net.net_ready_count  # host-reported, via CLOCK
 	var n := 0
 	for b in active_boards():
 		if _ready_set.has(b):
@@ -206,6 +222,23 @@ func resolve_lives() -> void:
 		emit_signal("board_eliminated", b)
 	emit_signal("lives_resolved")
 
+# Live PVP lives projection DURING the run: lives + the net pairwise transfer the
+# board would get if the round ended right now (same zero-sum formula as resolve_lives,
+# n*my_kills - total_kills). Lets the HUD/leaderboard move lives mid-match instead of
+# snapping only at round end. Outside the run (or non-PVP) it's just the settled lives.
+# Can be negative (board on track for elimination) — callers clamp for display.
+func projected_lives(board) -> int:
+	if not is_pvp or phase != "run":
+		return board.lives
+	var active := active_boards()
+	var n := active.size()
+	if n <= 1 or not active.has(board):
+		return board.lives
+	var total_kills := 0
+	for b in active:
+		total_kills += b.kills_this_round
+	return board.lives + n * board.kills_this_round - total_kills
+
 # 1-based placement (1 = winner / last standing). 0 if not yet decided.
 func placement_of(board) -> int:
 	var idx := finish_order.find(board)
@@ -218,6 +251,51 @@ func _end_match() -> void:
 	phase = "ended"
 	emit_signal("phase_changed", phase)
 	emit_signal("match_ended")
+
+# ============================================================================
+# Networked CLIENT driving (driven_externally). NetMatch calls these in response to
+# the host's authoritative CLOCK / RESOLUTION / MATCH_END messages — the client never
+# runs the clock or resolve_lives itself; it mirrors the host.
+# ============================================================================
+
+func net_enter_run() -> void:
+	phase = "run"
+	emit_signal("phase_changed", phase)
+	var hp := mob_hp_for_round()
+	for b in boards:
+		if b.is_active():
+			b.start_run(round_num, hp)
+
+# Round ended on the host: settle economy locally + clear leftover mobs, then enter
+# the next build. Lives arrive separately via RESOLUTION (NetMatch), not here.
+func net_enter_build(new_round: int) -> void:
+	for b in boards:
+		if b.is_active():
+			b.settle_round(round_num)
+	_clear_all_mobs()
+	round_num = new_round
+	emit_signal("round_changed", round_num)
+	phase = "build"
+	emit_signal("phase_changed", phase)
+
+func net_set_build_time(t: float) -> void:
+	build_time_left = t
+	emit_signal("build_timer_changed", build_time_left)
+
+func net_end_match() -> void:
+	if match_over:
+		return
+	match_over = true
+	phase = "ended"
+	emit_signal("phase_changed", phase)
+	emit_signal("match_ended")
+
+func _clear_all_mobs() -> void:
+	for b in boards:
+		for m in b.mobs_array:
+			if is_instance_valid(m):
+				m.queue_free()
+		b.mobs_array.clear()
 
 func _build_duration_for(rn: int) -> float:
 	if rn == 1:

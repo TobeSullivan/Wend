@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://resources/zone_definition.gd" id="1_zone"]
 [ext_resource type="Script" path="res://resources/map_resource.gd" id="2_map"]
+[ext_resource type="Script" path="res://resources/obstacle_definition.gd" id="2_qdajn"]
 
 [sub_resource type="Resource" id="Zone_damage"]
 script = ExtResource("1_zone")
@@ -26,14 +27,50 @@ type = 3
 cell = Vector2i(11, 5)
 magnitude = 40
 
+[sub_resource type="Resource" id="Resource_pbiab"]
+script = ExtResource("2_qdajn")
+prop_id = "tire_03"
+origin = Vector2i(5, 4)
+
+[sub_resource type="Resource" id="Resource_gtpw0"]
+script = ExtResource("2_qdajn")
+prop_id = "trash_can"
+origin = Vector2i(6, 4)
+
+[sub_resource type="Resource" id="Resource_m4hv8"]
+script = ExtResource("2_qdajn")
+prop_id = "building_ruin_11"
+origin = Vector2i(14, 5)
+footprint = Vector2i(1, 2)
+
+[sub_resource type="Resource" id="Resource_1nsqh"]
+script = ExtResource("2_qdajn")
+prop_id = "building_ruin_05"
+origin = Vector2i(16, 7)
+footprint = Vector2i(1, 2)
+
+[sub_resource type="Resource" id="Resource_vqdvs"]
+script = ExtResource("2_qdajn")
+prop_id = "oil_drum_fallen"
+origin = Vector2i(4, 8)
+
+[sub_resource type="Resource" id="Resource_npkoy"]
+script = ExtResource("2_qdajn")
+prop_id = "dead_tree_02"
+origin = Vector2i(10, 7)
+
+[sub_resource type="Resource" id="Resource_qgkc4"]
+script = ExtResource("2_qdajn")
+prop_id = "dead_tree_02"
+origin = Vector2i(17, 3)
+
 [resource]
 script = ExtResource("2_map")
 seed = 1
-grid_size = Vector2i(20, 11)
 entry_cell = Vector2i(0, 6)
 exit_cell = Vector2i(19, 6)
 checkpoint_cells = Array[Vector2i]([Vector2i(18, 2), Vector2i(2, 9), Vector2i(18, 9)])
-obstacle_cells = Array[Vector2i]([Vector2i(5, 4), Vector2i(6, 4), Vector2i(14, 5), Vector2i(16, 7), Vector2i(4, 8), Vector2i(10, 7), Vector2i(17, 3)])
+obstacles = [SubResource("Resource_pbiab"), SubResource("Resource_gtpw0"), SubResource("Resource_m4hv8"), SubResource("Resource_1nsqh"), SubResource("Resource_vqdvs"), SubResource("Resource_npkoy"), SubResource("Resource_qgkc4")]
 bonus_zones = [SubResource("Zone_damage"), SubResource("Zone_atkspd"), SubResource("Zone_range"), SubResource("Zone_slow")]
 supply_cap = 60
 bronze_threshold = 226650

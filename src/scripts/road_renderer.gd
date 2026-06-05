@@ -56,6 +56,9 @@ var _active_count: int = 0
 var _cum := PackedFloat32Array()   # cumulative arc length at each committed point
 var _total_len: float = 0.0
 var _arc_offset: float = 0.0       # animated scroll offset (px), wrapped to [0,_total_len)
+# Chevrons are a BUILD-PHASE guide only — during the run they're just noise over the
+# moving mobs, so the round manager hides them (see build_controller._on_phase_changed).
+var _chevrons_visible: bool = true
 
 var _l_outline: Line2D
 var _l_fill: Line2D
@@ -85,7 +88,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	# Advance the scroll offset (wrapped to the path length so it stays bounded) and
 	# re-place the chevron sprites. No allocation, no geometry rebuild.
-	if _active_count <= 0 or _total_len <= 0.0:
+	if not _chevrons_visible or _active_count <= 0 or _total_len <= 0.0:
 		return
 	_arc_offset = fposmod(_arc_offset + delta * CHEV_TILES_PER_SEC * _cell, _total_len)
 	_layout_markers()
@@ -164,6 +167,13 @@ func set_preview(points: PackedVector2Array) -> void:
 func clear_preview() -> void:
 	_show_preview(false)
 
+## Chevrons are a build-phase navigation guide; hide them during the run so they don't
+## clutter the moving mobs. Also stops the _process scroll work while hidden.
+func set_chevrons_visible(v: bool) -> void:
+	_chevrons_visible = v
+	for i in range(_markers.size()):
+		_markers[i].visible = v and i < _active_count
+
 # ---- chevron placement ----
 
 func _rebuild_arc() -> void:
@@ -187,7 +197,7 @@ func _size_pool() -> void:
 	while _markers.size() < n:
 		_markers.append(_make_marker())
 	for i in range(_markers.size()):
-		_markers[i].visible = i < n
+		_markers[i].visible = _chevrons_visible and i < n
 
 func _layout_markers() -> void:
 	if _active_count <= 0 or _total_len <= 0.0:

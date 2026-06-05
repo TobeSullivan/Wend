@@ -1,8 +1,15 @@
 # Multiplayer architecture, cost & sales projections
 
 Captured 2026-06-02 (Claude Code research session). This is the reference for the
-multiplayer rollout — transport, backend, costs, and the locked direction. Nothing
-here is built yet; it's the plan we decide against before writing netcode.
+multiplayer rollout — transport, backend, costs, and the locked direction.
+
+**STATUS (2026-06-05): the §5 rollout steps 1–2 are BUILT (host-authoritative ENet,
+trust-client) + the Android client APK.** Implemented in `src/net/` (MatchTransport
+seam + Local/Enet transports + NetMatch driver), the lobby (`scenes/lobby.tscn`),
+seed-synced maps, build-input relay + lockstep clock, barrier lives resolution, and
+disconnect forfeit — all headless-verified, not yet live-tested. Steps 3–4 (Steam relay,
+dedicated server + Nakama) and the determinism hardening (fixed timestep) are still
+ahead. See STATE.md session log for the per-phase detail.
 
 Related: `DESIGN_MODES.md` (mode *rules* — 8-player PVP, pairwise lives transfers,
 LP/seasons), `notes/leaderboards.md` (older backend sketch — superseded by this).

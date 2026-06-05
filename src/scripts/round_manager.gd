@@ -114,6 +114,13 @@ func refund(amount: int) -> void:
 	gold += amount
 	emit_signal("gold_changed", gold)
 
+# Best-effort spend for REPLICATED opponent boards (networked): the owner already
+# validated affordability, so apply unconditionally (clamped at 0 so the displayed
+# gold never goes negative under cross-machine economy drift).
+func net_spend(cost: int) -> void:
+	gold = maxi(0, gold - cost)
+	emit_signal("gold_changed", gold)
+
 func _on_mob_killed() -> void:
 	gold += GameConstants.KILL_BONUS
 	_round_kill_gold += GameConstants.KILL_BONUS

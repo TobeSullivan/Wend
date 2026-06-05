@@ -26,7 +26,9 @@ var radius: float    # pixels
 
 func _ready() -> void:
 	add_to_group("bonus_zones")
-	z_index = -60  # below path overlay, towers, mobs; above grass + markers
+	# On TOP of everything in the world (towers z=0, mobs, obstacles z=-5, road z=-50)
+	# so the translucent fill + label stay readable — props/towers were burying them.
+	z_index = 50
 	_add_label()
 
 func _add_label() -> void:

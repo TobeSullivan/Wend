@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="MapResource" format=3]
 
 [ext_resource type="Script" path="res://resources/zone_definition.gd" id="1_zone"]
+[ext_resource type="Script" path="res://resources/obstacle_definition.gd" id="2_86ady"]
 [ext_resource type="Script" path="res://resources/map_resource.gd" id="2_map"]
 
 [sub_resource type="Resource" id="Zone_damage_a"]
@@ -37,14 +38,50 @@ type = 3
 cell = Vector2i(7, 8)
 magnitude = 40
 
+[sub_resource type="Resource" id="Resource_5fiou"]
+script = ExtResource("2_86ady")
+prop_id = "rubble_pile_01"
+origin = Vector2i(5, 4)
+
+[sub_resource type="Resource" id="Resource_fo6f6"]
+script = ExtResource("2_86ady")
+prop_id = "car_reck"
+origin = Vector2i(6, 4)
+footprint = Vector2i(2, 2)
+
+[sub_resource type="Resource" id="Resource_v0rr6"]
+script = ExtResource("2_86ady")
+prop_id = "dead_tree_01"
+origin = Vector2i(14, 5)
+
+[sub_resource type="Resource" id="Resource_14rqa"]
+script = ExtResource("2_86ady")
+prop_id = "trash_can"
+origin = Vector2i(16, 7)
+
+[sub_resource type="Resource" id="Resource_wnasj"]
+script = ExtResource("2_86ady")
+prop_id = "building_ruin_10"
+origin = Vector2i(4, 8)
+footprint = Vector2i(2, 2)
+
+[sub_resource type="Resource" id="Resource_hb3g8"]
+script = ExtResource("2_86ady")
+prop_id = "oil_drum_fallen"
+origin = Vector2i(10, 7)
+
+[sub_resource type="Resource" id="Resource_8teax"]
+script = ExtResource("2_86ady")
+prop_id = "tire_01"
+origin = Vector2i(17, 3)
+
 [resource]
 script = ExtResource("2_map")
 seed = 10
-grid_size = Vector2i(20, 11)
 entry_cell = Vector2i(0, 6)
 exit_cell = Vector2i(19, 6)
 checkpoint_cells = Array[Vector2i]([Vector2i(17, 2), Vector2i(3, 9), Vector2i(17, 9)])
-obstacle_cells = Array[Vector2i]([Vector2i(5, 4), Vector2i(6, 4), Vector2i(14, 5), Vector2i(16, 7), Vector2i(4, 8), Vector2i(10, 7), Vector2i(17, 3)])
+obstacles = [SubResource("Resource_5fiou"), SubResource("Resource_fo6f6"), SubResource("Resource_v0rr6"), SubResource("Resource_14rqa"), SubResource("Resource_wnasj"), SubResource("Resource_hb3g8"), SubResource("Resource_8teax")]
 bonus_zones = [SubResource("Zone_damage_a"), SubResource("Zone_damage_b"), SubResource("Zone_atkspd"), SubResource("Zone_range"), SubResource("Zone_slow_a"), SubResource("Zone_slow_b")]
 supply_cap = 60
 round_count = 18

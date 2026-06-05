@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="MapResource" format=3]
 
 [ext_resource type="Script" path="res://resources/zone_definition.gd" id="1_zone"]
+[ext_resource type="Script" path="res://resources/obstacle_definition.gd" id="2_e33cr"]
 [ext_resource type="Script" path="res://resources/map_resource.gd" id="2_map"]
 
 [sub_resource type="Resource" id="Zone_damage"]
@@ -20,14 +21,39 @@ type = 2
 cell = Vector2i(7, 6)
 magnitude = 20
 
+[sub_resource type="Resource" id="Resource_3ybnr"]
+script = ExtResource("2_e33cr")
+prop_id = "rubble_pile_02"
+origin = Vector2i(9, 6)
+
+[sub_resource type="Resource" id="Resource_xd7dn"]
+script = ExtResource("2_e33cr")
+prop_id = "oil_drum_fallen"
+origin = Vector2i(14, 5)
+
+[sub_resource type="Resource" id="Resource_ir00d"]
+script = ExtResource("2_e33cr")
+prop_id = "building_ruin_05"
+origin = Vector2i(6, 8)
+footprint = Vector2i(1, 2)
+
+[sub_resource type="Resource" id="Resource_s2pli"]
+script = ExtResource("2_e33cr")
+prop_id = "rubble_pile_02"
+origin = Vector2i(17, 4)
+
+[sub_resource type="Resource" id="Resource_wwsfj"]
+script = ExtResource("2_e33cr")
+prop_id = "hydrant"
+origin = Vector2i(4, 5)
+
 [resource]
 script = ExtResource("2_map")
 seed = 9
-grid_size = Vector2i(20, 11)
 entry_cell = Vector2i(0, 6)
 exit_cell = Vector2i(19, 6)
 checkpoint_cells = Array[Vector2i]([Vector2i(16, 2), Vector2i(5, 9)])
-obstacle_cells = Array[Vector2i]([Vector2i(9, 6), Vector2i(14, 5), Vector2i(6, 8), Vector2i(17, 4), Vector2i(4, 5)])
+obstacles = [SubResource("Resource_3ybnr"), SubResource("Resource_xd7dn"), SubResource("Resource_ir00d"), SubResource("Resource_s2pli"), SubResource("Resource_wwsfj")]
 bonus_zones = [SubResource("Zone_damage"), SubResource("Zone_atkspd"), SubResource("Zone_range")]
 round_count = 16
 mob_count = 16

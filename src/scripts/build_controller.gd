@@ -43,6 +43,13 @@ var tower_drawer    # TowerDrawer
 var minimap         # MinimapPanel (PVP only)
 var road_renderer   # RoadRenderer — live dirt-road for the mob path (committed + hover preview)
 
+# Networked PVP only (set by NetMatch on the LOCAL interactive board). When set, local
+# build actions are relayed to the other players; opponent boards apply the inbound
+# relays via apply_remote_* (which never re-relay, so there's no loop).
+const NetProtocolScript := preload("res://net/net_protocol.gd")
+var net = null   # NetMatch, or null for solo / offline-bot / opponent boards
+var seat: int = 0
+
 var towers: Array = []
 var blocked: Dictionary = {}  # Vector2i -> true
 
@@ -193,6 +200,7 @@ func _input(event: InputEvent) -> void:
 				return
 			round_manager.spend(GameConstants.TOWER_COST)
 			_place_tower(cell)
+			_relay_place(cell)
 		else:
 			var tower_at := _tower_at_cell(cell)
 			if tower_at != null:
@@ -205,7 +213,8 @@ func _input(event: InputEvent) -> void:
 		else:
 			_clear_selection()
 			if _in_build_phase():
-				_sell_tower_at_cell(cell)
+				if _sell_tower_at_cell(cell):
+					_relay_sell(cell)
 
 func _set_build_mode(value: bool) -> void:
 	if value and not _in_build_phase():
@@ -273,6 +282,7 @@ func confirm_pending_build() -> void:
 		return
 	round_manager.spend(GameConstants.TOWER_COST)
 	_place_tower(cell)
+	_relay_place(cell)
 	_clear_pending()  # keep build mode armed for the next tap
 
 func cancel_pending_build() -> void:
@@ -285,7 +295,9 @@ func sell_selected_tower() -> void:
 		return
 	if not _in_build_phase():
 		return
-	_sell_tower_at_cell(_selected_tower.grid_cell)
+	var cell: Vector2i = _selected_tower.grid_cell
+	if _sell_tower_at_cell(cell):
+		_relay_sell(cell)
 
 # Park the preview ghost at `cell`, colour it, and tell the rail to show Build/Cancel.
 func _set_pending(cell: Vector2i) -> void:
@@ -359,6 +371,9 @@ func _in_build_phase() -> bool:
 func _on_phase_changed(phase: String) -> void:
 	if phase == "run" and _build_mode:
 		_set_build_mode(false)
+	# Direction chevrons are a build-phase guide only — hide them once mobs start moving.
+	if road_renderer != null:
+		road_renderer.set_chevrons_visible(phase == "build")
 
 func _tower_at_cell(cell: Vector2i) -> Node2D:
 	for t in towers:
@@ -410,7 +425,7 @@ func _place_tower(cell: Vector2i) -> void:
 	_last_ghost_cell = _NO_CELL  # maze changed — invalidate cached ghost validity
 	emit_signal("towers_changed", towers.size(), max_towers)
 
-func _sell_tower_at_cell(cell: Vector2i) -> void:
+func _sell_tower_at_cell(cell: Vector2i) -> bool:
 	for i in range(towers.size() - 1, -1, -1):
 		var t = towers[i]
 		if not is_instance_valid(t):
@@ -428,7 +443,44 @@ func _sell_tower_at_cell(cell: Vector2i) -> void:
 			recompute_path()
 			_last_ghost_cell = _NO_CELL  # maze changed — invalidate cached ghost validity
 			emit_signal("towers_changed", towers.size(), max_towers)
-			return
+			return true
+	return false
+
+# --- Networked relay (local actions out) + remote application (inbound) ---
+
+func _relay_place(cell: Vector2i) -> void:
+	if net != null:
+		net.submit_local_input(NetProtocolScript.build_input_place(seat, cell))
+
+func _relay_sell(cell: Vector2i) -> void:
+	if net != null:
+		net.submit_local_input(NetProtocolScript.build_input_sell(seat, cell))
+
+# Called by tower_drawer after the LOCAL player upgrades a tower (so it relays).
+func on_local_upgrade(cell: Vector2i, stat: String) -> void:
+	if net != null:
+		net.submit_local_input(NetProtocolScript.build_input_upgrade(seat, cell, stat))
+
+# Inbound relays from other players, applied to THIS (opponent) board. The owner already
+# validated, so these force-apply (owner is authoritative); economy is best-effort so the
+# opponent's gold display stays sane. None of these re-relay (no loop).
+func apply_remote_place(cell: Vector2i) -> void:
+	if not _is_valid_placement(cell):
+		return
+	if round_manager != null:
+		round_manager.net_spend(GameConstants.TOWER_COST)
+	_place_tower(cell)
+
+func apply_remote_sell(cell: Vector2i) -> void:
+	_sell_tower_at_cell(cell)
+
+func apply_remote_upgrade(cell: Vector2i, stat: String) -> void:
+	var t := _tower_at_cell(cell)
+	if t == null:
+		return
+	if round_manager != null:
+		round_manager.net_spend(t.upgrade_cost(stat))
+	t.upgrade(stat)
 
 func recompute_path() -> void:
 	# Mobs AND the road follow the same ORTHOGONAL grid path (clean L corners, mockup

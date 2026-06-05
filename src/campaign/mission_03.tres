@@ -1,15 +1,26 @@
 [gd_resource type="Resource" script_class="MapResource" format=3]
 
+[ext_resource type="Script" path="res://resources/obstacle_definition.gd" id="1_1dsvt"]
 [ext_resource type="Script" path="res://resources/map_resource.gd" id="2_map"]
+
+[sub_resource type="Resource" id="Resource_flfhw"]
+script = ExtResource("1_1dsvt")
+prop_id = "building_ruin_06"
+origin = Vector2i(10, 6)
+footprint = Vector2i(2, 2)
+
+[sub_resource type="Resource" id="Resource_f52kt"]
+script = ExtResource("1_1dsvt")
+prop_id = "trash_can"
+origin = Vector2i(11, 5)
 
 [resource]
 script = ExtResource("2_map")
 seed = 3
-grid_size = Vector2i(20, 11)
 entry_cell = Vector2i(0, 6)
 exit_cell = Vector2i(19, 6)
 checkpoint_cells = Array[Vector2i]([Vector2i(16, 1), Vector2i(3, 9)])
-obstacle_cells = Array[Vector2i]([Vector2i(10, 6), Vector2i(11, 5)])
+obstacles = [SubResource("Resource_flfhw"), SubResource("Resource_f52kt")]
 supply_cap = 25
 mob_count = 10
 bronze_threshold = 89000

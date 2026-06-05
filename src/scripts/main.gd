@@ -7,6 +7,7 @@ extends Node2D
 
 const MapLoader := preload("res://scripts/map_loader.gd")
 const MISSION_01 := preload("res://campaign/mission_01.tres")
+const NetMatchScript := preload("res://net/net_match.gd")
 
 # Shared mob list, read by the loader and injected into spawner/towers/round_manager.
 var mobs: Array = []
@@ -20,4 +21,14 @@ func _ready() -> void:
 	# Apply the player's default game speed for the match (menus reset to 1× via
 	# SceneManager). Engine.time_scale scales mobs, towers, and the build timer.
 	Engine.time_scale = float(SaveData.get_setting("default_game_speed"))
-	MapLoader.build_match(self, map, SceneManager.pending_board_count)
+	# Networked PVP: a live transport means real opponents on their own seats (no bots).
+	# Everything else (solo, offline bot-PVP) uses the default seat-0 / bots build.
+	if SceneManager.current_is_multiplayer and SceneManager.transport != null:
+		var boards := MapLoader.build_match(self, map, SceneManager.pending_board_count, SceneManager.pending_local_index, false, SceneManager.pending_player_names)
+		# Bridge the local sim to the host-authoritative protocol (clock + input relay).
+		var nm := NetMatchScript.new()
+		nm.name = "NetMatch"
+		add_child(nm)
+		nm.setup(SceneManager.transport, boards[0].coordinator, boards, SceneManager.pending_local_index, SceneManager.pending_seat_by_peer)
+	else:
+		MapLoader.build_match(self, map, SceneManager.pending_board_count)

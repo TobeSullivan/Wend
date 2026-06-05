@@ -8,6 +8,8 @@ extends Node
 
 const MapResourceScript := preload("res://resources/map_resource.gd")
 const MapGeneratorScript := preload("res://scripts/map_generator.gd")
+const EnetTransportScript := preload("res://net/enet_transport.gd")
+const NetProtocolScript := preload("res://net/net_protocol.gd")
 
 # PVP: 1 local player + 7 bots (DESIGN_MODES: 8-player solo-queue ranked).
 const PVP_BOARD_COUNT := 8
@@ -15,7 +17,15 @@ const PVP_BOARD_COUNT := 8
 const HOME_SCENE := "res://scenes/home_screen.tscn"
 const CAMPAIGN_SELECT_SCENE := "res://scenes/campaign_select.tscn"
 const PVE_SELECT_SCENE := "res://scenes/pve_select.tscn"
+const LOBBY_SCENE := "res://scenes/lobby.tscn"
 const MATCH_SCENE := "res://scenes/prototype.tscn"
+
+# --- Networked match (PVP). The transport is owned HERE (an autoload) so it persists
+# across the lobby→match scene change and sits at a stable tree path for RPCs. ---
+var transport = null            # active MatchTransport (EnetTransport) or null
+var pending_local_index := 0    # the local player's seat in a networked match
+var pending_player_names: Array = []  # seat-indexed lobby handles
+var pending_seat_by_peer: Dictionary = {}  # {enet_peer_id: seat} — host uses it to map a disconnect to a board
 
 # Authored campaign missions, by mission index. All 10 are authored — a tutorial
 # curriculum where each mission isolates one decision on a rising curve (see the
@@ -75,6 +85,49 @@ func start_pvp() -> void:
 	var tier := (match_seed % 5) + 1
 	pending_map = MapGeneratorScript.generate(match_seed, tier, MapResourceScript.Mode.PVP)
 	pending_board_count = PVP_BOARD_COUNT
+	current_is_multiplayer = true
+	get_tree().paused = false
+	get_tree().change_scene_to_file(MATCH_SCENE)
+
+# --- Networked PVP (lobby + transport) ---
+
+func goto_lobby() -> void:
+	get_tree().paused = false
+	Engine.time_scale = 1.0
+	get_tree().change_scene_to_file(LOBBY_SCENE)
+
+# Create a fresh ENet transport as a child of this autoload (stable path for RPCs).
+func _make_transport():
+	net_close()
+	transport = EnetTransportScript.new()
+	transport.name = "Transport"
+	add_child(transport)
+	return transport
+
+func net_host() -> int:
+	_make_transport()
+	return transport.start_host(NetProtocolScript.DEFAULT_PORT)
+
+func net_join(address: String) -> int:
+	_make_transport()
+	return transport.start_join(address, NetProtocolScript.DEFAULT_PORT)
+
+func net_close() -> void:
+	if transport != null:
+		transport.close()
+		transport.queue_free()
+		transport = null
+
+# Launch a networked PVP match: every client generates the IDENTICAL map from the
+# shared seed, then builds it with the local player on their own seat (no bots; the
+# transport is kept alive for in-match relay). Called on host + each client from the
+# lobby's START_MATCH handshake.
+func start_networked_pvp(seed: int, tier: int, board_count: int, seat: int, names: Array, seat_by_peer: Dictionary = {}) -> void:
+	pending_map = MapGeneratorScript.generate(seed, tier, MapResourceScript.Mode.PVP)
+	pending_board_count = board_count
+	pending_local_index = seat
+	pending_player_names = names
+	pending_seat_by_peer = seat_by_peer
 	current_is_multiplayer = true
 	get_tree().paused = false
 	get_tree().change_scene_to_file(MATCH_SCENE)

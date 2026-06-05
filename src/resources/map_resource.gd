@@ -17,7 +17,15 @@ enum WindowType { DAILY, WEEKLY, MONTHLY }
 @export var entry_cell: Vector2i = Vector2i.ZERO
 @export var exit_cell: Vector2i = Vector2i.ZERO
 @export var checkpoint_cells: Array[Vector2i] = []   # 1–3 entries, in visit order
-@export var obstacle_cells: Array[Vector2i] = []      # permanent walls
+# Sized environmental props. Untyped on purpose (same reason as bonus_zones): a
+# typed Array[ObstacleDefinition] is a cross-script reference the project memory
+# flags as failure-prone in .tres. Elements are ObstacleDefinition resources,
+# duck-typed in map_loader. Each blocks its footprint rect; the sprite may overhang.
+@export var obstacles: Array = []
+# DEPRECATED — pre-prop bare-cell walls. Kept as a back-compat fallback: if
+# `obstacles` is empty the loader renders these as 1×1 rubble. All committed .tres
+# now use `obstacles`; generated maps never set this.
+@export var obstacle_cells: Array[Vector2i] = []
 # Untyped on purpose: a typed Array[ZoneDefinition] is a cross-script reference
 # that the project memory flags as failure-prone in .tres. Elements are
 # ZoneDefinition resources, enforced by duck-typing in map_loader.

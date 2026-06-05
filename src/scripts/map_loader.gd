@@ -45,9 +45,7 @@ const MapResourceScript := preload("res://resources/map_resource.gd")
 
 const CHECKPOINT_TEX := preload("res://assets/maps/level_marker_flag.png")
 const GRASS_TEX := preload("res://assets/maps/summer_grass_tile.png")
-# The schema stores obstacles as bare cells (no texture/footprint), so every
-# obstacle cell renders with this single debris prop.
-const OBSTACLE_TEX := preload("res://assets/environment/props/rubble_pile_01.png")
+const ObstaclePropsScript := preload("res://resources/obstacle_props.gd")
 
 # Horizontal gap (in tiles) between adjacent board containers when more than one
 # board is laid out in world space.
@@ -61,7 +59,12 @@ static func load_into(host: Node2D, map) -> void:
 # its sim subtree sits at the world origin so existing mouse/cell math is exact.
 # Additional boards are offset to the right (for spectating / the arena view).
 # Returns the array of BoardState nodes (board 0 is the local player).
-static func build_match(host: Node2D, map, num_boards: int = 1) -> Array:
+# local_index = which seat is the local player (0 for solo / bot-PVP; the player's seat
+# for networked). The local board is laid out at world origin so all existing mouse/cell
+# math stays exact. use_bots drives the non-local boards with AI (offline practice); a
+# networked match passes false (opponents are driven by relayed inputs). player_names
+# (optional) supplies real lobby handles; empty falls back to "You" + pool handles.
+static func build_match(host: Node2D, map, num_boards: int = 1, local_index: int = 0, use_bots: bool = true, player_names: Array = []) -> Array:
 	var coordinator := MatchCoordinatorScript.new()
 	coordinator.max_rounds = map.round_count
 	coordinator.is_pvp = (map.mode == MapResourceScript.Mode.PVP)
@@ -72,22 +75,24 @@ static func build_match(host: Node2D, map, num_boards: int = 1) -> Array:
 	for i in range(num_boards):
 		var container := Node2D.new()
 		container.name = "Board%d" % i
-		container.position = _board_offset(i, map.grid_size)
+		container.position = _board_offset(i, map.grid_size, local_index)
 		host.add_child(container)
 		containers.append(container)
-		var board = _build_board(container, map, coordinator, i == 0)
+		var board = _build_board(container, map, coordinator, i == local_index, use_bots)
 		if coordinator.is_pvp:
 			board.lives = GameConstants.LIVES_PER_PLAYER
 		boards.append(board)
 
-	# On-screen UI is bound to the local player's board (board 0).
-	var ui = _build_match_ui(host, boards[0], boards[0].build_controller)
+	# On-screen UI is bound to the LOCAL player's board (their seat).
+	var local_board = boards[local_index]
+	var local_ctrl = local_board.build_controller
+	var ui = _build_match_ui(host, local_board, local_ctrl)
 	var strip = ui[0]
 	var drawer = ui[1]
 
 	# Playtest telemetry for threshold calibration (local board only; user:// only).
 	var plog := PlaytestLogScript.new()
-	plog.board = boards[0]
+	plog.board = local_board
 	plog.coordinator = coordinator
 	plog.map = map
 	host.add_child(plog)
@@ -98,46 +103,54 @@ static func build_match(host: Node2D, map, num_boards: int = 1) -> Array:
 	game_view.coordinator = coordinator
 	game_view.board_containers = containers
 	game_view.grid_size = map.grid_size
-	game_view.local_index = 0
+	game_view.local_index = local_index
 	game_view.is_pvp = coordinator.is_pvp
-	game_view.local_build_controller = boards[0].build_controller  # touch tap dispatch
+	game_view.local_build_controller = local_ctrl  # touch tap dispatch
 	game_view.tower_drawer = drawer  # so taps over the open drawer don't poke the board
-	boards[0].build_controller.tower_drawer = drawer  # same guard for the mouse path
+	local_ctrl.tower_drawer = drawer  # same guard for the mouse path
 	host.add_child(game_view)
 
 	# Arena leaderboard only for multi-board matches (PVP). It floats over the board's
 	# left edge as a collapsible drawer toggled by the action strip's leaderboard button.
 	if num_boards > 1:
-		# Assign display handles: board 0 is "You", the rest get spread-out pool handles.
+		# Display handles: real lobby names if supplied, else "You" + spread pool handles.
 		var names: Array = []
 		names.resize(num_boards)
-		names[0] = "You"
-		for i in range(1, num_boards):
-			names[i] = OPPONENT_HANDLES[(i * 5) % OPPONENT_HANDLES.size()]
+		for i in range(num_boards):
+			if i < player_names.size() and player_names[i] != "":
+				names[i] = player_names[i]
+			elif i == local_index:
+				names[i] = "You"
+			else:
+				names[i] = OPPONENT_HANDLES[(i * 5) % OPPONENT_HANDLES.size()]
 		coordinator.board_names = names
 		game_view.board_names = names
 
 		var leaderboard := LeaderboardPanelScript.new()
 		leaderboard.coordinator = coordinator
 		leaderboard.boards = boards
-		leaderboard.local_index = 0
+		leaderboard.local_index = local_index
 		leaderboard.grid_size = map.grid_size
 		leaderboard.arena = game_view
 		host.add_child(leaderboard)
 		strip.minimap = leaderboard  # the strip's PVP leaderboard button toggles it
 		game_view.minimap = leaderboard  # taps over the open panel don't poke the board
-		boards[0].build_controller.minimap = leaderboard  # same guard for the mouse path
+		local_ctrl.minimap = leaderboard  # same guard for the mouse path
 
 	return boards
 
-static func _board_offset(index: int, grid_size: Vector2i) -> Vector2:
-	if index == 0:
+# Lay boards out in a row with the LOCAL board at world origin (slot 0) so the local
+# player's sim sits at the origin and the existing cell/mouse math is exact; opponents
+# fill the remaining slots in seat order.
+static func _board_offset(index: int, grid_size: Vector2i, local_index: int = 0) -> Vector2:
+	if index == local_index:
 		return Vector2.ZERO
+	var slot := index + 1 if index < local_index else index
 	var stride := (grid_size.x + BOARD_GAP_TILES) * GridScript.TILE_SIZE
-	return Vector2(index * stride, 0.0)
+	return Vector2(slot * stride, 0.0)
 
 # Builds one board's full sim subtree under `container` and returns its BoardState.
-static func _build_board(container: Node2D, map, coordinator, is_local: bool):
+static func _build_board(container: Node2D, map, coordinator, is_local: bool, use_bots: bool = true):
 	_setup_background(container, map.grid_size)
 
 	# Live dirt-road renderer for the mob path (replaces the old dashed overlay). Add
@@ -149,7 +162,7 @@ static func _build_board(container: Node2D, map, coordinator, is_local: bool):
 
 	var zones := _setup_zones(container, map.bonus_zones)
 	_setup_markers(container, map.checkpoint_cells)
-	var obstacle_blocked := _setup_obstacles(container, map.obstacle_cells)
+	var obstacle_blocked := _setup_obstacles(container, map)
 
 	# Each board owns its own mob list (NOT shared — that would cross-contaminate
 	# targeting and run-completion detection across boards).
@@ -188,9 +201,9 @@ static func _build_board(container: Node2D, map, coordinator, is_local: bool):
 	container.add_child(board)
 	container.add_child(ctrl)
 
-	# Non-local boards are played by a bot (solves cold-start; real netcode swaps
-	# this for a remote driver later).
-	if not is_local:
+	# Non-local boards are played by a bot in offline practice. A networked match
+	# passes use_bots=false — opponents are driven by relayed human inputs instead.
+	if not is_local and use_bots:
 		var bot := BotControllerScript.new()
 		bot.board = board
 		bot.ctrl = ctrl
@@ -259,17 +272,26 @@ static func _setup_background(parent: Node2D, grid_size: Vector2i) -> void:
 	grid.z_index = -90  # above grass, below the road (-50)
 	parent.add_child(grid)
 
-static func _setup_obstacles(parent: Node2D, obstacle_cells: Array) -> Dictionary:
-	# Each obstacle cell becomes a permanent wall (seeds the build controller's
-	# pathfinding/placement map) and renders a single-tile debris prop.
+static func _setup_obstacles(parent: Node2D, map) -> Dictionary:
+	# Each prop blocks its footprint rect (seeds the build controller's pathfinding/
+	# placement map) and renders a sized, base-anchored sprite (may overhang upward).
+	# Falls back to the deprecated bare-cell list (1×1 rubble) if no sized obstacles.
 	var blocked := {}
-	for cell in obstacle_cells:
-		var obs := ObstacleScript.new()
-		parent.add_child(obs)
-		obs.setup(OBSTACLE_TEX, cell, 1, 1)
-		for c in obs.cells:
-			blocked[c] = true
+	var defs: Array = map.obstacles if map.obstacles != null else []
+	if defs.is_empty() and not map.obstacle_cells.is_empty():
+		for cell in map.obstacle_cells:
+			_spawn_obstacle(parent, ObstaclePropsScript.FALLBACK_ID, cell, Vector2i.ONE, blocked)
+	else:
+		for d in defs:
+			_spawn_obstacle(parent, d.prop_id, d.origin, d.footprint, blocked)
 	return blocked
+
+static func _spawn_obstacle(parent: Node2D, prop_id: String, origin: Vector2i, footprint: Vector2i, blocked: Dictionary) -> void:
+	var obs := ObstacleScript.new()
+	parent.add_child(obs)
+	obs.setup(ObstaclePropsScript.tex_for(prop_id), origin, footprint, ObstaclePropsScript.overhang_for(prop_id))
+	for c in obs.cells:
+		blocked[c] = true
 
 # Builds this board's zones and returns them as an Array (kept on the BoardState
 # so towers/mobs query only their own board's zones, not a global group).
@@ -301,11 +323,11 @@ static func _setup_markers(parent: Node2D, checkpoint_cells: Array) -> void:
 		marker.z_index = 3  # above the road so the flag reads on top of the path
 		parent.add_child(marker)
 
-		# Visit-order number, centred on the flag's banner. The banner centroid sits on the
-		# pole (horizontally centred) at ~55.8% of the flag height above the cell — measured
-		# from level_marker_flag.png. A square label box with centre alignment keeps the
-		# digit centred on that point regardless of font size.
-		var banner_cy := 0.558 * flag_h
+		# Visit-order number, centred on the flag's banner. The digit sits on the pole
+		# (horizontally centred) at this fraction of the flag height above the cell —
+		# nudged down again per playtest (was .558, still riding too high on the banner).
+		# A square label box with centre alignment keeps the digit centred regardless of font.
+		var banner_cy := 0.50 * flag_h
 		var box := 26.0
 		var num := Label.new()
 		num.text = str(i + 1)

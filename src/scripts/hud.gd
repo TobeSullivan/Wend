@@ -156,13 +156,27 @@ func _on_towers_changed(count: int, cap: int) -> void:
 func _is_pvp() -> bool:
 	return round_manager != null and round_manager.coordinator != null and round_manager.coordinator.is_pvp
 
+# PVP lives to show: the LIVE projection during the run (moves as either you or an
+# opponent racks up kills), the settled value otherwise. Clamped at 0 for display.
+func _lives_display() -> int:
+	var co = round_manager.coordinator
+	if co != null and co.is_pvp:
+		return maxi(0, co.projected_lives(round_manager))
+	return round_manager.lives
+
+# Local kills fire kills_changed, but an OPPONENT's kill also shifts my projection and
+# emits no local signal — so poll the lives pill each frame during the PVP run.
+func _process(_dt: float) -> void:
+	if _is_pvp() and round_manager.phase == "run" and not round_manager.match_over:
+		_lives_val.text = "%d" % _lives_display()
+
 func _refresh() -> void:
 	if round_manager == null:
 		return
 	if _is_pvp():
 		_round_val.text = "%d" % round_manager.round_num
 		_lives_pill.visible = true
-		_lives_val.text = "%d" % round_manager.lives
+		_lives_val.text = "%d" % _lives_display()
 	else:
 		_round_val.text = "%d / %d" % [round_manager.round_num, round_manager.max_rounds]
 		_lives_pill.visible = false

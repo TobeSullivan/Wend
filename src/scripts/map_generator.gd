@@ -18,6 +18,8 @@ extends Node
 
 const MapResourceScript := preload("res://resources/map_resource.gd")
 const ZoneDefinitionScript := preload("res://resources/zone_definition.gd")
+const ObstacleDefinitionScript := preload("res://resources/obstacle_definition.gd")
+const ObstaclePropsScript := preload("res://resources/obstacle_props.gd")
 const GridScript := preload("res://scripts/grid.gd")
 const PathfinderScript := preload("res://scripts/pathfinder.gd")
 const BonusZoneScript := preload("res://scripts/bonus_zone.gd")
@@ -85,22 +87,49 @@ static func generate(seed: int, scale_tier: int, mode: int, window_type: int = 0
 	for cp in map.checkpoint_cells:
 		reserved[cp] = true
 
-	var blocked := {}  # obstacle cells only
-	var obstacles: Array[Vector2i] = []
-	var target_obstacles: int = rng.randi_range(tier * 2, tier * 3 + 1)
+	# Place SIZED props. We budget by blocked CELLS (not prop count) so difficulty
+	# tracks the old 1×1 scatter even though props can now be multi-cell. Most picks
+	# are 1×1 (weighted); occasional cars/ruins block 2×2 with visual overhang.
+	var blocked := {}  # all blocked obstacle cells (footprints)
+	var obstacles: Array = []
+	var target_cells: int = rng.randi_range(tier * 2, tier * 3 + 1)
+	var placed_cells := 0
 	var tries := 0
-	while obstacles.size() < target_obstacles and tries < target_obstacles * 10:
+	while placed_cells < target_cells and tries < target_cells * 12:
 		tries += 1
-		# Keep clear of the edge columns so the entry/exit funnel never seals.
-		var cand := Vector2i(rng.randi_range(3, cols - 4), rng.randi_range(1, rows - 2))
-		if reserved.has(cand) or blocked.has(cand):
+		# Cap footprint by the remaining cell budget so a 2×2 doesn't blow past it.
+		var remaining := target_cells - placed_cells
+		var max_dim: int = 2 if remaining >= 3 else 1
+		var prop_id := ObstaclePropsScript.pick_for_footprint(rng, max_dim, max_dim)
+		if prop_id == "":
 			continue
-		blocked[cand] = true
+		var fp: Vector2i = ObstaclePropsScript.footprint_for(prop_id)
+		# Origin keeps the WHOLE footprint clear of the edge columns so the
+		# entry/exit funnel never seals.
+		var origin := Vector2i(rng.randi_range(3, cols - 4 - (fp.x - 1)), rng.randi_range(1, rows - 2 - (fp.y - 1)))
+		var fcells: Array = []
+		var clear := true
+		for dx in range(fp.x):
+			for dy in range(fp.y):
+				var c := origin + Vector2i(dx, dy)
+				if reserved.has(c) or blocked.has(c):
+					clear = false
+				fcells.append(c)
+		if not clear:
+			continue
+		for c in fcells:
+			blocked[c] = true
 		if _compute_path(map.entry_cell, map.checkpoint_cells, map.exit_cell, blocked).is_empty():
-			blocked.erase(cand)  # this obstacle would seal the path — skip it
-		else:
-			obstacles.append(cand)
-	map.obstacle_cells = obstacles
+			for c in fcells:
+				blocked.erase(c)  # this prop would seal the path — skip it
+			continue
+		var d: Variant = ObstacleDefinitionScript.new()
+		d.prop_id = prop_id
+		d.origin = origin
+		d.footprint = fp
+		obstacles.append(d)
+		placed_cells += fcells.size()
+	map.obstacles = obstacles
 
 	# --- Bonus zones: first on the path (reachable), rest scattered ---
 	map.bonus_zones = _place_zones(rng, map, params, blocked, cols, rows)

@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://resources/zone_definition.gd" id="1_zone"]
 [ext_resource type="Script" path="res://resources/map_resource.gd" id="2_map"]
+[ext_resource type="Script" path="res://resources/obstacle_definition.gd" id="2_x5d0l"]
 
 [sub_resource type="Resource" id="Zone_slow_a"]
 script = ExtResource("1_zone")
@@ -20,14 +21,34 @@ script = ExtResource("1_zone")
 cell = Vector2i(7, 6)
 magnitude = 30
 
+[sub_resource type="Resource" id="Resource_ejqay"]
+script = ExtResource("2_x5d0l")
+prop_id = "building_ruin_10"
+origin = Vector2i(9, 6)
+footprint = Vector2i(2, 2)
+
+[sub_resource type="Resource" id="Resource_1l8cj"]
+script = ExtResource("2_x5d0l")
+prop_id = "street_lamp_01"
+origin = Vector2i(14, 5)
+
+[sub_resource type="Resource" id="Resource_l4ftk"]
+script = ExtResource("2_x5d0l")
+prop_id = "street_lamp_02"
+origin = Vector2i(6, 8)
+
+[sub_resource type="Resource" id="Resource_bkvka"]
+script = ExtResource("2_x5d0l")
+prop_id = "rubble_pile_03"
+origin = Vector2i(17, 4)
+
 [resource]
 script = ExtResource("2_map")
 seed = 5
-grid_size = Vector2i(20, 11)
 entry_cell = Vector2i(0, 6)
 exit_cell = Vector2i(19, 6)
 checkpoint_cells = Array[Vector2i]([Vector2i(16, 2), Vector2i(5, 9)])
-obstacle_cells = Array[Vector2i]([Vector2i(9, 6), Vector2i(14, 5), Vector2i(6, 8), Vector2i(17, 4)])
+obstacles = [SubResource("Resource_ejqay"), SubResource("Resource_1l8cj"), SubResource("Resource_l4ftk"), SubResource("Resource_bkvka")]
 bonus_zones = [SubResource("Zone_slow_a"), SubResource("Zone_slow_b"), SubResource("Zone_damage")]
 supply_cap = 35
 round_count = 12

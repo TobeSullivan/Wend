@@ -316,7 +316,10 @@ func _on_upgrade_pressed(stat: String) -> void:
 		return
 	if round_manager != null and not round_manager.spend(cost):
 		return
+	var ucell: Vector2i = _selected.grid_cell
 	_selected.upgrade(stat)
+	if build_controller != null:
+		build_controller.on_local_upgrade(ucell, stat)  # relay to other players (networked)
 	_refresh()
 
 func _on_sell_pressed() -> void:

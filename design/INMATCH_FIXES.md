@@ -13,6 +13,16 @@ exceed the fence; if you can't meet acceptance within it, STOP and report.
 
 ## 1. Obstacles → real sized environmental props
 
+**✅ DONE (2026-06-04, Claude Code) — uncommitted, awaiting eyeball.** Schema reopened
+(`obstacles: Array` of `ObstacleDefinition` {prop_id, origin, footprint}); curated prop
+registry (`src/resources/obstacle_props.gd`); base-anchored overhang rendering
+(`obstacle.gd`); generator places sized props (cell-budgeted, path-validated); all 10
+campaign `.tres` migrated (varied 1×1 reskin + a few validated multi-cell promotions, M8
+left all-1×1). Verified headless on all 10 campaign + PVE 1–5 + PVP (valid paths, footprints
+blocked, overhang non-blocking) + real-GL captures. Spec below kept for reference.
+
+---
+
 Today obstacles are placeholder single-tile rocks. The art pack has a full urban-decay
 set that should replace them, and props should be allowed to be larger than 1×1.
 

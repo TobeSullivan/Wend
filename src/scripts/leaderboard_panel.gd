@@ -88,9 +88,24 @@ func _ranking() -> Array:
 		if ba.eliminated and bb.eliminated:
 			# both out: the one eliminated later (better placement) ranks higher
 			return coordinator.placement_of(ba) < coordinator.placement_of(bb)
-		return ba.lives > bb.lives
+		return _lives_of(ba) > _lives_of(bb)
 	)
 	return arr
+
+# Lives for ranking/display: the live projection during the run (re-ranks the board
+# mid-match), the settled value otherwise.
+func _lives_of(b) -> int:
+	return coordinator.projected_lives(b) if coordinator != null else b.lives
+
+# While open during the run, re-rank on a light throttle so the projected lives + order
+# move mid-match (kills on any board shift the projection but emit no panel signal).
+var _poll_accum: float = 0.0
+func _process(dt: float) -> void:
+	if _open and coordinator != null and coordinator.phase == "run" and not coordinator.match_over:
+		_poll_accum += dt
+		if _poll_accum >= 0.2:
+			_poll_accum = 0.0
+			_refresh()
 
 func _refresh() -> void:
 	if _rows_box == null:
@@ -134,7 +149,7 @@ func _make_row(rank: int, idx: int) -> Button:
 	name_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	hb.add_child(name_lbl)
 
-	var lives_text := "OUT" if b.eliminated else "%d" % b.lives
+	var lives_text := "OUT" if b.eliminated else "%d" % maxi(0, _lives_of(b))
 	var lives_col := Color(0.95, 0.6, 0.55) if b.eliminated else Color(1.0, 0.84, 0.55)
 	var lives_lbl := _lbl(lives_text, int(15 * s), lives_col)
 	hb.add_child(lives_lbl)
