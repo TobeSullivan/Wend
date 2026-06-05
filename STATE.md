@@ -57,10 +57,11 @@ Last updated: 2026-06-05
 
 ## Current focus
 
-**▶ CURRENT STATE (2026-06-05): real online multiplayer is BUILT (Phases 0–4), all headless-verified, NOT yet live-tested. Big recent batch is UNCOMMITTED until this session's commit.** Done across the last sessions and folded into one uncommitted batch:
-- **Obstacles → real sized props** (schema reopen; `src/resources/obstacle_*`); **in-match fixes** (chevrons build-phase only, zones on top, flag numbers); **PVP lives update mid-match** (`projected_lives`).
-- **Networked PVP (host-authoritative ENet)**: transport seam (`src/net/`: match_transport/local/enet/net_protocol/net_match), lobby (`scenes/lobby.tscn` + `lobby.gd`, host/join + countdown + host-address hint), seed-synced identical maps, build-input relay + lockstep clock (coordinator decoupled via `driven_externally`), barrier lives resolution, disconnect forfeit. **Android debug APK builds** (`C:\dev\MazeBattleTD-debug.apk`). See session log for the per-phase detail + 2-process verification.
-- **NEXT (user-side device test):** install the APK (`adb install -r`), Host on PC, Join from phone (LAN `<ip>:8771`, or port-forward UDP 8771 + public IP for internet); confirm a real PC↔Android match. Then: determinism hardening (fixed timestep + seeded crits — task deferred, pre-ranked), a full multi-round elimination → match-end placement playtest, and campaign threshold calibration (still blocked on real campaign playtest data).
+**▶ CURRENT STATE (2026-06-05): online MP proven LIVE locally + pivoted to a DEDICATED SERVER. M1 committed (`d884368`). Next step is deploying the server to a Hetzner VPS — the user is provisioning the box.** This session:
+- **First live MP test** (PC↔PC localhost, the old host-auth P2P): lobby → seed-sync → build relay → lockstep → zero-sum lives barrier all worked. Then hit the wall: remote testers are on other networks + mobile **CGNAT**, and Steam relay is PC/Mac-only → LAN/P2P can't carry a mobile beta. **Pivoted to the long-term home: a headless Godot dedicated server on a VPS + (later) Nakama.** Plan in `notes/remote_beta_plan.md`.
+- **M1 — dedicated-server netcode BUILT + committed** (`d884368`): `boot.gd --server` boot mode; `net/match_server.gd` headless lobby authority (server holds no seat; leader-starts; resets to lobby on match end — first to return leads); `build_match`/`net_match` authority-only build (`local_index < 0`); `lobby.gd` is now a thin client (Play Online → a baked server address, `MBTD_SERVER` env override). **Verified locally: full match with a headless 3rd-process authority + 2 clients (lives/win correct), re-queue UX confirmed by the user.**
+- **Two fixes also committed** (`6ba5e44`): PVP **lives overflow** clamp (transfer capped at the opponent's lives → pool stays [0, 100·N]; was 209/0); **street-lamp obstacle** removed from the pool (7× tall → buildable "bridge"). Plus the **spectate dropped-click bug** fixed (leaderboard rebuilt rows every 0.2s, freeing the button mid-click → now built once + updated in place; tapped row highlights gold).
+- **KNOWN LIMIT:** one match at a time per server (the server sims the match scene). Concurrent matches = the later **Option-B** step (lightweight server, clients report kills). Fine to validate remote play with one group first.
 
 **▶ Prior direction (2026-06-02): mobile-ready foundation FIRST, then multiplayer** — now realized. Architecture/costs locked in `notes/multiplayer_architecture.md` (round-barrier netcode; host-auth→dedicated; self-hosted Nakama; **no bots in ranked ever**; Steam-beta = $100 recoupable). Bots are scaffolding, not a mode. Trust-client for the beta; authoritative validation is a pre-ranked step.
 
@@ -85,13 +86,18 @@ Last updated: 2026-06-05
 
 ---
 
-## ⏭️ NEXT SESSION
+## ⏭️ NEXT SESSION — deploy the dedicated server, then validate remote play
 
-**Multiplayer is committed but never run live.** Priorities when the user returns:
-1. **Real device test** (user-side): `adb install -r "C:\dev\MazeBattleTD-debug.apk"`; on PC PVP → Host; phone PVP → Join the shown `<LAN ip>:8771` (same Wi-Fi) or, for internet, forward UDP 8771 + share the public IP. Triage whatever breaks in live play (the netcode is only headless-verified so far). Rebuild the APK with `JAVA_HOME=C:/dev/android-tools/jdk17` + `Godot --headless --path src --export-debug "Android" <out.apk>`.
-2. **Determinism hardening** (task #12, pre-ranked): fixed-timestep + seeded per-board crit RNG so spectated opponent boards don't drift mid-run. Not needed for correctness (lives reconcile at the barrier) — purely fidelity.
-3. **Full match-end playtest**: a multi-round game that actually drains a board to 0 → elimination → match-end placement screen across two clients (only the disconnect path has exercised placement so far).
-4. **Campaign threshold calibration** (still blocked on real campaign data): play campaign with `PlaytestLog.ENABLED` on (`src/scripts/playtest_log.gd`), read `user://playtest_log.jsonl`, tune `bronze/silver/gold_threshold` in `mission_0N.tres`, then flip ENABLED off.
+**The deploy is teed up; the user is provisioning a Hetzner VPS** (Ashburn US-East, Ubuntu 24.04, CPX11) with the `deploy` SSH key (passphrase-less key at `~/.ssh/id_ed25519`, pubkey already added in Hetzner). **The user will provide the public IPv4.** When you have the IP:
+1. **Stand up the server over SSH** (`ssh -o StrictHostKeyChecking=accept-new root@<IP>` — the key is local): install a Godot 4.6.3 **Linux headless** binary, copy/clone the project `src/`, `--headless --import` to build the import cache, write a `systemd` unit running `godot --headless --path <src> -- --server`, `ufw allow 22/tcp` + `ufw allow 8771/udp`, start it. (Run-from-source on the box — no Linux export templates needed.)
+2. **Point the client at the VPS**: set `DEFAULT_SERVER` in `src/scripts/lobby.gd` to the VPS IP (currently `127.0.0.1`); rebuild the APK (`JAVA_HOME=C:/dev/android-tools/jdk17` + `Godot --headless --path src --export-debug "Android" C:\dev\MazeBattleTD-debug.apk`); `adb install -r` to the phone.
+3. **The real test:** PC client + phone **on cellular (Wi-Fi off)** both connect to the VPS and play a full match — proves the remote/CGNAT path the LAN model couldn't.
+
+**After remote is validated (queued):**
+- **Concurrency (Option B)** — lightweight server that doesn't sim (clients report kills via `RUN_DONE`), many simultaneous matches per box. Needed so eliminated/finished players can start a new game without waiting; the doc's intended end-state. (One-match-per-server is the current limit.)
+- **M2 distribution** — Google Play **Internal Testing** (account ready): AAB export + Play App Signing, testers by email. Individual account is fine; transfer to an LLC later if desired.
+- **4-digit room codes** (M1b) — multiple lobbies once concurrency lands.
+- **Still queued from before:** determinism hardening (seeded crits) pre-ranked; campaign threshold calibration (`PlaytestLog.ENABLED` → tune `mission_0N.tres`); full multi-round elimination playtest.
 
 ---
 
@@ -119,6 +125,14 @@ Last updated: 2026-06-05
 ---
 
 ### Session log (chronological, most recent first)
+
+**Online MP went LIVE locally → pivoted to a dedicated server; M1 built + committed (2026-06-05, Claude Code).** First real multiplayer test + an architecture pivot for the remote beta.
+- **First live test (PC↔PC localhost, the old host-auth P2P):** lobby → seed-synced identical maps → build relay → lockstep clock → zero-sum lives barrier → elimination/win all worked. The netcode is sound.
+- **Two fixes found in live play, committed `6ba5e44`:** (1) PVP **lives overflow** — `resolve_lives` applied the raw kill-difference then clamped eliminated boards up to 0, leaking the unpayable remainder to the winner (a 2-player match ended **209/0** not 200/0). Now caps each loss at the board's available lives and pulls the shortfall back out of the winners (largest-remainder split) → pool exactly conserved [0, 100·N]; `projected_lives` upper-capped. Verified headless (2- and 4-board incl. overflow). (2) **Street-lamp obstacle** removed from the generator pool (art ~7× taller than wide → a 1×1 base rendered a 3-cell pole whose overhang stayed buildable, reading as a "bridge"); 4 authored refs in M5/M8 repointed to 1×1 props.
+- **The pivot:** remote testers are on other networks + mobile **CGNAT** (a tester's phone was on cellular `100.x`; its Wi-Fi also wouldn't scan — "no networks"), and **Steam relay is PC/Mac-only** → LAN/P2P + port-forward can't carry a mobile beta. Decided (user) to go straight to the long-term home: a **headless Godot dedicated server on a Hetzner VPS** (clients connect outbound → works through any NAT/cellular), Nakama later. Distribution = Google Play Internal Testing. Plan: `notes/remote_beta_plan.md`; memory `project_multiplayer_direction` updated.
+- **M1 dedicated-server netcode BUILT + committed `d884368`:** authority/player decouple so a headless server runs the match while everyone is a client. `boot.gd --server`; `net/match_server.gd` (headless lobby authority — no seat, leader-starts, resets to lobby on match end with "first to return leads"); `build_match`/`net_match` authority-only at `local_index < 0` (sims all boards for the kill tally, no UI/seat); `lobby.gd` → thin client (Play Online → baked server address + `MBTD_SERVER` override); `match_end_panel` Find-New-Match re-queues (was an empty offline match); `scene_manager.start_dedicated_server`/`reset_dedicated_lobby`/`last_player_name`; `NetProtocol.PLAY`. **Verified locally: full match with a headless 3rd-process authority + 2 client windows — lives/win correct, re-queue leadership confirmed by the user.**
+- **Spectate dropped-click bug fixed** (in `d884368`): the leaderboard rebuilt all row buttons every 0.2s (`queue_free` + recreate), so a click landing during a rebuild was lost ("click over and over until it works"). Now rows are built once and updated in place + reordered; the tapped row gets an instant gold highlight. User: "works great now, very quick."
+- **KNOWN LIMIT:** one match at a time per server (Option A sims the match scene). Concurrent matches = the later Option-B refactor. **NEXT: deploy to the VPS (user provisioning) → validate PC + phone-on-cellular remotely.**
 
 **Obstacles → real sized environmental props (2026-06-04, Claude Code) — INMATCH_FIXES Task 1, NOT committed.** The locked schema-reopen: replaced the single placeholder rubble prop with curated, sized urban-decay props that block their footprint and may overhang.
 - **Schema reopen (`map_resource.gd`):** new `obstacles: Array = []` (untyped, duck-typed like `bonus_zones` per the typed-cross-script-array memory) of `ObstacleDefinition` resources `{prop_id, origin, footprint}` + `blocked_cells()` helper. `obstacle_cells` kept as a deprecated 1×1-rubble fallback (loader uses it only if `obstacles` empty); all 10 `.tres` now use `obstacles`, generated maps never set the old field.
