@@ -1,0 +1,185 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Wend — leaderboard UI pass 2</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --pill:#323d2c; --pill-b:#1a2012; --chip:#39402c; --chip-b:#23170d;
+    --card:#2a3322; --card-b:#161c0f; --gold:#b38e2c; --gold-b:#5e4710;
+    --green:#5fbe38; --green-b:#2c5a18; --terra:#b04a2a; --terra-b:#5e2310;
+    --txt:#fff; --sage:#b9c7a4; --outline:#1a2012; --shadow:0 5px 7px rgba(0,0,0,.42);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:Fredoka,sans-serif}
+  body{background:#11160c;color:#cdd6bf;padding:32px 16px 80px;font-weight:500}
+  h1.page{font-weight:700;color:#dfe7d2;text-align:center;font-size:22px;margin-bottom:6px}
+  p.sub{text-align:center;color:#7f8c6b;font-size:13px;max-width:680px;margin:0 auto 30px}
+  .cap{color:#9fae87;font-size:13px;font-weight:600;margin:30px auto 8px;max-width:760px}
+  .cap b{color:#cf9a2f}
+  .note{color:#79866a;font-size:12px;line-height:1.55;max-width:760px;margin:0 auto 12px}
+  .note .k{color:#9fae87;font-weight:600}
+  .grid{max-width:760px;margin:0 auto}
+  .txt{color:#fff;text-shadow:0 0 2px var(--outline),0 0 2px var(--outline),0 0 2px var(--outline)}
+  .gold-t{color:#e8c45a;text-shadow:0 0 2px var(--outline),0 0 2px var(--outline)}
+  .sage{color:var(--sage)}.stars{color:#e8c45a;letter-spacing:2px;text-shadow:0 0 2px var(--outline)}
+  .shadow{box-shadow:var(--shadow)}
+
+  /* ---- in-match target ladder element ---- */
+  .grassbar{background:linear-gradient(0deg,#3c4a2f,#46552f);border-radius:16px;padding:22px;margin-bottom:10px}
+  .target{display:inline-flex;flex-direction:column;gap:3px;background:var(--pill);border:2px solid var(--pill-b);border-bottom-width:4px;border-radius:16px;padding:9px 16px;box-shadow:var(--shadow);min-width:300px}
+  .target .row1{display:flex;align-items:center;gap:12px}
+  .target .you{font-weight:700;font-size:20px}
+  .target .arrow{color:#6f7d5c;font-size:16px}
+  .target .next{display:flex;flex-direction:column;line-height:1.15}
+  .target .next .lbl{font-size:10px;font-weight:600;color:var(--sage);letter-spacing:.5px}
+  .target .next .v{font-weight:700;font-size:16px}
+  .target .snap{font-size:10px;color:#7f8c6b;font-weight:500;border-top:1.5px solid #222b18;padding-top:4px;margin-top:2px}
+  .badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:9px;color:#fff}
+  .b-tier{background:var(--gold);border:1.5px solid var(--gold-b)}
+  .b-ghost{background:#3a4630;border:1.5px solid var(--pill-b);color:var(--sage)}
+  .b-best{background:#3b5a2a;border:1.5px solid var(--green-b);color:#dffacb}
+  .b-top{background:var(--gold);border:1.5px solid var(--gold-b)}
+  .lbl-tag{font-size:11px;color:#8c9a76;font-weight:600;margin-bottom:6px}
+
+  /* ---- device frame ---- */
+  .screen{position:relative;width:100%;aspect-ratio:16/9;border-radius:18px;overflow:hidden;
+    background:radial-gradient(120% 100% at 50% 30%, rgba(0,0,0,0) 40%, rgba(0,0,0,.55) 100%),linear-gradient(0deg,#3c4a2f,#46552f);
+    box-shadow:var(--shadow);border:2px solid #0d1108;display:flex;flex-direction:column}
+  .topbar{display:flex;align-items:center;gap:10px;padding:12px 14px}
+  .ico{width:26px;height:26px;border-radius:8px;background:#2a3322;border:2px solid var(--card-b);display:flex;align-items:center;justify-content:center;font-size:13px;color:#cdd6bf}
+  .seg{display:flex;border-radius:13px;overflow:hidden;border:2px solid var(--pill-b);border-bottom-width:3px}
+  .seg span{padding:6px 14px;font-size:13px;font-weight:600;color:#9fae87;background:#2a3322}
+  .seg span.on{background:var(--pill);color:#fff}
+  .tab{padding:6px 14px;border-radius:13px;font-weight:600;font-size:13px;border:2px solid var(--pill-b);border-bottom-width:3px;background:#2a3322;color:#9fae87}
+  .tab.on{background:var(--pill);color:#fff}
+  .rows{display:flex;flex-direction:column;gap:5px;width:100%}
+  .row{display:flex;align-items:center;gap:10px;background:var(--chip);border:2px solid var(--chip-b);border-bottom-width:3px;border-radius:12px;padding:7px 12px;height:36px}
+  .row .rank{width:30px;color:var(--sage);font-weight:600;font-size:13px;text-align:right}
+  .row .name{flex:1;color:#fff;font-weight:500;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .val{color:#e8c45a;font-weight:600;font-size:14px}
+  .row.me{background:#3b5a2a;border-color:var(--green-b)}.row.me .name{color:#dffacb}.row.me .rank{color:#bfe6a3}
+  .countdown{display:inline-flex;align-items:center;gap:6px;background:#2a3322;border:2px solid var(--card-b);border-radius:11px;padding:4px 10px;font-size:12px;font-weight:600;color:#cf9a2f}
+  .divider{display:flex;align-items:center;gap:8px;width:100%;color:#6f7d5c;font-size:11px;font-weight:600;margin:2px 0}
+  .divider::before,.divider::after{content:"";flex:1;height:2px;background:#222b18;border-radius:2px}
+  .card{background:var(--card);border:2px solid var(--card-b);border-bottom-width:4px;border-radius:16px;box-shadow:var(--shadow);padding:11px;display:flex;flex-direction:column;gap:7px}
+</style>
+
+<h1 class="page">Wend — UI pass 2 (the changed pieces)</h1>
+<p class="sub">In-match ghost-ladder (new), ephemeral board-browse + scale names, Trials cards renamed. Post-match panels 1 & 2 unchanged except scale-name copy. Scale names: Thread · Weave · Tangle · Snarl · Knot.</p>
+
+<!-- ===== A. IN-MATCH GHOST LADDER ===== -->
+<div class="cap">A · In-match target line — <b>the ghost ladder</b> (lives where the Bronze/Silver/Gold target sits today, per the v3 HUD)</div>
+<div class="note"><span class="k">One element, four states.</span> It shows your live score climbing toward the next target — and never asserts a live rank. The persistent "snapshot at match start" line is the ghost contract: you're racing recorded scores, the real rank reveals at the result screen. Below gold → named tiers; above gold → ghost scores; no ghosts left → your own best; cleared it → <b>TOP</b>.</div>
+<div class="grid grassbar">
+  <div class="lbl-tag">State 1 — below gold: chasing a named tier</div>
+  <div class="target">
+    <div class="row1">
+      <div class="you txt">872,400</div><div class="arrow">→</div>
+      <div class="next"><span class="lbl">NEXT <span class="badge b-tier">SILVER</span></span><span class="v gold-t">950,000</span></div>
+    </div>
+    <div class="snap">standings as of match start</div>
+  </div>
+
+  <div class="lbl-tag" style="margin-top:18px">State 2 — past gold: chasing a ghost score</div>
+  <div class="target">
+    <div class="row1">
+      <div class="you txt">1,284,500</div><div class="arrow">→</div>
+      <div class="next"><span class="lbl">NEXT <span class="badge b-ghost">GHOST</span> mazewright</span><span class="v gold-t">1,301,880</span></div>
+    </div>
+    <div class="snap">standings as of match start · passed 11 this run</div>
+  </div>
+
+  <div class="lbl-tag" style="margin-top:18px">State 3 — no ghosts left (empty / new board): chase your own best</div>
+  <div class="target">
+    <div class="row1">
+      <div class="you txt">1,190,000</div><div class="arrow">→</div>
+      <div class="next"><span class="lbl">NEXT <span class="badge b-best">YOUR BEST</span></span><span class="v gold-t">1,180,000</span></div>
+    </div>
+    <div class="snap">standings as of match start</div>
+  </div>
+
+  <div class="lbl-tag" style="margin-top:18px">State 4 — cleared the snapshot: TOP</div>
+  <div class="target">
+    <div class="row1">
+      <div class="you txt gold-t" style="font-size:22px">1,420,900</div>
+      <span class="badge b-top" style="font-size:12px;padding:4px 12px">TOP</span>
+    </div>
+    <div class="snap">topped the match-start snapshot · live rank at run's end</div>
+  </div>
+</div>
+
+<!-- ===== B. BOARD BROWSE (revised) ===== -->
+<div class="cap">B · Board-browse — <b>revised</b>: ephemeral Trials (no history), scale names, live-window countdown</div>
+<div class="note"><span class="k">Changed:</span> removed all historical navigation for Trials — only the three <span class="k">currently-live</span> windows exist; the <span class="k">countdown</span> makes "this resets and is gone" legible without words. Scale row now reads Thread→Knot. Storage stays flat: you only ever hold the live boards.</div>
+<div class="grid"><div class="screen">
+  <div class="topbar">
+    <div class="ico" title="arrow_left.png">‹</div>
+    <span class="txt" style="font-weight:700;font-size:16px">Leaderboards</span>
+    <div style="flex:1"></div>
+    <div class="seg"><span class="on">Trials</span><span>Ranked</span><span>Campaign</span></div>
+  </div>
+  <div style="display:flex;gap:8px;padding:0 14px 8px;align-items:center;flex-wrap:wrap">
+    <div style="display:flex;gap:6px"><span class="tab on">Daily</span><span class="tab">Weekly</span><span class="tab">Monthly</span></div>
+    <span class="countdown" title="window reset">⏳ resets in 3h 41m</span>
+    <div style="flex:1"></div>
+    <div class="seg"><span class="on">Solo</span><span>Duo</span><span>Trio</span><span>Quad</span></div>
+  </div>
+  <div style="display:flex;gap:6px;padding:0 14px 10px">
+    <span class="tab">Thread</span><span class="tab">Weave</span><span class="tab on">Tangle</span><span class="tab">Snarl</span><span class="tab">Knot</span>
+  </div>
+  <div style="flex:1;overflow:hidden;padding:0 14px 14px"><div class="rows">
+    <div class="row"><span class="rank">1</span><span class="name">apex_builder</span><span class="val">2,104,900</span></div>
+    <div class="row"><span class="rank">2</span><span class="name">mazewright</span><span class="val">1,902,330</span></div>
+    <div class="row"><span class="rank">3</span><span class="name">a_very_long_handle_that_trunc…</span><span class="val">1,766,010</span></div>
+    <div class="divider">· · · jump to your position · · ·</div>
+    <div class="row"><span class="rank">13</span><span class="name">tower_of_pwr</span><span class="val">1,301,880</span></div>
+    <div class="row me"><span class="rank">14</span><span class="name">you</span><span class="val">1,284,500</span></div>
+    <div class="row"><span class="rank">15</span><span class="name">creepkiller_99</span><span class="val">1,260,140</span></div>
+  </div></div>
+</div></div>
+
+<!-- ===== B2. RANKED VARIANT ===== -->
+<div class="cap">B2 · Board-browse — <b>Ranked</b> view (current season live · past seasons frozen · no future)</div>
+<div class="note"><span class="k">Changed:</span> season selector replaces window/scale. Current season = live Masters board + your tier/LP. Past seasons = a <span class="k">frozen final top-N</span> + your own recorded result ("162nd, S1"). Cheap: one frozen snapshot per past season, not a living board.</div>
+<div class="grid"><div class="screen">
+  <div class="topbar">
+    <div class="ico" title="arrow_left.png">‹</div>
+    <span class="txt" style="font-weight:700;font-size:16px">Leaderboards</span>
+    <div style="flex:1"></div>
+    <div class="seg"><span>Trials</span><span class="on">Ranked</span><span>Campaign</span></div>
+  </div>
+  <div style="display:flex;gap:8px;padding:0 14px 10px;align-items:center">
+    <div class="seg"><span class="on">Season 2 · live</span><span>Season 1</span></div>
+    <span class="countdown">⏳ 18 days left</span>
+    <div style="flex:1"></div>
+    <span class="sage" style="font-size:12px;font-weight:600">You: <span class="gold-t">Gold · 77 LP</span></span>
+  </div>
+  <div style="padding:0 14px 6px"><span class="divider">MASTERS — TOTAL LP</span></div>
+  <div style="flex:1;overflow:hidden;padding:0 14px 14px"><div class="rows">
+    <div class="row"><span class="rank">1</span><span class="name">apex_builder</span><span class="val">1,840 LP</span></div>
+    <div class="row"><span class="rank">2</span><span class="name">grid_goblin</span><span class="val">1,612 LP</span></div>
+    <div class="row"><span class="rank">3</span><span class="name">snarlmaster</span><span class="val">1,498 LP</span></div>
+    <div class="divider">· · · you're in Gold — climb to Masters to rank here · · ·</div>
+  </div></div>
+</div></div>
+
+<!-- ===== C. TRIALS SELECT (names) ===== -->
+<div class="cap">C · Trials-select — cards renamed (was Scale 1–5)</div>
+<div class="note">Inline rank on the best-score row unchanged ("#14 ›" = your live rank + tap target). Names replace the "Scale N" label; difficulty 1–5 still implied by order and stats.</div>
+<div class="grid"><div class="screen">
+  <div class="topbar">
+    <div class="ico" title="arrow_left.png">‹</div>
+    <span class="txt" style="font-weight:700;font-size:16px">Trials</span>
+    <div style="flex:1"></div>
+    <span class="countdown">⏳ resets in 3h 41m</span>
+    <div style="display:flex;gap:6px;margin-left:10px"><span class="tab on">Daily</span><span class="tab">Weekly</span><span class="tab">Monthly</span></div>
+  </div>
+  <div style="flex:1;display:flex;gap:10px;padding:6px 14px 16px;align-items:stretch">
+    <div class="card" style="flex:1"><div class="txt" style="font-weight:700">Thread</div><div class="sage" style="font-size:11px;line-height:1.7">Rounds 8<br>Supply 40<br>Zones 2<br>Mobs ×1.0<br>Checkpts 1</div><div style="flex:1"></div><div style="border-top:2px solid #222b18;padding-top:7px"><div class="sage" style="font-size:10px">BEST</div><div class="gold-t" style="font-weight:700;font-size:13px">★ 940,100</div><div style="color:#bfe6a3;font-size:12px;font-weight:600">#6 ›</div></div></div>
+    <div class="card" style="flex:1"><div class="txt" style="font-weight:700">Weave</div><div class="sage" style="font-size:11px;line-height:1.7">Rounds 9<br>Supply 48<br>Zones 2<br>Mobs ×1.3<br>Checkpts 2</div><div style="flex:1"></div><div style="border-top:2px solid #222b18;padding-top:7px"><div class="sage" style="font-size:10px">BEST</div><div class="gold-t" style="font-weight:700;font-size:13px">★ 1,110,400</div><div style="color:#bfe6a3;font-size:12px;font-weight:600">#9 ›</div></div></div>
+    <div class="card" style="flex:1;border-color:var(--green-b);outline:2px solid rgba(95,190,56,.25)"><div class="txt" style="font-weight:700">Tangle</div><div class="sage" style="font-size:11px;line-height:1.7">Rounds 10<br>Supply 55<br>Zones 3<br>Mobs ×1.6<br>Checkpts 2</div><div style="flex:1"></div><div style="border-top:2px solid #2c5a18;padding-top:7px"><div class="sage" style="font-size:10px">BEST</div><div class="gold-t" style="font-weight:700;font-size:13px">★ 1,284,500</div><div style="color:#dffacb;font-size:12px;font-weight:700">#14 ›</div></div></div>
+    <div class="card" style="flex:1"><div class="txt" style="font-weight:700">Snarl</div><div class="sage" style="font-size:11px;line-height:1.7">Rounds 11<br>Supply 60<br>Zones 3<br>Mobs ×2.0<br>Checkpts 3</div><div style="flex:1"></div><div style="border-top:2px solid #222b18;padding-top:7px"><div class="sage" style="font-size:10px">BEST</div><div class="sage" style="font-weight:700;font-size:13px">—</div><div class="sage" style="font-size:12px">unplayed</div></div></div>
+    <div class="card" style="flex:1"><div class="txt" style="font-weight:700">Knot</div><div class="sage" style="font-size:11px;line-height:1.7">Rounds 12<br>Supply 68<br>Zones 4<br>Mobs ×2.5<br>Checkpts 3</div><div style="flex:1"></div><div style="border-top:2px solid #222b18;padding-top:7px"><div class="sage" style="font-size:10px">BEST</div><div class="sage" style="font-weight:700;font-size:13px">—</div><div class="sage" style="font-size:12px">unplayed</div></div></div>
+  </div>
+</div></div>
+
+<p class="note" style="margin-top:24px"><span class="k">Unchanged from pass 1:</span> post-match Trials panel (1) and Ranked panel (2) — only the board-context copy swaps "Scale 3" → "Tangle". Not re-rendered here.</p>

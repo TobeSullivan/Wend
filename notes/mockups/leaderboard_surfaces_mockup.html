@@ -1,0 +1,238 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Wend — leaderboard UI surfaces (mockup)</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --pill:#323d2c; --pill-b:#1a2012;
+    --chip:#39402c; --chip-b:#23170d;
+    --card:#2a3322; --card-b:#161c0f;
+    --gold:#b38e2c; --gold-b:#5e4710;
+    --green:#5fbe38; --green-b:#2c5a18;
+    --terra:#b04a2a; --terra-b:#5e2310;
+    --txt:#ffffff; --sage:#b9c7a4; --outline:#1a2012;
+    --shadow:0 5px 7px rgba(0,0,0,.42);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:Fredoka,sans-serif}
+  body{background:#11160c;color:#cdd6bf;padding:32px 16px 80px;font-weight:500}
+  h1.page{font-weight:700;color:#dfe7d2;text-align:center;font-size:22px;margin-bottom:6px;letter-spacing:.3px}
+  p.sub{text-align:center;color:#7f8c6b;font-size:13px;max-width:680px;margin:0 auto 30px}
+  .frame-wrap{max-width:720px;margin:0 auto 14px}
+  .cap{color:#9fae87;font-size:13px;font-weight:600;margin:26px auto 8px;max-width:720px}
+  .cap b{color:#cf9a2f}
+  .note{color:#79866a;font-size:12px;line-height:1.5;max-width:720px;margin:0 auto 10px}
+  .note .k{color:#9fae87;font-weight:600}
+
+  /* landscape device frame on the inert toned-grass backdrop */
+  .screen{
+    position:relative;width:100%;aspect-ratio:16/9;border-radius:18px;overflow:hidden;
+    background:
+      radial-gradient(120% 100% at 50% 30%, rgba(0,0,0,0) 40%, rgba(0,0,0,.55) 100%),
+      linear-gradient(0deg,#3c4a2f,#46552f);
+    box-shadow:var(--shadow);border:2px solid #0d1108;
+    display:flex;flex-direction:column;
+  }
+  .grass-note{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.07);font-size:64px;font-weight:700;pointer-events:none}
+
+  /* shared element tokens */
+  .pill,.card,.chip,.btn{border-style:solid;border-width:2px;box-shadow:var(--shadow)}
+  .txt{color:#fff;text-shadow:0 0 2px var(--outline),0 0 2px var(--outline),0 0 2px var(--outline)}
+  .titleshadow{text-shadow:0 0 2px var(--outline),0 0 2px var(--outline),0 2px 0 var(--outline)}
+  .btn{border-radius:16px;border-bottom-width:4px;padding:9px 18px;font-weight:600;font-size:14px;cursor:pointer;color:#fff}
+  .btn.neutral{background:var(--pill);border-color:var(--pill-b)}
+  .btn.green{background:var(--green);border-color:var(--green-b)}
+  .btn.gold{background:var(--gold);border-color:var(--gold-b)}
+  .btn.terra{background:var(--terra);border-color:var(--terra-b)}
+  .gold-t{color:#e8c45a;text-shadow:0 0 2px var(--outline),0 0 2px var(--outline)}
+  .sage{color:var(--sage)}
+  .stars{color:#e8c45a;letter-spacing:2px;text-shadow:0 0 2px var(--outline)}
+
+  /* leaderboard rows */
+  .rows{display:flex;flex-direction:column;gap:5px;width:100%}
+  .row{display:flex;align-items:center;gap:10px;background:var(--chip);border:2px solid var(--chip-b);border-bottom-width:3px;border-radius:12px;padding:7px 12px;height:38px}
+  .row .rank{width:34px;color:var(--sage);font-weight:600;font-size:13px;text-align:right}
+  .row .name{flex:1;color:#fff;font-weight:500;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .val{color:#e8c45a;font-weight:600;font-size:14px;text-shadow:0 0 2px var(--outline)}
+  .row.me{background:#3b5a2a;border-color:var(--green-b);border-bottom-color:#1c3a10}
+  .row.me .name{color:#dffacb}
+  .row.me .rank{color:#bfe6a3}
+  .row.out{opacity:.55}.row.out .val{color:#c98a6f}
+
+  .tab{padding:6px 16px;border-radius:13px;font-weight:600;font-size:13px;border:2px solid var(--pill-b);border-bottom-width:3px;background:#2a3322;color:#9fae87}
+  .tab.on{background:var(--pill);color:#fff}
+  .seg{display:flex;border-radius:13px;overflow:hidden;border:2px solid var(--pill-b);border-bottom-width:3px}
+  .seg span{padding:6px 14px;font-size:13px;font-weight:600;color:#9fae87;background:#2a3322}
+  .seg span.on{background:var(--pill);color:#fff}
+
+  .center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px;gap:10px}
+  .panel{background:var(--card);border:2px solid var(--card-b);border-bottom-width:4px;border-radius:18px;box-shadow:var(--shadow);padding:18px 20px;width:min(440px,86%);display:flex;flex-direction:column;align-items:center;gap:10px}
+  .topbar{display:flex;align-items:center;gap:10px;padding:12px 14px}
+  .ico{width:26px;height:26px;border-radius:8px;background:#2a3322;border:2px solid var(--card-b);display:flex;align-items:center;justify-content:center;font-size:13px;color:#cdd6bf}
+  .ctx{font-size:12px;color:var(--sage);font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+  .big{font-size:26px;font-weight:700}
+  .lp-bar{width:100%;height:10px;border-radius:6px;background:#202a18;border:2px solid var(--card-b);overflow:hidden}
+  .lp-fill{height:100%;background:var(--gold)}
+  .divider{display:flex;align-items:center;gap:8px;width:100%;color:#6f7d5c;font-size:11px;font-weight:600;margin:2px 0}
+  .divider::before,.divider::after{content:"";flex:1;height:2px;background:#222b18;border-radius:2px}
+</style>
+
+<h1 class="page">Wend — Leaderboard UI surfaces</h1>
+<p class="sub">Built on the locked visual system (palette, Fredoka 600 + outline, pill/bevel shapes, confirmed icons only). Stars stand in for the real <span style="color:#e8c45a">★</span> PNGs; icon tiles mark where a confirmed PNG goes. No fabricated game art — backdrop is the inert toned-grass surface.</p>
+
+<!-- ========== 1. TRIALS POST-MATCH ========== -->
+<div class="cap">1 · Post-match placement — <b>Trials</b> (added below the existing victory panel)</div>
+<div class="note"><span class="k">Decision:</span> the leaderboard block sits beneath the v3 tier strip, inside the same result panel — one scroll, not a second screen. Window-aware copy ("today / this week / this month"). Shows your neighborhood (±2), not the whole board.</div>
+<div class="frame-wrap"><div class="screen">
+  <div class="center">
+    <div class="panel">
+      <div class="stars" style="font-size:24px">★ ★ ★</div>
+      <div class="big titleshadow" style="color:#fff">You won!</div>
+      <div class="gold-t" style="font-size:18px;font-weight:600">1,284,500</div>
+      <!-- tier strip (existing v3) -->
+      <div style="display:flex;gap:6px;font-size:11px;color:var(--sage)">
+        <span>✓ 600k</span><span>✓ 950k</span><span>✓ 1.2M</span>
+      </div>
+      <div class="divider">DAILY · SCALE 3 · SOLO</div>
+      <div style="font-weight:700;font-size:15px"><span class="sage">You placed</span> <span class="gold-t" style="font-size:20px">#14</span> <span class="sage">today</span></div>
+      <div class="rows">
+        <div class="row"><span class="rank">12</span><span class="name">mazewright</span><span class="val">1,340,200</span></div>
+        <div class="row"><span class="rank">13</span><span class="name">tower_of_pwr</span><span class="val">1,301,880</span></div>
+        <div class="row me"><span class="rank">14</span><span class="name">you</span><span class="val">1,284,500</span></div>
+        <div class="row"><span class="rank">15</span><span class="name">creepkiller_99</span><span class="val">1,260,140</span></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <button class="btn neutral">View full board</button>
+        <button class="btn neutral">Restart</button>
+        <button class="btn green">Next ›</button>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<!-- ========== 2. RANKED POST-MATCH ========== -->
+<div class="cap">2 · Post-match placement — <b>Ranked</b> (the result screen itself; no stars/medals in PVP)</div>
+<div class="note"><span class="k">Decision:</span> Ranked has no tier strip — placement + LP delta + ladder progress is the result. Reuses the arena 1–8 row style for the final order. "View season ladder" → the Masters board.</div>
+<div class="frame-wrap"><div class="screen">
+  <div class="center">
+    <div class="panel">
+      <div class="ctx">Ranked · Season 1</div>
+      <div class="big titleshadow" style="color:#fff">You finished <span class="gold-t">2nd</span> <span class="sage" style="font-size:15px">of 8</span></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="ico" title="trophy.png">🏆</div>
+        <span class="sage" style="font-weight:600">Gold</span>
+        <span class="big" style="font-size:18px">47 → <span class="gold-t">77</span></span>
+        <span style="background:#3b5a2a;border:2px solid var(--green-b);border-radius:11px;padding:3px 9px;font-weight:700;color:#dffacb;font-size:14px">+30 LP</span>
+      </div>
+      <div class="lp-bar"><div class="lp-fill" style="width:77%"></div></div>
+      <div class="sage" style="font-size:11px">23 LP to Platinum</div>
+      <div class="divider">FINAL ORDER</div>
+      <div class="rows">
+        <div class="row"><span class="rank">1</span><span class="name">apex_builder</span><span class="val">+45</span></div>
+        <div class="row me"><span class="rank">2</span><span class="name">you</span><span class="val">+30</span></div>
+        <div class="row"><span class="rank">3</span><span class="name">a_very_long_handle_that…</span><span class="val">+18</span></div>
+        <div class="row out"><span class="rank">8</span><span class="name">earlyquit</span><span class="val">OUT · −45</span></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <button class="btn neutral">View season ladder</button>
+        <button class="btn green">Queue again ›</button>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<!-- ========== 3. BOARD BROWSE ========== -->
+<div class="cap">3 · Full board-browse (tertiary destination, beside Settings — and where "View full board" lands)</div>
+<div class="note"><span class="k">Decisions:</span> category switch at top (Trials / Ranked / Campaign). For Trials, the three dimensions are split by role — <span class="k">window</span> = tabs, <span class="k">group size</span> = segmented, <span class="k">scale</span> = pill row. Depth: <span class="k">top 100 + your neighborhood pinned</span> with a "jump to me" divider — not infinite scroll. Names ellipsis-truncate, fixed row height.</div>
+<div class="frame-wrap"><div class="screen">
+  <div class="topbar">
+    <div class="ico" title="arrow_left.png">‹</div>
+    <span class="txt" style="font-weight:700;font-size:16px">Leaderboards</span>
+    <div style="flex:1"></div>
+    <div class="seg"><span class="on">Trials</span><span>Ranked</span><span>Campaign</span></div>
+  </div>
+  <div style="display:flex;gap:8px;padding:0 14px 8px;align-items:center;flex-wrap:wrap">
+    <div style="display:flex;gap:6px"><span class="tab on">Daily</span><span class="tab">Weekly</span><span class="tab">Monthly</span></div>
+    <div style="flex:1"></div>
+    <div class="seg"><span class="on">Solo</span><span>Duo</span><span>Trio</span><span>Quad</span></div>
+  </div>
+  <div style="display:flex;gap:6px;padding:0 14px 10px">
+    <span class="tab">S1</span><span class="tab">S2</span><span class="tab on">S3</span><span class="tab">S4</span><span class="tab">S5</span>
+  </div>
+  <div style="flex:1;overflow:hidden;padding:0 14px 14px"><div class="rows">
+    <div class="row"><span class="rank">1</span><span class="name">apex_builder</span><span class="val">2,104,900</span></div>
+    <div class="row"><span class="rank">2</span><span class="name">mazewright</span><span class="val">1,902,330</span></div>
+    <div class="row"><span class="rank">3</span><span class="name">grid_goblin</span><span class="val">1,766,010</span></div>
+    <div class="row"><span class="rank">4</span><span class="name">a_very_long_handle_that_trunc…</span><span class="val">1,701,250</span></div>
+    <div class="divider">· · · jump to your position · · ·</div>
+    <div class="row"><span class="rank">13</span><span class="name">tower_of_pwr</span><span class="val">1,301,880</span></div>
+    <div class="row me"><span class="rank">14</span><span class="name">you</span><span class="val">1,284,500</span></div>
+    <div class="row"><span class="rank">15</span><span class="name">creepkiller_99</span><span class="val">1,260,140</span></div>
+  </div></div>
+</div></div>
+
+<!-- ========== 4. TRIALS-SELECT ENTRY ========== -->
+<div class="cap">4 · Trials-select entry point (the existing select screen — making "best score" a board entry)</div>
+<div class="note"><span class="k">Decision:</span> each map card shows your <span class="k">live rank inline</span> on the best-score row ("#14 ›"). It both informs (rank without opening) and is the tap target → board-browse for that scale + active window. Em-dash if unplayed.</div>
+<div class="frame-wrap"><div class="screen">
+  <div class="topbar">
+    <div class="ico" title="arrow_left.png">‹</div>
+    <span class="txt" style="font-weight:700;font-size:16px">Trials</span>
+    <div style="flex:1"></div>
+    <div style="display:flex;gap:6px"><span class="tab on">Daily</span><span class="tab">Weekly</span><span class="tab">Monthly</span></div>
+  </div>
+  <div style="flex:1;display:flex;gap:10px;padding:6px 14px 16px;align-items:stretch">
+    <!-- 5 scale cards -->
+    <div style="flex:1;background:var(--card);border:2px solid var(--card-b);border-bottom-width:4px;border-radius:16px;box-shadow:var(--shadow);padding:11px;display:flex;flex-direction:column;gap:7px">
+      <div class="txt" style="font-weight:700">Scale 1</div>
+      <div class="sage" style="font-size:11px;line-height:1.7">Rounds 8<br>Supply 40<br>Zones 2<br>Mobs ×1.0<br>Checkpts 1</div>
+      <div style="flex:1"></div>
+      <div style="border-top:2px solid #222b18;padding-top:7px">
+        <div class="sage" style="font-size:10px">BEST</div>
+        <div class="gold-t" style="font-weight:700;font-size:13px">★ 940,100</div>
+        <div style="color:#bfe6a3;font-size:12px;font-weight:600">#6 ›</div>
+      </div>
+    </div>
+    <div style="flex:1;background:var(--card);border:2px solid var(--card-b);border-bottom-width:4px;border-radius:16px;box-shadow:var(--shadow);padding:11px;display:flex;flex-direction:column;gap:7px">
+      <div class="txt" style="font-weight:700">Scale 2</div>
+      <div class="sage" style="font-size:11px;line-height:1.7">Rounds 9<br>Supply 48<br>Zones 2<br>Mobs ×1.3<br>Checkpts 2</div>
+      <div style="flex:1"></div>
+      <div style="border-top:2px solid #222b18;padding-top:7px">
+        <div class="sage" style="font-size:10px">BEST</div>
+        <div class="gold-t" style="font-weight:700;font-size:13px">★ 1,110,400</div>
+        <div style="color:#bfe6a3;font-size:12px;font-weight:600">#9 ›</div>
+      </div>
+    </div>
+    <div style="flex:1;background:var(--card);border:2px solid var(--green-b);border-bottom-width:4px;border-radius:16px;box-shadow:var(--shadow);padding:11px;display:flex;flex-direction:column;gap:7px;outline:2px solid rgba(95,190,56,.25)">
+      <div class="txt" style="font-weight:700">Scale 3</div>
+      <div class="sage" style="font-size:11px;line-height:1.7">Rounds 10<br>Supply 55<br>Zones 3<br>Mobs ×1.6<br>Checkpts 2</div>
+      <div style="flex:1"></div>
+      <div style="border-top:2px solid #2c5a18;padding-top:7px">
+        <div class="sage" style="font-size:10px">BEST</div>
+        <div class="gold-t" style="font-weight:700;font-size:13px">★ 1,284,500</div>
+        <div style="color:#dffacb;font-size:12px;font-weight:700">#14 ›</div>
+      </div>
+    </div>
+    <div style="flex:1;background:var(--card);border:2px solid var(--card-b);border-bottom-width:4px;border-radius:16px;box-shadow:var(--shadow);padding:11px;display:flex;flex-direction:column;gap:7px">
+      <div class="txt" style="font-weight:700">Scale 4</div>
+      <div class="sage" style="font-size:11px;line-height:1.7">Rounds 11<br>Supply 60<br>Zones 3<br>Mobs ×2.0<br>Checkpts 3</div>
+      <div style="flex:1"></div>
+      <div style="border-top:2px solid #222b18;padding-top:7px">
+        <div class="sage" style="font-size:10px">BEST</div>
+        <div class="sage" style="font-weight:700;font-size:13px">—</div>
+        <div class="sage" style="font-size:12px">unplayed</div>
+      </div>
+    </div>
+    <div style="flex:1;background:var(--card);border:2px solid var(--card-b);border-bottom-width:4px;border-radius:16px;box-shadow:var(--shadow);padding:11px;display:flex;flex-direction:column;gap:7px">
+      <div class="txt" style="font-weight:700">Scale 5</div>
+      <div class="sage" style="font-size:11px;line-height:1.7">Rounds 12<br>Supply 68<br>Zones 4<br>Mobs ×2.5<br>Checkpts 3</div>
+      <div style="flex:1"></div>
+      <div style="border-top:2px solid #222b18;padding-top:7px">
+        <div class="sage" style="font-size:10px">BEST</div>
+        <div class="sage" style="font-weight:700;font-size:13px">—</div>
+        <div class="sage" style="font-size:12px">unplayed</div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<p class="note" style="margin-top:24px"><span class="k">Icon tiles</span> (🏆 ‹) mark where a confirmed PNG goes — trophy.png, arrow_left.png. <span class="k">★</span> stands in for the gold-star PNG. Nothing here is invented art.</p>
