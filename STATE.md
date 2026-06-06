@@ -1,5 +1,5 @@
 # State — Wend
-Last updated: 2026-06-05
+Last updated: 2026-06-06
 
 > **Read order:** `claude-rules.md` → `RULES.md` → this file → `notes/open_items.md` (full backlog) → only the specific file the task needs.
 > **History:** older session logs were moved to `STATE_ARCHIVE.md` — reference only, don't load unless you're digging into a past decision.
@@ -22,7 +22,15 @@ The archive (and older memory) describe a **mobile-first** direction. That is **
 ## Current focus
 **Dedicated server is LIVE (2026-06-06).** Headless Godot match server deployed to the **Hetzner CPX11, Ashburn** box at **`178.156.171.215`**, listening on **UDP 8771**, running under systemd (`wend-server.service`, enabled + auto-restart). Verified reachable end-to-end: an external ENet client completed the handshake through the Hetzner firewall. Deploy kit + exact ops commands in `deploy/` (`README.md`, `deploy.sh`, `wend-server.service`). One match per server for now (Option A); concurrency is the later Option-B step. See `notes/server_decision.md`, `notes/remote_beta_plan.md`, `notes/multiplayer_architecture.md`.
 
-Remaining for M1: a real **2-client cross-network match** (full game clients, not the raw probe) end-to-end — needs two humans/devices on different networks. ~~Bake the IP into `lobby.gd`~~ DONE 2026-06-06: `DEFAULT_SERVER = "178.156.171.215"` (env-overridable via `MBTD_SERVER=127.0.0.1` for local-server dev). Then M2 (Google Play internal testing) / the UI+board work below.
+Remaining for M1: a real **2-client cross-network match** (full game clients, not the raw probe) end-to-end — needs two humans/devices on different networks. ~~Bake the IP into `lobby.gd`~~ DONE 2026-06-06: `DEFAULT_SERVER = "178.156.171.215"` (env-overridable via `MBTD_SERVER=127.0.0.1` for local-server dev).
+
+## Beta plan — desktop, scoping a design session (2026-06-06)
+Goal: get a playable build into **two friends' hands (one Mac, one PC)** to validate multiplayer (and maybe leaderboards). Decisions this session:
+- **Distribution = itch.io draft** (leaning), NOT Steam yet. itch is free, Win+Mac, the itch app auto-updates + strips macOS quarantine (sidesteps Gatekeeper without owning a Mac). Steam is the eventual launch home but a 2-friend beta isn't worth Steamworks $100 + multi-day Valve review. **⚠️ `remote_beta_plan.md` M2 (Google Play/Android) is DEAD** per the mobile reversal — desktop itch/Steam replaces it.
+- **Connection plumbing is DONE** (outbound to the live Hetzner server — no port-forward). The gap is *distribution*, not networking.
+- **Leaderboards DON'T EXIST yet.** Only local personal-best (`save_data.gd` `pve_best_scores`, "no backend yet"). `leaderboard_panel.gd` is the *in-match PVP scoreboard*, not persistent. The real backend = **Nakama = M3**, deliberately deferred to "toward launch." Doing leaderboards in this beta = pulling M3 forward.
+- **Blockers for ANY beta:** Win+Mac client export presets don't exist (only Android-dead + Linux-server in `export_presets.cfg`); the real 2-client match has never run with full clients.
+- **Three undesigned + beta-relevant items to resolve BEFORE the build** → written up in **`notes/beta_design_brief.md`**: (1) leaderboard UI + player-identity model (no account system exists; names are local handles only), (2) Trials group-lobby flow (if co-op is in scope), (3) onboarding for non-SC2 players. User is gathering a concrete plan and will return.
 
 The 2026-06-05 design direction (reversals above) governs the next UI/board work.
 
@@ -54,4 +62,4 @@ Knocked out a stack of open design items to clear the deck for CC. Resolved: **g
 - `notes/mockups/inmatch_ui_layout_v3.html`, `inmatch_board_fullsize_1920.html`, `inmatch_juice_taste.html`
 
 ## Open questions / blocked on
-Full per-item status lives in **`notes/open_items.md`**. Active right now: board final tile count (feel-check pending) · Trials group-lobby flow · anti-cheat (own session) · GTM/Steam page (own session) · season-pass numbers. Blocked on data: B/S/G threshold calibration, PVP seed-convergence.
+Full per-item status lives in **`notes/open_items.md`**. **Beta-gating design (user gathering a plan, will return): see `notes/beta_design_brief.md`** — leaderboard UI + identity model · Trials group-lobby flow · onboarding for non-SC2 players. Other active: board final tile count (feel-check pending) · anti-cheat (own session) · GTM/Steam page (own session) · season-pass numbers. Blocked on data: B/S/G threshold calibration, PVP seed-convergence.
