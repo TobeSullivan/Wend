@@ -1,0 +1,29 @@
+[Unit]
+Description=Wend dedicated match server (headless Godot, Option A — one match per process)
+Documentation=file:///opt/wend/README
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wend
+Group=wend
+WorkingDirectory=/opt/wend
+# The exported game binary IS the server: --headless (no GPU/window) and the
+# user arg --server (after the `--`) routes boot.gd into start_dedicated_server().
+# stdbuf -oL/-eL forces line-buffered output so print()s reach the journal live
+# (headless Godot fully-buffers stdout when it's a pipe, hiding logs otherwise).
+ExecStart=/usr/bin/stdbuf -oL -eL /opt/wend/wend_server.x86_64 --headless -- --server
+# Godot writes user:// (save data, logs) under $HOME — keep it on the box, not /root.
+Environment=HOME=/opt/wend
+Restart=on-failure
+RestartSec=3
+# The match runs in one process; if it crashes, restart and the lobby reopens.
+
+# --- light hardening (fine for a beta box) ---
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=false
+
+[Install]
+WantedBy=multi-user.target

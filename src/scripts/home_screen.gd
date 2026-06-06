@@ -88,8 +88,8 @@ func _build_center() -> void:
 	heroes.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.add_child(heroes)
 
-	heroes.add_child(_hero_button("PVE", "Co-op survival", func(): SceneManager.goto_pve_select()))
-	heroes.add_child(_hero_button("PVP", "8-player last-standing", func(): SceneManager.goto_lobby()))
+	heroes.add_child(_hero_button("Trials", "1–4 player score runs", func(): SceneManager.goto_pve_select()))
+	heroes.add_child(_hero_button("Ranked", "8-player last-standing", func(): SceneManager.goto_lobby()))
 
 	vbox.add_child(_spacer(8))
 

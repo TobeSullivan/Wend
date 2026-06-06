@@ -1,5 +1,6 @@
 # Third-party asset pack source (licensed; not redistributed)
 art/
+art.zip
 
 # Dev artifacts (video frame extracts, screenshots, etc.)
 notes/video_frames/
@@ -20,3 +21,6 @@ desktop.ini
 *.pck
 mbtd_probe*
 .nettest_logs/
+
+# Dedicated-server build output (exported per-machine; rebuilt via deploy/README.md)
+deploy/build/

@@ -8,6 +8,8 @@ Locked design decisions for everything outside the core gameplay loop. Core game
 
 There are three modes. They share the same core gameplay loop and the same map resource format. What differs is how the map is generated, how scoring works, and what the social context is.
 
+**Player-facing names (locked 2026-06-05):** PVE is shown to players as **"Trials"**, PVP as **"Ranked"**. "PVE"/"PVP" stay as the internal/technical mode identifiers in this doc and in code (enums, file names, mode flags); only the displayed strings use Trials/Ranked.
+
 | | Campaign | PVE | PVP |
 |---|---|---|---|
 | Map source | Hand-authored | Seeded, curated | Seeded, generated |
@@ -52,7 +54,7 @@ Thresholds for 2–10 follow mission 1's approved ratio (silver ≈ 1.875 × sup
 
 ---
 
-## PVE (Leaderboard mode)
+## PVE — "Trials" (Leaderboard mode)
 
 ### Structure
 
@@ -96,7 +98,7 @@ Boards are **hidden during build phase**. Boards are **visible during run phase*
 
 ---
 
-## PVP (Ranked)
+## PVP — "Ranked"
 
 ### Structure
 
@@ -122,7 +124,7 @@ Eliminated player's remaining lives simply leave the pool — they are not redis
 
 Placement = elimination order. Last standing = 1st.
 
-LP (league points) awarded per placement. Top placements gain LP, bottom placements lose LP, with the amount scaling by exact finish position. 1st gains the most; 8th loses the most. Exact LP curve TBD — playtest to determine.
+LP (league points) awarded per placement. Top placements gain LP, bottom placements lose LP, with the amount scaling by exact finish position. 1st gains the most; 8th loses the most. **Full LP/MMR/tier/season spec: `notes/pvp_ladder.md`** (MMR-anchored net-positive ladder, base LP table, demotion buffer, season reset). Numbers there are playtest dials; the shape is locked.
 
 **Rank tiers:** Bronze → Silver → Gold → Platinum → Masters.
 
@@ -311,8 +313,8 @@ After first launch, the game always opens to the home screen.
 Simple. Two primary options, nothing else competing for attention.
 
 **Center of screen:**
-- **PVE** button
-- **PVP** button
+- **Trials** button (PVE)
+- **Ranked** button (PVP)
 
 **Secondary (visible but not dominant):**
 - Season progress bar + current tier badge — slim, top of screen

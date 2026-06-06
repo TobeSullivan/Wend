@@ -11,10 +11,10 @@ extends Control
 const UiStyle := preload("res://scripts/ui_style.gd")
 const NetProtocol := preload("res://net/net_protocol.gd")
 
-# Server the client dials. Overridable via the MBTD_SERVER env var for PC testing
-# (e.g. MBTD_SERVER=127.0.0.1 against a local headless server); the shipped build bakes
-# the VPS address in here.
-const DEFAULT_SERVER := "127.0.0.1"
+# Server the client dials: the live Hetzner dedicated server (Ashburn, UDP 8771 — see
+# deploy/README.md). Overridable via the MBTD_SERVER env var, e.g. MBTD_SERVER=127.0.0.1
+# to dev against a local headless server (godot --headless -- --server).
+const DEFAULT_SERVER := "178.156.171.215"
 
 var _t                                  # MatchTransport (from SceneManager)
 var _my_id := 1

@@ -69,7 +69,7 @@ func _build_background() -> void:
 	UiStyle.menu_backdrop(self)
 
 func _build_header() -> void:
-	_title = _label("PVE — Daily", 36, Color.WHITE)
+	_title = _label("Trials — Daily", 36, Color.WHITE)
 	_title.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	_title.offset_left = 40
 	_title.offset_top = 28
@@ -128,7 +128,7 @@ func _build_list_container() -> void:
 func _show_window(window_type: int) -> void:
 	_current = window_type
 	var meta: Dictionary = _window_meta(window_type)
-	_title.text = "PVE — %s" % meta.label
+	_title.text = "Trials — %s" % meta.label
 	_subtitle.text = meta.sub
 	for wt in _tab_buttons:
 		_tab_buttons[wt].button_pressed = (wt == window_type)
