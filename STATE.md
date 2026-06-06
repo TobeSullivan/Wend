@@ -20,29 +20,26 @@ Last updated: 2026-06-06
 **Trials scale names: Thread · Weave · Tangle · Snarl · Knot** (1→5, locked 2026-06-06).
 
 ## Current focus
-**Design session 3 done (2026-06-06): the multiplayer + leaderboard spine is fully specced.** Five new/updated design docs ready for CC:
-- `notes/resim_contract.md` (NEW) — authoritative scoring: server replays seed + input log → true score. Source of truth for Trials scores AND Ranked placement. Determinism is the hard prerequisite.
-- `notes/leaderboard_schema.md` (REWRITTEN) — board-id schema; **Trials boards ephemeral (purge on reset)**; **Ranked = one global tiered ladder per season** (tiers are bands, not separate boards).
-- `notes/ghost_ladder.md` (NEW) — in-match "next score to beat": snapshot-at-start ghost model, 4 target states, never asserts live rank; live rank only on result screen. Removes the Trials "go home?" prompt.
-- `notes/leaderboard_ui_spec.md` (NEW) — the 4 UI surfaces, built from the mockups.
-- `notes/mockups/leaderboard_surfaces_mockup.html`, `leaderboard_ui_pass2.html`, `ranked_ladder_bands.html` (NEW) — the reviewed previews.
+**Design session 4 done (2026-06-06): orchestration + Trials lobby + campaign rework specced.** Two new docs + three file edits ready for CC:
+- `notes/matchmaking_orchestration.md` (NEW) — the orchestration spine. Coordinator = Nakama match handler; re-sim = async headless-Godot workers. Ranked: queue → forming lobby (fills X/8, **unanimous-of-present vote at 4–7, abstain = no, no timeout**, auto-launch at 8) → instant-join (no ready-check) → run → validate (re-sim authoritative) → settle → teardown. Speed-beats-quality matching (safe because LP is MMR-anchored). Floor = 4. Post-launch drop = forfeit. Crash = void/no-LP. Trials routes through the same spine minus elimination.
+- `design/CAMPAIGN.md` (NEW) — five-mission curriculum (ramp from zero, fixing the inverted old M1), the tutorial-beat system, the ghost-outline build-guidance spec, real tutorial copy. Old 10-mission `.tres` deprecated.
+- `design/DESIGN_MODES.md` (EDIT) — Trials reconciled (host launches, no ready-up gate; group size = board, no scoring vote; individual-while-grouped deferred); campaign cut to five w/ pointer to CAMPAIGN.md; PVP nav points at orchestration doc; **40×22→25×14 grid drift flagged**.
+- `notes/open_items.md`, `STATE.md` (EDIT) — backlog + state updated.
 
-**Identity ratified:** Steam auth → Nakama; one identity; display name = Steam persona.
+**Earlier (session 3): the MP + leaderboard spine** — `notes/resim_contract.md`, `leaderboard_schema.md`, `ghost_ladder.md`, `leaderboard_ui_spec.md` + mockups. Identity: Steam auth → Nakama, one identity, display name = Steam persona.
 
 ## Next step
 - **CC — first job: make the sim deterministic** (the re-sim prerequisite). Fixed logical tick (towers/spawner/projectiles are on `_process(delta)` today — framerate-dependent); one seeded RNG with ordered draws (crit uses global `randf()` today); tick-based build timer. **TEST CROSS-PLATFORM FLOAT FIRST** (Win/Mac client vs Linux server) per `resim_contract.md` §5.1 — cheapest possible test, decides whether floats are OK or we go fixed-point. Pays off twice (anti-cheat AND clean lockstep MP).
-- **CC label-pass (mechanical):** Scale 1–5 → Thread/Weave/Tangle/Snarl/Knot across `design/DESIGN_MODES.md` + `design/VISUAL_SYSTEM.md`; remove the Trials "go home?" prompt. (Deliberately not done at wrap to avoid full-rewrite drift — same pattern as the Trials/Ranked rename.)
-- **Design — next big piece (its own session): matchmaking + orchestration model** — press-queue → form 8 → assign/spawn headless match instance → lifecycle. The other half of "real MP" alongside re-sim. Needs a read of `notes/multiplayer_architecture.md` + `server_decision.md` to build on what's there.
-- **Then:** Steam closed-beta mechanics (app id $100, Playtest vs beta branch, Win+Mac export presets) · juice pass · onboarding (minimal for closed beta) · season-pass numbers · GTM.
-- Still needs two humans: a real 2-client cross-network match (now targets the end-state stack, not Option A).
+- **CC label-pass (mechanical):** Scale 1–5 → Thread/Weave/Tangle/Snarl/Knot across `design/DESIGN_MODES.md` + `design/VISUAL_SYSTEM.md`; remove the Trials "go home?" prompt. (Deliberately not done at wrap to avoid full-rewrite drift.)
+- **CC — campaign rebuild:** five missions per `design/CAMPAIGN.md`; deprecate old `levels/campaign/` `.tres`; build the tutorial-beat system (schema reopen, runtime shape CC's call) + ghost-outline overlay.
+- **Design — remaining big pieces:** juice/game-feel pass · Steam closed-beta mechanics · season-pass numbers · GTM. No design piece is currently blocking CC — the orchestration + campaign specs give CC a full plate.
+- Still needs two humans: a real 2-client cross-network match (targets the end-state stack).
 
 ## Recently touched files
-- `notes/resim_contract.md` — NEW (authoritative scoring contract)
-- `notes/leaderboard_schema.md` — REWRITTEN (ephemeral Trials, global tiered Ranked ladder)
-- `notes/ghost_ladder.md` — NEW (in-match target display)
-- `notes/leaderboard_ui_spec.md` — NEW (4 surfaces)
-- `notes/mockups/leaderboard_surfaces_mockup.html`, `leaderboard_ui_pass2.html`, `ranked_ladder_bands.html` — NEW
+- `notes/matchmaking_orchestration.md` — NEW (orchestration spine)
+- `design/CAMPAIGN.md` — NEW (five-mission rework + tutorial beats + ghost outline)
+- `design/DESIGN_MODES.md` — EDIT (Trials reconciled, campaign cut to five, grid drift flagged)
 - `STATE.md`, `notes/open_items.md` — updated this session
 
 ## Open questions / blocked on
-Full per-item status in `notes/open_items.md`. Active: matchmaking/orchestration (next design session) · Trials group-lobby flow (scoring locked, flow undesigned) · onboarding · season-pass numbers · Steam closed-beta mechanics · the DESIGN_MODES/VISUAL_SYSTEM scale-name label-pass (CC chore). Config-level: leaderboard reset anchors (proposed UTC), season length. Blocked on data: B/S/G threshold calibration, PVP seed-convergence, economy re-tune for the bigger board.
+Full per-item status in `notes/open_items.md`. Active design: juice/game-feel pass · season-pass numbers · Steam closed-beta mechanics · GTM. CC chores: determinism (first job) · scale-name label-pass · campaign rebuild. Config-level: leaderboard reset anchors (proposed UTC), season length; queue escalation timings + join-window (dials, need telemetry). Blocked on data: B/S/G calibration, PVP seed-convergence, economy re-tune + campaign tuning integers for 25×14. Parked: individual-while-grouped Trials scoring, Ranked ready-check, crash match-reconstruction.

@@ -8,6 +8,12 @@ Status key: **RESOLVED** · **NEAR** · **REC-PENDING** · **DIRECTION-SET** · 
 
 ---
 
+## Resolved 2026-06-06 (session 4 — orchestration, Trials lobby, campaign rework)
+- **Matchmaking + orchestration → LOCKED.** `notes/matchmaking_orchestration.md`. Coordinator = Nakama authoritative match handler (round-barrier relay, many light matches/box); re-sim validation = separate async headless-Godot worker pool. Ranked spine: queue → **forming lobby** (fills X/8; unanimous-of-present vote launches at 4–7, abstain = no, **no timeout/backstop**; auto-launch at 8) → instant-join (no ready-check) → run + re-sim collection → resolve → validate (re-sim authoritative) → settle → teardown. **Speed beats quality** — aggressive band-widening, Master-vs-Silver fine *because LP is MMR-anchored*. Floor = 4. LP independent of lobby size. Post-launch drop = forfeit (empty-input board, goes with/without you). Coordinator crash = void, no LP. Ready-check ships **off**, additive if AFK-poisoning appears.
+- **Trials group lobby → RESOLVED** (was UNTOUCHED; turned out mostly pre-planned in `DESIGN_MODES.md`). Invite-only co-op, **host launches unilaterally when they want** (dropped the doc's "ready-up" gate). **Group size = the board, no vote:** team score for groups (Duo/Trio/Quad), Solo only if solo. Routes through the orchestration spine minus elimination/transfers. Individual-while-grouped scoring **deferred** (see Parked).
+- **Campaign teaching rework → LOCKED.** `design/CAMPAIGN.md` (new). The old 10-mission curriculum was **inverted** (M1 exposed everything, M2 stripped back). New: **five missions, ramp from zero** — M1 twist+tower+basic maze (0 CP, full ghost outline), M2 checkpoints (2), M3 checkpoints (3), M4 zones (1 CP, zones isolated), M5 integration (contained non-random "almost a real match"). Crit/multishot taught via upgrades + M5, no dedicated missions. New **tutorial-beat system** (trigger + text, schema reopen, runtime shape = CC's call) and **ghost-outline build guidance** (programmatic overlay, no new art, training wheels off by M4). Real tutorial copy written. Old `levels/campaign/` `.tres` (M1–10) deprecated.
+- **DESIGN_MODES.md edited:** ten→five missions + curriculum replaced with pointer to CAMPAIGN.md; Trials scoring-vote section removed; "ready-up" gate dropped from PVE nav; PVP nav points at orchestration doc; **40×22→25×14 grid-figure drift flagged** in the campaign section.
+
 ## Resolved 2026-06-06 (session 3 — MP + leaderboard spine)
 - **MINDSET: no disposable intermediates.** Build toward the end state, not throwaway rungs we replace next session. The reason staged bring-up exists is *failure isolation* (a CC/debug concern), NOT a reason to design/lock disposable architectures. Consequence: **itch.io beta is DEAD → closed Steam beta is the target**; re-sim/anti-cheat and real queue-based multiplayer (Option B) are **pulled forward**, not deferred. Dedicated server already live is the one validated piece we keep.
 - **Re-sim / authoritative scoring → LOCKED.** `notes/resim_contract.md`. Server replays seed + ordered input log → derives true score; client scores advisory only. Source of truth for Trials scores AND Ranked placement. Cheaper than live-authoritative (send a recipe, not a video; bill scales with players, not this choice). Closes score-injection, not botting (stated boundary). Disconnect/reconnect model locked: board keeps playing as left (empty input continuation), "disconnected" badge, eliminated-if-dies-before-return; server-observed timeline, zero advantage to quitting. Ruleset versioning → **grandfather + reset on balance patch** (campaign all-time exempt). Action vocab locked (place/sell/upgrade + start-round: per-round build timer in TICKS, early-start via solo button or MP unanimous `vote_start`, authoritative start = min(timer, last-yes), derivable from log). Map version tags yes.
@@ -46,24 +52,30 @@ Status key: **RESOLVED** · **NEAR** · **REC-PENDING** · **DIRECTION-SET** · 
 
 ## Direction set — system still undesigned
 - **Anti-cheat** — **now has its contract** (`notes/resim_contract.md`: authoritative deterministic re-sim). Remaining build work: the determinism conversion (CC first job) + the re-sim runner + legality checks. No longer a blank "design in its own session."
-- **Matchmaking + orchestration (OWN-SESSION, NEXT DESIGN PIECE)** — press-queue → form 8 → assign/spawn headless match instance → lifecycle. The other half of "real MP" alongside re-sim. Pulled forward by the no-intermediates mindset. Needs `notes/multiplayer_architecture.md` + `server_decision.md`.
 - **Cosmetic DLC packs** — fork presented (one-time, no gacha). Undecided. Paid never overlaps earnable/prestige.
-- **Campaign-as-paid-DLC** — demand-driven posture (ship 10, build more if asked).
+- **Campaign-as-paid-DLC** — demand-driven posture (ship 5, build more only if asked).
 
 ## Untouched — never actually discussed
-- **Group Trials lobby flow** — ready-up, who picks map/window, start gate. (Scoring locked per-team; flow undesigned.)
-- **Onboarding for non-SC2 players** — minimal for a *closed* beta (brief testers personally); full system is a launch concern.
+- **Onboarding for non-SC2 players** — the five-mission campaign rework (`design/CAMPAIGN.md`) now carries the core teaching. Beyond campaign, in-product onboarding is a *launch* concern; for the closed beta, brief testers personally.
 - **Community hub** — Discord/subreddit. See `notes/gtm.md`.
 - **IP/legal** — Random TD "spiritual successor" framing; confirm clearance.
 - **Localization** — defer (English-first niche revival).
 
+## Parked — deferred, additive (not now)
+- **Individual-while-grouped Trials scoring** — a future vote letting grouped players each post to Solo instead of team score. Out of near-term design; group size = the board for now.
+- **Ranked ready-check** — ships off; flip on only if AFK-poisoning shows up in beta. Additive, costs nothing to defer.
+- **Match reconstruction after coordinator crash** — possible (model is re-simmable) but not built; crash voids with no LP instead.
+
 ## Blocked on playtest data
-- **Bronze/Silver/Gold threshold calibration.**
+- **Bronze/Silver/Gold threshold calibration** (Campaign + PVE).
 - **PVP seed-convergence** — shared-seed ranked could converge to identical mazes; eyeball in playtest.
 - **Economy/supply re-tune** for the 25×14 board.
+- **Campaign tuning integers** — supply/rounds/mobs/zone-mix for the five missions; wait on 25×14 retune + scores.
+
+## Drift / audit
+- **40×22 → 25×14 grid figure** — DESIGN_MODES campaign section now flags it; sweep for other stale 40×22 / mission-count references across docs at next audit.
 
 ## Own session (large)
-- **Matchmaking + orchestration** (see Direction-set — next up).
 - **Juice / game-feel pass** — tweens, particles, hit-pause, shake, road shader. Light taste mockup exists.
 - **Full GTM / marketing plan** — Steam page, capsule/tags/trailer, Next Fest/demo, streamer outreach. See `notes/gtm.md`.
 - **Steam closed-beta mechanics** — app id ($100), Playtest vs beta branch, Win+Mac export presets, steampipe pipeline.

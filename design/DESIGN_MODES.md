@@ -23,7 +23,7 @@ There are three modes. They share the same core gameplay loop and the same map r
 
 ## Campaign
 
-Ten missions maximum. Static hand-authored maps. No randomization.
+Five missions. Static hand-authored maps. No randomization.
 
 **Purpose is tutorial only.** The campaign teaches the game through a difficulty curve — each mission is designed to surface a specific mechanic or decision. This is not the product's selling point. Players should be through campaign in 1–2 hours and into PVE/PVP.
 
@@ -31,26 +31,15 @@ No expansion unless players demand it after launch. Do not get lost building cam
 
 Each mission has a per-mission leaderboard (total damage dealt). Bronze/Silver/Gold thresholds exist to give players a concrete target and feed season pass milestones. Gold should be achievable by a reasonably engaged player — the leaderboard is where real competition lives, not the threshold.
 
-### Mission curriculum (locked 2026-05-31)
+### Mission curriculum
 
-Mission 1 is the forgiving big-sandbox intro that exposes everything at once. Each later mission **isolates one decision** on a rising curve; mission 10 integrates all of it as a bridge into PVE Scale 5. Difficulty climbs mainly via round count (mob HP scales ×1.12/round after round 5) and mob count, with supply deliberately *tightened* on the missions whose lesson is investment efficiency. Crit and multishot are taught through the upgrade stats (there are no crit/multishot bonus zones — only DAMAGE/ATTACK_SPEED/RANGE/SLOW exist).
+**Full curriculum, tutorial-beat scripts, and the ghost-outline build-guidance spec live in `design/CAMPAIGN.md`.**
 
-**Grid is uniform: every mission is the full 40×22 board (updated 2026-06-01).** Variable per-mission grid sizes were dropped — the playfield must never change size between missions. The original authored layouts (missions 2–9 were smaller) were proportionally rescaled to fill the full grid; each mission's gameplay tuning (CP/zones/obstacles/supply/rounds/mobs) is unchanged, so the curriculum's lessons are intact. (Soft thresholds and supply may want re-tuning on the larger boards once playtest scores come in — same uncalibrated status as before.)
+Philosophy (reworked 2026-06-06, replacing the 2026-05-31 lock): complexity **ramps from zero**, one concept per mission. The old curriculum was inverted — mission 1 exposed everything at once (3 CP, 4 zones, 100 supply) and mission 2 *stripped back* to basics, so a first-timer's literal first match was the most complex one in the early game. The five-mission arc fixes that: M1 dead-simple (the core twist + place a tower + a basic guided maze), M2 introduces checkpoints (2), M3 extends them (3), M4 isolates bonus zones (back to 1 CP so zones are the only new thing), M5 integrates everything in a contained, non-random "almost a real match." Crit and multishot are taught through the upgrade stats and the M5 integration map, not dedicated missions (there are no crit/multishot bonus zones — only DAMAGE/ATTACK_SPEED/RANGE/SLOW exist).
 
-| # | Name | Teaches (the one decision) | Grid | CP | Zones | Obst. | Supply | Rounds | Mobs |
-|---|------|------|------|----|-------|------|--------|--------|------|
-| 1 | First Contact | Basics — maze, upgrade, use zones | 40×22 | 3 | 4 | 8 | 100 | 10 | 8 |
-| 2 | The Long Way | Mazing — path length *is* damage | 40×22 | 1 | 0 | 0 | 35 | 9 | 8 |
-| 3 | Switchback | Checkpoints force the route | 40×22 | 2 | 0 | 2 | 45 | 10 | 10 |
-| 4 | Hot Spots | Tower-buff zones + color synergy | 40×22 | 2 | 3 (dmg/atk/rng) | 3 | 50 | 11 | 12 |
-| 5 | Cold Feet | Slow zones — time-on-tower as a weapon | 40×22 | 2 | 3 (2 slow + dmg) | 4 | 60 | 12 | 14 |
-| 6 | Sharp Shooters | Crit upgrades — go *tall*, not wide | 40×22 | 2 | 2 (dmg/atk) | 4 | 40 (tight) | 12 | 12 |
-| 7 | Spread the Love | Multishot — punish a bunched train | 40×22 | 3 | 2 (atk/rng) | 4 | 60 | 13 | 16 |
-| 8 | Tight Quarters | Maze around heavy obstacles, low supply | 40×22 | 2 | 2 | 12 | 45 (tight) | 13 | 14 |
-| 9 | Compound Interest | Economy — save vs. spend, interest cap | 40×22 | 2 | 3 | 5 | 80 | 16 | 16 |
-| 10 | The Gauntlet | Capstone — everything, incl. zone stacking | 40×22 | 3 | 6 (2 dmg stack + atk/rng + 2 slow) | 8 | 100 | 18 | 20 |
+> **Stale figure flag:** earlier campaign text cited a uniform 40×22 board. STATE.md locks the board at **25×14**. The curriculum's tuning integers (supply/rounds/mobs) are uncalibrated regardless and wait on playtest data + the 25×14 retune; only the *shape* of the ramp is locked. `CAMPAIGN.md` is authored against 25×14.
 
-Thresholds for 2–10 follow mission 1's approved ratio (silver ≈ 1.875 × supply × rounds; bronze ≈ ⅔ silver; gold ≈ 4⁄3 silver), rounded clean. They are **soft and uncalibrated** — same status as the PVE thresholds, to be tuned once real campaign scores come in.
+> **Old mission files deprecated:** the previous ten `.tres` files in `levels/campaign/` (`First Contact` through `The Gauntlet`) are superseded by the five-mission arc. CC decides what to cut or repurpose against the repo; the design now describes five.
 
 ---
 
@@ -84,11 +73,13 @@ Scale 5 with 3 checkpoints, 50 supply, and overlapping zones cannot produce comp
 
 Boards are organized as: **Daily / Weekly / Monthly** × **Solo / Duo / Trio / Quad**.
 
-A solo player posts to the Solo board. A duo posts to the Duo board. If four friends vote to play for individual scores instead of team score, each of their individual scores posts to the Solo board — the seed is the seed regardless of whether you brought friends.
+Group size determines the board, with no vote: a solo player posts to the Solo board, a duo to the Duo board, a trio to Trio, a quad to Quad. The only way to a Solo score is to play solo. The seed is the seed regardless of how many friends you bring.
 
-### Team vs individual scoring
+### Scoring
 
-At lobby creation, the default is team score (sum of all players' damage). Before the match starts, players vote to switch to individual score. Squad default wins ties; host vote breaks ties if the group is split. Decision is locked at match start and applies for that match only. Groups can switch each match as they choose.
+A group always posts **team score** (sum of all players' damage) to its group-size board. There is no individual-while-grouped option — group size *is* the board, settled at lobby composition, nothing to vote on.
+
+> **Deferred:** a future "vote for individual scoring while grouped" (each player posts to Solo despite being in a group) is parked, not in the near-term design. See `notes/open_items.md`.
 
 ### Arena
 
@@ -327,15 +318,15 @@ The hierarchy is honest: PVE and PVP are the game. Campaign is the tutorial you 
 
 ### Navigation from PVE
 
-Click PVE → PVE lobby screen showing the 5 maps for the current window (Scale 1–5). Each shows your best posted score if any. Solo players go straight into the match on map select. Groups get a brief lobby (invite + team/individual vote + ready up) before loading.
+Click PVE → PVE lobby screen showing the 5 maps for the current window (Scale 1–5). Each shows your best posted score if any. Solo players go straight into the match on map select. Groups get a brief lobby: the host invites friends (invite-only, no random matchmaking) and launches when they want — the host hits play unilaterally, no ready-up gate. If you're in the lobby when the host launches, you're in.
 
 ### Navigation from PVP
 
-Click PVP → queue immediately. Shows estimated wait time. Nothing to configure.
+Click PVP → queue immediately. Shows estimated wait time. Nothing to configure. Behind that press is a forming lobby (fills X/8; unanimous vote launches at 4–7, auto-launch at 8) — **full flow in `notes/matchmaking_orchestration.md`.**
 
 ### Navigation from Campaign
 
-Click Campaign → mission list showing missions 1–10 with best medal per mission. All missions unlocked from the start — difficulty curve is guidance, not a gate. Click any mission → straight in.
+Click Campaign → mission list showing missions 1–5 with best medal per mission. All missions unlocked from the start — difficulty curve is guidance, not a gate. Click any mission → straight in.
 
 ### Return to home screen
 
