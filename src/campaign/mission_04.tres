@@ -6,51 +6,51 @@
 
 [sub_resource type="Resource" id="Zone_damage"]
 script = ExtResource("1_zone")
-cell = Vector2i(10, 4)
+cell = Vector2i(13, 5)
 magnitude = 30
 
 [sub_resource type="Resource" id="Zone_atkspd"]
 script = ExtResource("1_zone")
 type = 1
-cell = Vector2i(13, 7)
+cell = Vector2i(16, 9)
 magnitude = 40
 
 [sub_resource type="Resource" id="Zone_range"]
 script = ExtResource("1_zone")
 type = 2
-cell = Vector2i(7, 6)
+cell = Vector2i(9, 8)
 magnitude = 20
 
 [sub_resource type="Resource" id="Resource_6iv1j"]
 script = ExtResource("2_n1mjw")
 prop_id = "building_ruin_11"
-origin = Vector2i(9, 6)
+origin = Vector2i(11, 8)
 footprint = Vector2i(1, 2)
 
 [sub_resource type="Resource" id="Resource_6iyan"]
 script = ExtResource("2_n1mjw")
 prop_id = "dead_tree_02"
-origin = Vector2i(14, 5)
+origin = Vector2i(18, 6)
 
 [sub_resource type="Resource" id="Resource_drbfo"]
 script = ExtResource("2_n1mjw")
 prop_id = "hydrant"
-origin = Vector2i(4, 8)
+origin = Vector2i(5, 10)
 
 [resource]
 script = ExtResource("2_map")
 seed = 4
-entry_cell = Vector2i(0, 6)
-exit_cell = Vector2i(19, 6)
-checkpoint_cells = Array[Vector2i]([Vector2i(15, 2), Vector2i(5, 9)])
+entry_cell = Vector2i(0, 8)
+exit_cell = Vector2i(24, 8)
+checkpoint_cells = Array[Vector2i]([Vector2i(19, 3), Vector2i(6, 11)])
 obstacles = [SubResource("Resource_6iv1j"), SubResource("Resource_6iyan"), SubResource("Resource_drbfo")]
 bonus_zones = [SubResource("Zone_damage"), SubResource("Zone_atkspd"), SubResource("Zone_range")]
 supply_cap = 30
 round_count = 11
 mob_count = 12
-bronze_threshold = 112200
-silver_threshold = 187050
-gold_threshold = 280550
+bronze_threshold = 140900
+silver_threshold = 234900
+gold_threshold = 352300
 mission_index = 4
 mission_name = "Hot Spots"
 mission_description = "Colored zones buff the towers that touch them - damage, attack speed, range. Stack a damage-built tower on a damage zone and the synergy shows in its color. Build on the hot spots."

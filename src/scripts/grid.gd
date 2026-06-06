@@ -2,13 +2,16 @@ extends Node
 class_name Grid
 
 # Map dimensions in tiles.
-# Canonical board (2026-06-04): 20x11 (same aspect as the old 40x22) so it fits a phone
-# screen at a finger-friendly size with NO zoom/scroll (BTD6-style: design for the
-# smallest screen, PC scales up). Generated PVE/PVP maps AND the authored campaign .tres
-# (M1-M10, rescaled + rebalanced) all use this. (Was a 40x22 trial halving; now locked.)
+# Canonical board (2026-06-06): 25x14, PC-first. Widened 1 tile each side from the 23x14
+# tile-feel-check size so the board fills more of the frame and the maze has room before
+# the edges. Reverses the dead mobile-first 20x11 shrink — mobile would be a separate fork,
+# not a resize. Generated PVE/PVP maps read COLS/ROWS directly; the authored campaign .tres
+# (M1-M10) were rescaled to this board (tools/rescale_campaign.gd) and inherit this size via
+# the MapResource default. TILE_SIZE stays world-space; on-screen size is the camera's
+# concern, not a world value.
 const TILE_SIZE := 48
-const COLS := 20
-const ROWS := 11  # 960 x 528 world px
+const COLS := 25
+const ROWS := 14  # 1200 x 672 world px
 
 const ORIGIN := Vector2.ZERO  # top-left of grid in world coordinates
 

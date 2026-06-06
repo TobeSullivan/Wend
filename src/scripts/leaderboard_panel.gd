@@ -17,7 +17,7 @@ const UiStyle := preload("res://scripts/ui_style.gd")
 var coordinator                # MatchCoordinator
 var boards: Array = []         # BoardState per board (index = board index)
 var local_index: int = 0
-var grid_size: Vector2i = Vector2i(20, 11)
+var grid_size: Vector2i = Vector2i(25, 14)
 var arena                      # GameView — for tap-to-spectate during run
 
 var _panel: Panel
