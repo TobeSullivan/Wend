@@ -23,6 +23,7 @@ var data := {
 	"first_launch_done": false,
 	"campaign_medals": {},  # mission_index (as String) -> "bronze"/"silver"/"gold"
 	"pve_best_scores": {},   # "window_date|tier" -> best score (local; no backend yet)
+	"ranked": {},            # {season:int, value:int (tier_base+LP), mmr:float} — seeded on first read
 	"settings": {},          # backfilled from DEFAULT_SETTINGS on load
 }
 
@@ -92,6 +93,34 @@ func record_pve_score(window_date: String, tier: int, score: int) -> void:
 
 func _pve_key(window_date: String, tier: int) -> String:
 	return "%s|%d" % [window_date, tier]
+
+# === Ranked LP / hidden MMR (notes/pvp_ladder.md) ===
+# Local store is the beta home; Nakama ranked_s<N> is the authoritative board, mirrored on
+# submit. Steam Cloud syncs this later. Seeded lazily so a brand-new player starts at Bronze 0
+# with a neutral hidden MMR (RankedLadder.SEED_MMR).
+
+func _ranked() -> Dictionary:
+	var r = data.get("ranked")
+	if typeof(r) != TYPE_DICTIONARY or r.is_empty():
+		r = {"season": 1, "value": RankedLadder.START_VALUE, "mmr": RankedLadder.SEED_MMR}
+		data["ranked"] = r
+	return r
+
+func ranked_value() -> int:
+	return int(_ranked().get("value", RankedLadder.START_VALUE))
+
+func ranked_mmr() -> float:
+	return float(_ranked().get("mmr", RankedLadder.SEED_MMR))
+
+func ranked_season() -> int:
+	return int(_ranked().get("season", 1))
+
+func record_ranked_result(value_after: int, mmr_after: float) -> void:
+	var r := _ranked()
+	r["value"] = value_after
+	r["mmr"] = mmr_after
+	data["ranked"] = r
+	save()
 
 # === Settings ===
 

@@ -21,6 +21,7 @@ var _lobby
 var _socket
 var _go := {}
 var _player_name := "Player"
+var _my_mmr := RankedLadder.SEED_MMR  # the local player's hidden MMR — announced to the lobby (ranked)
 
 func _emit(p: Phase, info: Dictionary = {}) -> void:
 	phase = p
@@ -30,6 +31,8 @@ func start_queue(player_name: String = "Player", mode: String = "ranked") -> boo
 	if phase != Phase.IDLE:
 		return false
 	_player_name = player_name
+	if mode == "ranked":
+		_my_mmr = SaveData.ranked_mmr()
 	if not NakamaService.has_session():
 		if not await NakamaService.connect_backend():
 			_emit(Phase.ERROR, {"reason": "not connected to backend"})
@@ -62,11 +65,15 @@ func _on_matched(info) -> void:
 	_lobby.launched.connect(_on_go)
 	_lobby.closed.connect(func(r): _emit(Phase.ERROR, {"reason": r}))
 	_emit(Phase.LOBBY, {})
-	await _lobby.join(_socket, String(info.get("match_id", "")), String(NakamaService.session.user_id))
+	await _lobby.join(_socket, String(info.get("match_id", "")), String(NakamaService.session.user_id), _my_mmr)
 
 # Lobby launched → connect to the Godot room router (ENet/UDP) and declare our room.
 func _on_go(info) -> void:
 	_go = info
+	# Carry the lobby-average MMR into the match (the net-positive LP anchor, read at match end).
+	# Rides the Nakama GO message — the Godot match server stays MMR-agnostic.
+	SceneManager.pending_ranked_avg_mmr = float(info.get("avg_mmr", RankedLadder.SEED_MMR))
+	SceneManager.pending_is_ranked = true
 	_emit(Phase.CONNECTING, info)
 	var err := SceneManager.net_join(String(info.get("host", "")))  # DEFAULT_PORT 8771
 	if err != OK:

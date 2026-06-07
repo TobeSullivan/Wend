@@ -298,6 +298,9 @@ static func _build_match_ui(host: Node2D, local_board, local_ctrl, map, ghost_la
 	# Trials (PVE) only: the post-match leaderboard placement block (Surface 1).
 	if mode == MapResourceScript.Mode.PVE:
 		match_end.lb_ctx = {"window": int(map.window_type), "tier": int(map.scale_tier), "group": "solo"}
+	# Networked PVP == ranked → Surface 2 (LP/placement). Offline bot practice has no transport
+	# and keeps the plain placement panel (_show_pvp_final).
+	match_end.ranked = (mode == MapResourceScript.Mode.PVP and SceneManager.transport != null)
 
 	var round_toast := RoundToastScript.new()
 	round_toast.round_manager = local_board

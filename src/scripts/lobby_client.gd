@@ -14,13 +14,17 @@ signal closed(reason)
 const OP_VOTE := 1
 const OP_LOBBY_STATE := 2
 const OP_GO := 3
+const OP_HELLO := 4   # C->S: { mmr } — the player's hidden MMR, so the lobby can average it (ranked)
 
 var _socket
 var _match_id := ""
 var _my_id := ""
 var _joined := false
 
-func join(socket, match_id: String, my_user_id: String) -> bool:
+# my_mmr: the player's hidden MMR (ranked). > 0 announces it to the lobby via OP_HELLO so the
+# launch can carry the lobby-average MMR in GO (the net-positive anchor); 0 (the default, for
+# non-ranked / test callers) sends nothing and the server falls back to its seed.
+func join(socket, match_id: String, my_user_id: String, my_mmr: float = 0.0) -> bool:
 	_socket = socket
 	_match_id = match_id
 	_my_id = my_user_id
@@ -31,6 +35,8 @@ func join(socket, match_id: String, my_user_id: String) -> bool:
 		closed.emit("join failed: %s" % (str(res.get_exception()) if res != null else "null"))
 		return false
 	_joined = true
+	if my_mmr > 0.0:
+		await _socket.send_match_state_async(_match_id, OP_HELLO, JSON.stringify({"mmr": my_mmr}))
 	return true
 
 func vote() -> void:

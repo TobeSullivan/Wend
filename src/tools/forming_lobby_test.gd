@@ -9,6 +9,8 @@ extends Node
 const MatchmakerScript := preload("res://scripts/matchmaker.gd")
 const LobbyClientScript := preload("res://scripts/lobby_client.gd")
 const TEST_SCHED := [{"at": 0.0, "query": "*", "min": 2, "max": 2}]  # pops of exactly 2
+# Distinct per-player hidden MMRs (sent via OP_HELLO on join) → the lobby averages them into GO.
+const TEST_MMR := [100.0, 200.0, 300.0, 400.0]  # avg = 250
 
 var _fails := 0
 var _sessions: Array = []
@@ -82,6 +84,9 @@ func _run() -> void:
 		String(_go[1].get("match_id")) == gid and String(_go[2].get("match_id")) == gid and String(_go[3].get("match_id")) == gid)
 	_ok("GO host is the match server", String(_go[0].get("host", "")) == "5.78.110.182")
 	_ok("GO port is 8771", int(_go[0].get("port", 0)) == 8771)
+	# MMR plumbing: each client announced its MMR (OP_HELLO); GO carries the lobby average.
+	var want_avg: float = (TEST_MMR[0] + TEST_MMR[1] + TEST_MMR[2] + TEST_MMR[3]) / 4.0
+	_ok("GO avg_mmr == lobby average (%d)" % int(want_avg), abs(float(_go[0].get("avg_mmr", -1.0)) - want_avg) < 0.5)
 
 	for i in range(4):
 		await _lobbies[i].leave()
@@ -95,7 +100,7 @@ func _run() -> void:
 
 func _on_matched(info, idx) -> void:
 	_mid[idx] = String(info.get("match_id", ""))
-	await _lobbies[idx].join(_sockets[idx], _mid[idx], String(_sessions[idx].user_id))
+	await _lobbies[idx].join(_sockets[idx], _mid[idx], String(_sessions[idx].user_id), TEST_MMR[idx])
 
 func _on_state(info, idx) -> void:
 	_count[idx] = int(info.get("count", 0))

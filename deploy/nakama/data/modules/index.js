@@ -30,10 +30,14 @@ var LOBBY_FLOOR = 4;   // minimum present before a launch vote is allowed
 // The Godot match server clients connect to after launch (same box, UDP). Override per deploy.
 var MATCH_SERVER_HOST = "5.78.110.182";
 var MATCH_SERVER_PORT = 8771;
+// New-player hidden-MMR seed (mirrors RankedLadder.SEED_MMR) — used for any present member
+// whose OP_HELLO hasn't landed when the lobby launches (benign only in an exact-8 instant fill).
+var SEED_MMR = 150;
 // Lobby match op codes.
 var OP_VOTE = 1;          // C->S: vote to launch now
 var OP_LOBBY_STATE = 2;   // S->C: { count, max, floor, mode, present:[], voted:[] }
-var OP_GO = 3;            // S->C: { match_id, host, port } — go join the Godot room
+var OP_GO = 3;            // S->C: { match_id, host, port, count, avg_mmr } — go join the Godot room
+var OP_HELLO = 4;         // C->S: { mmr } — the player's hidden MMR (ranked net-positive anchor)
 
 function InitModule(ctx, logger, nk, initializer) {
 	_ensureCampaignBoards(logger, nk);
@@ -177,7 +181,7 @@ function matchmakerMatched(ctx, logger, nk, matches) {
 
 function lobbyInit(ctx, logger, nk, params) {
 	var mode = (params && params.mode) ? params.mode : "ranked";
-	var state = { mode: mode, presences: {}, votes: {}, launched: false };
+	var state = { mode: mode, presences: {}, votes: {}, mmrs: {}, launched: false };
 	return { state: state, tickRate: 2, label: JSON.stringify({ mode: mode, open: 1 }) };
 }
 
@@ -200,6 +204,7 @@ function lobbyLeave(ctx, logger, nk, dispatcher, tick, state, presences) {
 	for (var i = 0; i < presences.length; i++) {
 		delete state.presences[presences[i].userId];
 		delete state.votes[presences[i].userId];
+		delete state.mmrs[presences[i].userId];
 	}
 	if (_lobbyCount(state) === 0) return null;  // empty → terminate
 	if (!state.launched) _lobbyBroadcast(dispatcher, state);
@@ -214,6 +219,11 @@ function lobbyLoop(ctx, logger, nk, dispatcher, tick, state, messages) {
 		if (messages[i].opCode === OP_VOTE) {
 			state.votes[messages[i].sender.userId] = true;
 			changed = true;
+		} else if (messages[i].opCode === OP_HELLO) {
+			try {
+				var hello = JSON.parse(nk.binaryToString(messages[i].data));
+				if (hello && typeof hello.mmr === "number") state.mmrs[messages[i].sender.userId] = hello.mmr;
+			} catch (e) { /* ignore a malformed hello — the member just falls back to SEED_MMR */ }
 		}
 	}
 	if (changed) {
@@ -227,6 +237,19 @@ function lobbySignal(ctx, logger, nk, dispatcher, tick, state, data) { return { 
 function lobbyTerminate(ctx, logger, nk, dispatcher, tick, state, graceSeconds) { return { state: state }; }
 
 function _lobbyCount(state) { return Object.keys(state.presences).length; }
+
+// Mean hidden MMR over the present members; any member whose OP_HELLO hasn't landed defaults
+// to SEED_MMR. Empty lobby → SEED_MMR.
+function _lobbyAvgMmr(state) {
+	var present = Object.keys(state.presences);
+	if (present.length === 0) return SEED_MMR;
+	var sum = 0;
+	for (var i = 0; i < present.length; i++) {
+		var m = state.mmrs[present[i]];
+		sum += (typeof m === "number") ? m : SEED_MMR;
+	}
+	return sum / present.length;
+}
 
 function _lobbyBroadcast(dispatcher, state) {
 	var present = Object.keys(state.presences);
@@ -250,11 +273,14 @@ function _lobbyLaunch(dispatcher, nk, state, logger) {
 	if (state.launched) return;
 	state.launched = true;
 	var matchId = nk.uuidv4();
+	var avgMmr = _lobbyAvgMmr(state);
 	// count tells the Godot room how many peers to expect before it starts the match.
+	// avg_mmr is the lobby-average hidden MMR — each client's net-positive LP anchor at match end.
 	dispatcher.broadcastMessage(OP_GO, JSON.stringify({
-		match_id: matchId, host: MATCH_SERVER_HOST, port: MATCH_SERVER_PORT, count: _lobbyCount(state) }), null, null);
+		match_id: matchId, host: MATCH_SERVER_HOST, port: MATCH_SERVER_PORT,
+		count: _lobbyCount(state), avg_mmr: avgMmr }), null, null);
 	dispatcher.matchLabelUpdate(JSON.stringify({ mode: state.mode, open: 0 }));
-	logger.info("lobby launched: room=%s players=%d", matchId, _lobbyCount(state));
+	logger.info("lobby launched: room=%s players=%d avg_mmr=%d", matchId, _lobbyCount(state), avgMmr | 0);
 }
 
 function _lobbyRelabel(dispatcher, state) {

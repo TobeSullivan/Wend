@@ -31,6 +31,11 @@ var last_player_name := "Player"  # remembered so re-queue keeps your name
 var pending_local_index := 0    # the local player's seat in a networked match
 var pending_player_names: Array = []  # seat-indexed lobby handles
 var pending_seat_by_peer: Dictionary = {}  # {enet_peer_id: seat} — host uses it to map a disconnect to a board
+# Ranked (networked PVP): the lobby-average hidden MMR carried in via the Nakama GO message
+# (queue_controller._on_go), read at match end as the net-positive LP anchor. pending_is_ranked
+# distinguishes a networked ranked match from offline bot practice (which has no transport/lobby).
+var pending_ranked_avg_mmr := 150.0  # RankedLadder.SEED_MMR; overwritten by the real lobby avg
+var pending_is_ranked := false
 
 # Authored campaign missions, by mission index. Five missions — a tutorial curriculum
 # that ramps from zero, one new concept per mission (design/CAMPAIGN.md). The old
@@ -66,6 +71,7 @@ func goto_home() -> void:
 	pending_map = null
 	pending_board_count = 1
 	current_is_multiplayer = false
+	pending_is_ranked = false
 	active_coordinator = null  # the match scene (and its coordinator) is about to be freed
 	get_tree().paused = false
 	Engine.time_scale = 1.0  # menus always run at normal speed
@@ -206,6 +212,14 @@ func report_match_result(advisory_damage: int) -> void:
 		SaveData.record_pve_score(pending_map.window_date, pending_map.scale_tier, damage)
 		_post_online("trials", LeaderboardService.trials_board_id(
 			pending_map.window_type, pending_map.scale_tier, "solo"), damage)
+
+# Networked Ranked result: write the player's new authoritative LADDER VALUE (tier_base + LP)
+# to the season board via the submit_score RPC (op "set"; boards reject direct client writes).
+# Unlike Trials/campaign, the value is NOT a re-sim of local damage — it's derived from the
+# host-authoritative placement (finish_order via MATCH_END) by the LP engine, then mirrored
+# here. The match record blob still rides along for the later re-sim worker. No-op offline.
+func report_ranked_result(value_after: int) -> void:
+	_post_online("ranked", "ranked_s%d" % SaveData.ranked_season(), value_after)
 
 # Post the authoritative score to the online board when a Nakama backend is active. Offline
 # (LocalBackend) this is a no-op — boards are write-gated to the submit_score RPC. The match record

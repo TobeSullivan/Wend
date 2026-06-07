@@ -10,11 +10,15 @@ class_name MatchEndPanel
 const UiStyle := preload("res://scripts/ui_style.gd")
 const StarRatingScript := preload("res://scripts/star_rating.gd")
 const LeaderboardService := preload("res://scripts/leaderboard_service.gd")
+const RankedLadder := preload("res://scripts/ranked_ladder.gd")
 
 var round_manager  # RoundManager (local board) — untyped to avoid class-name cycle
 # Trials (PVE) leaderboard context: {window:int, tier:int, group:String}. Set by map_loader
 # for PVE only; empty for campaign/PVP (no Surface-1 placement block then).
 var lb_ctx := {}
+# Networked PVP == ranked: render Surface 2 (LP/placement) instead of the plain placement panel.
+# Set by map_loader (true only for a networked match; bot practice keeps _show_pvp_final).
+var ranked := false
 
 var _panel: PanelContainer
 var _title_label: Label
@@ -115,7 +119,10 @@ func _build_ui() -> void:
 func _on_match_ended() -> void:
 	var coord = round_manager.coordinator
 	if coord != null and coord.is_pvp:
-		_show_pvp_final(coord)
+		if ranked:
+			_show_pvp_ranked(coord)
+		else:
+			_show_pvp_final(coord)
 	else:
 		_show_medal()
 
@@ -152,6 +159,154 @@ func _show_pvp_final(coord) -> void:
 		{"text": "Return Home", "cb": _on_return_home},
 	])
 	_panel.visible = true
+
+# Surface 2 (notes/leaderboard_ui_spec.md): the Ranked result screen — no stars/medals. Placement
+# + the LP/MMR settle + ladder progress + the final order. Computes the LP result from this match
+# (host-authoritative placement → LP engine), persists it, mirrors it to the season board, then renders.
+func _show_pvp_ranked(coord) -> void:
+	var placement: int = coord.placement_of(round_manager)
+	var count: int = coord.boards.size()
+	var result: Dictionary = RankedLadder.resolve(
+		placement, count, SaveData.ranked_value(), SaveData.ranked_mmr(), SceneManager.pending_ranked_avg_mmr)
+	# Persist locally + mirror the new authoritative ladder value to ranked_s<season>.
+	SaveData.record_ranked_result(int(result["value_after"]), float(result["mmr_after"]))
+	SceneManager.report_ranked_result(int(result["value_after"]))
+
+	var won := placement == 1
+	# Repurpose the shared labels: title = small season ctx, result = the big placement line.
+	_title_label.add_theme_font_size_override("font_size", 14)
+	_title_label.add_theme_color_override("font_color", UiStyle.LABEL_COL)
+	_title_label.text = "Ranked · Season %d" % SaveData.ranked_season()
+	_stars_row.visible = false
+	_result_label.text = "You finished %s of %d" % [_ordinal(placement), count]
+	_result_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2) if won else Color.WHITE)
+	_detail_label.visible = false
+	_thresholds_vbox.visible = false
+
+	_populate_ranked(result, coord)
+	_set_buttons([
+		{"text": "View season ladder", "cb": _on_view_season},
+		{"text": "Queue again ›", "cb": _on_find_new_match, "role": "go"},
+	])
+	_panel.visible = true
+
+# The LP block (tier · lp arrow · +LP chip · progress bar · "to next") + FINAL ORDER rows.
+func _populate_ranked(result: Dictionary, coord) -> void:
+	for child in _lb_vbox.get_children():
+		child.queue_free()
+
+	# --- Tier + LP delta row. (No icon: Ranked has no medals, and the asset set has no trophy.)
+	var lp_row := HBoxContainer.new()
+	lp_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	lp_row.add_theme_constant_override("separation", 10)
+	var tier_lbl := _make_label(18, Color("e8c45a"))
+	tier_lbl.text = String(result["tier_after"])
+	lp_row.add_child(tier_lbl)
+	var arrow := _make_label(18, Color.WHITE)
+	if bool(result["is_masters"]):
+		arrow.text = "%d LP" % int(result["lp_after"])
+	else:
+		arrow.text = "%d → %d" % [int(result["lp_before"]), int(result["lp_after"])]
+	lp_row.add_child(arrow)
+	lp_row.add_child(_lp_chip(int(result["lp_delta"])))
+	_lb_vbox.add_child(lp_row)
+
+	# --- Promotion / demotion note (only when the band changed).
+	if bool(result["promoted"]) or bool(result["demoted"]):
+		var note := _make_label(15, Color("bfe6a3") if bool(result["promoted"]) else Color(0.9, 0.55, 0.45))
+		note.text = ("Promoted to %s!" if bool(result["promoted"]) else "Demoted to %s") % String(result["tier_after"])
+		note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_lb_vbox.add_child(note)
+
+	# --- Progress bar toward the next tier (full + uncapped caption for Masters).
+	var bar := ProgressBar.new()
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(0, 12)
+	bar.min_value = 0
+	bar.max_value = 100
+	bar.value = 100 if bool(result["is_masters"]) else clampi(int(result["lp_after"]), 0, 100)
+	bar.add_theme_stylebox_override("background", UiStyle.flat_box(UiStyle.CHIP_BG, 7, UiStyle.CHIP_BORDER, 2, false))
+	bar.add_theme_stylebox_override("fill", UiStyle.flat_box(UiStyle.START_BG, 7, UiStyle.START_BORDER, 0, false))
+	_lb_vbox.add_child(bar)
+
+	var to_next := _make_label(12, UiStyle.LABEL_COL)
+	to_next.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	to_next.text = "Masters — uncapped" if bool(result["is_masters"]) else "%d LP to %s" % [int(result["to_next"]), String(result["next_tier"])]
+	_lb_vbox.add_child(to_next)
+
+	# --- FINAL ORDER (1..N), reusing the arena row style; your row highlighted, OUT for eliminated.
+	var divider := _make_label(12, UiStyle.LABEL_COL)
+	divider.text = "FINAL ORDER"
+	divider.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_lb_vbox.add_child(divider)
+	var count: int = coord.boards.size()
+	var by_place := {}
+	for b in coord.boards:
+		var pl: int = coord.placement_of(b)
+		if pl > 0:
+			by_place[pl] = b
+	for p in range(1, count + 1):
+		var b = by_place.get(p)
+		if b == null:
+			continue
+		var is_me: bool = b == round_manager
+		# Own row shows the actual MMR-adjusted LP earned; others show the public base LP for that place.
+		var lp: int = int(result["earned"]) if is_me else RankedLadder.base_lp(p, count)
+		_lb_vbox.add_child(_ranked_row(p, coord.name_for(b), lp, is_me, bool(b.eliminated)))
+	_lb_vbox.visible = true
+
+# The green "+30 LP" delta chip (red-tinted for a net loss).
+func _lp_chip(delta: int) -> Control:
+	var chip := PanelContainer.new()
+	var gain := delta >= 0
+	var bg := Color("3b5a2a") if gain else Color("5e2a1f")
+	var border := UiStyle.START_BORDER if gain else UiStyle.SELL_BORDER
+	chip.add_theme_stylebox_override("panel", UiStyle.flat_box(bg, 11, border, 2, false))
+	var m := MarginContainer.new()
+	m.add_theme_constant_override("margin_left", 9); m.add_theme_constant_override("margin_right", 9)
+	m.add_theme_constant_override("margin_top", 3); m.add_theme_constant_override("margin_bottom", 3)
+	chip.add_child(m)
+	var l := _make_label(14, Color("dffacb") if gain else Color("f2c6bb"))
+	l.text = "%+d LP" % delta
+	m.add_child(l)
+	return chip
+
+# A final-order row: rank · name · signed LP (OUT prefix for an eliminated board). Your row green.
+func _ranked_row(rank: int, name: String, lp: int, is_me: bool, is_out: bool) -> Control:
+	var p := PanelContainer.new()
+	p.custom_minimum_size = Vector2(0, 34)
+	var bg := Color("3b5a2a") if is_me else UiStyle.CHIP_BG
+	var border := UiStyle.START_BORDER if is_me else UiStyle.CHIP_BORDER
+	p.add_theme_stylebox_override("panel", UiStyle.flat_box(bg, 10, border, 2, false))
+	p.modulate = Color(1, 1, 1, 0.6) if is_out and not is_me else Color(1, 1, 1, 1)
+	var m := MarginContainer.new()
+	m.add_theme_constant_override("margin_left", 12); m.add_theme_constant_override("margin_right", 12)
+	m.add_theme_constant_override("margin_top", 3); m.add_theme_constant_override("margin_bottom", 3)
+	p.add_child(m)
+	var hb := HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 10)
+	m.add_child(hb)
+	var rk := _make_label(14, Color("bfe6a3") if is_me else UiStyle.LABEL_COL)
+	rk.text = "%d" % rank
+	rk.custom_minimum_size = Vector2(34, 0)
+	rk.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	hb.add_child(rk)
+	var nm := _make_label(14, Color("dffacb") if is_me else Color.WHITE)
+	nm.text = name
+	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nm.clip_text = true
+	nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	hb.add_child(nm)
+	var val := _make_label(14, UiStyle.LABEL_COL)
+	val.text = ("OUT · %+d" % lp) if is_out else ("%+d" % lp)
+	val.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	hb.add_child(val)
+	return p
+
+func _on_view_season() -> void:
+	# Surface 3, Ranked category (the season tiered ladder).
+	SceneManager.net_close()
+	SceneManager.goto_leaderboards({"category": 1, "season": SaveData.ranked_season()})
 
 func _show_medal() -> void:
 	var damage: int = round_manager.total_damage_dealt
