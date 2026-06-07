@@ -137,9 +137,10 @@ func net_close() -> void:
 		transport.queue_free()
 		transport = null
 
-# Boot as the headless dedicated server (godot --headless -- --server): host the lobby
-# authority. The server is peer 1 / authority but never a player (no seat). A persistent
-# MatchServer child owns the lobby and loads the match scene authority-only on start.
+# Boot as the headless dedicated server (godot --headless -- --server): the server is peer 1 /
+# authority but never a player (no seat). A persistent MatchServer child is the ROOM ROUTER: it
+# hosts many concurrent matches keyed by match_id, each an isolated authority subtree it builds
+# WITHOUT change_scene (so the server's own scene tree never flips to a single match).
 func start_dedicated_server() -> int:
 	var err := net_host()
 	if err != OK:
@@ -150,14 +151,6 @@ func start_dedicated_server() -> int:
 	server.name = "MatchServer"
 	add_child(server)
 	return OK
-
-# Called on the dedicated server when a match ends: hand the persistent MatchServer back
-# to lobby duty so the remaining players can re-queue. The finished match scene is freed
-# when the next match starts (change_scene), so nothing else to tear down here.
-func reset_dedicated_lobby() -> void:
-	var server = get_node_or_null("MatchServer")
-	if server != null:
-		server.reset_to_lobby()
 
 # Launch a networked PVP match: every client generates the IDENTICAL map from the
 # shared seed, then builds it with the local player on their own seat (no bots; the

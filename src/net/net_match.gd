@@ -16,6 +16,10 @@ extends Node
 
 const NetProtocol := preload("res://net/net_protocol.gd")
 
+# Authority-only: emitted when the match ends (last board standing / all-but-one forfeited). On the
+# dedicated server the owning MatchRoom listens and tears itself down. Never fires on a client.
+signal match_finished
+
 var transport
 var coordinator
 var boards: Array = []
@@ -142,9 +146,8 @@ func _broadcast_match_end() -> void:
 	for b in coordinator.finish_order:
 		order.append(boards.find(b))
 	transport.broadcast({"t": NetProtocol.MATCH_END, "order": order})
-	# Dedicated server: hand back to the lobby so the same players can re-queue.
-	if SceneManager.is_dedicated_server:
-		SceneManager.reset_dedicated_lobby()
+	# Server: the owning MatchRoom tears itself down on this; clients never reach here.
+	match_finished.emit()
 
 # --- Client ← applies ---
 

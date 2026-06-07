@@ -9,10 +9,19 @@ class_name NetProtocol
 #
 # Direction key: C→H client→host(authority), H→C host→clients, both = either way.
 
-# --- Lobby (pre-match) ---
+# --- Room join (rooms model: Nakama forms the lobby, then points clients here) ---
+# C→H: {match_id, name, expected, tier?}. The client connects to the match server and declares
+# which room (match_id) it is joining. The server groups peers by match_id into isolated rooms
+# and auto-starts a room once `expected` members have joined. START_MATCH is then sent per-peer
+# carrying that peer's seat. (Nakama supplies match_id/expected in phase 3d.)
+const JOIN_ROOM := "join_room"
+
+# --- Lobby (pre-match) — LEGACY single-lobby flow, superseded by JOIN_ROOM + Nakama (3b–3d).
+# SET_NAME/PLAY/LOBBY_STATE belong to the old one-shared-lobby server; kept until the client
+# join path is rebuilt on Nakama. The room router does NOT use them.
 const LOBBY_STATE := "lobby_state"   # H→C: {players:[{id,name,seat}], host_id, count, countdown}
 const SET_NAME := "set_name"         # C→H: {name}
-const START_MATCH := "start_match"   # H→C: {seed, tier, board_count, seat, names:[...]}
+const START_MATCH := "start_match"   # H→C: {seed, tier, count, seat, names:[...]}
 const PLAY := "play"                 # C→H: the lobby leader asks the dedicated server to start
 
 # --- In-match: build phase ---
