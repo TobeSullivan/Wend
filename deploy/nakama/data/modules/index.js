@@ -22,6 +22,14 @@ var WINDOWS = {
 var CAMPAIGN_MISSIONS = 5;     // matches SceneManager.CAMPAIGN_MISSION_COUNT (was 10)
 var CURRENT_SEASON = 1;        // ranked_s<N>; bump on season roll
 var RECORD_COLLECTION = "match_records";  // storage collection for re-sim re-validation
+// Per-window Trials map seeds (leaderboard_schema.md §3): SERVER-owned so a client can't pick
+// an easy map and post under the real board id, and so everyone that window shares the same 5
+// maps. Generated once per window-cycle and stored (system-owned); the client fetches via the
+// trials_seeds RPC. The later re-sim worker recomputes the cycle from a record's submit time
+// and rejects a record whose seed isn't the canonical one for its board+cycle.
+var TRIALS_SEED_COLLECTION = "trials_seeds";
+var SYSTEM_USER = "00000000-0000-0000-0000-000000000000";
+var MONDAY_EPOCH = 345600;  // 1970-01-05 00:00 UTC (mirrors LeaderboardService._MONDAY_EPOCH)
 
 // --- Forming lobby (matchmaking_orchestration.md) ---
 var LOBBY_MODULE = "lobby";
@@ -44,6 +52,7 @@ function InitModule(ctx, logger, nk, initializer) {
 	_ensureRankedBoard(logger, nk);
 	_ensureTrialsTournaments(logger, nk);
 	initializer.registerRpc("submit_score", rpcSubmitScore);
+	initializer.registerRpc("trials_seeds", rpcTrialsSeeds);
 	// Forming lobby: an authoritative "lobby" match accretes matchmaker pops up to 8, runs the
 	// vote, then points everyone at a Godot match-server room (notes/matchmaking_orchestration.md).
 	initializer.registerMatch(LOBBY_MODULE, {
@@ -149,6 +158,51 @@ function rpcSubmitScore(ctx, logger, nk, payload) {
 		}]);
 	}
 	return JSON.stringify({ ok: true, board_id: boardId, score: score });
+}
+
+// --- Server-owned Trials map seeds (leaderboard_schema.md §3) ----------------
+// Returns the 5 per-scale seeds for each live window: { daily:[5], weekly:[5], monthly:[5] }.
+// Seeds are generated once per window-cycle and stored, so they're stable until the window
+// resets and identical for every player that cycle. The cycle index is computed from the
+// SERVER clock (the client never chooses it).
+function rpcTrialsSeeds(ctx, logger, nk, payload) {
+	if (!ctx.userId) throw errPermission("must be authenticated");
+	var now = Math.floor(Date.now() / 1000);
+	var d = new Date(now * 1000);
+	return JSON.stringify({
+		daily:   _seedsForCycle(nk, "daily",   Math.floor(now / 86400)),
+		weekly:  _seedsForCycle(nk, "weekly",  Math.floor((now - MONDAY_EPOCH) / 604800)),
+		monthly: _seedsForCycle(nk, "monthly", d.getUTCFullYear() * 12 + d.getUTCMonth()),
+	});
+}
+
+// Read the stored seed set for (window, cycle); create-once if absent. The version:"*" write
+// (create-only) makes a race converge: the loser's write throws, then we re-read the winner's set.
+function _seedsForCycle(nk, window, cycle) {
+	var key = window + "_" + cycle;
+	var read = _readSeeds(nk, key);
+	if (read) return read;
+	var seeds = [];
+	for (var i = 0; i < 5; i++) seeds.push((Math.floor(Math.random() * 2147483646) + 1));
+	try {
+		nk.storageWrite([{
+			collection: TRIALS_SEED_COLLECTION, key: key, userId: SYSTEM_USER,
+			value: { seeds: seeds, window: window, cycle: cycle },
+			permissionRead: 0, permissionWrite: 0, version: "*",
+		}]);
+	} catch (e) {
+		var raced = _readSeeds(nk, key);  // someone created it first → use theirs
+		if (raced) return raced;
+	}
+	return seeds;
+}
+
+function _readSeeds(nk, key) {
+	try {
+		var rd = nk.storageRead([{ collection: TRIALS_SEED_COLLECTION, key: key, userId: SYSTEM_USER }]);
+		if (rd.length > 0 && rd[0].value && rd[0].value.seeds) return rd[0].value.seeds;
+	} catch (e) { /* fall through → caller generates */ }
+	return null;
 }
 
 function errInvalid(msg) { return { message: msg, code: 3 }; }       // INVALID_ARGUMENT

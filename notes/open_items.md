@@ -15,6 +15,9 @@ Status key: **RESOLVED** · **NEAR** · **REC-PENDING** · **DIRECTION-SET** · 
 - **Architecture call:** match authority stays in the headless Godot server; Nakama = meta/matchmaker only (overrides the orchestration doc's "coordinator-in-Nakama" suggestion — rewriting the verified GDScript coordinator in Go was wasteful).
 - **Remaining:** human 2-client full-match E2E (Steam-gated — distribution blocked); resim §10 tail (real server seed). See STATE.md "Next step".
 
+## Resolved 2026-06-07 (server-owned Trials seeds — resim §10 seed tail)
+- **Trials per-window map seeds are now SERVER-owned** (`leaderboard_schema.md` §3). `trials_seeds` RPC (stored-random per cycle, system-owned, race-guarded) → `NakamaBackend.fetch_trials_seeds` → `LeaderboardService.trials_seeds` → `pve_select` (async, with a deterministic offline fallback to the old local derivation). Canonical seed flows into `map.seed`→`sim_seed`→`map_ref`→record. Networked PVP seed was already server-owned (`hash(uuidv4 match_id)`). Verified headless + live (`trials_seeds_live`: 5 seeds/window, stable across calls). **Server-side seed VERIFICATION of submitted records rides with the deferred re-sim worker** (recompute cycle from submit time → reject non-canonical seed).
+
 ## Resolved 2026-06-07 (Ranked LP / MMR engine + Surface 2)
 - **Ranked scoring settles on match end** — the last deferred ranked piece. `ranked_ladder.gd` (MMR-anchored net-positive LP/MMR engine, pure/static, all dials), `save_data.gd` ranked state, Surface 2 (`match_end_panel._show_pvp_ranked`), and the submit to `ranked_s1` (op `set`, via the existing RPC). USER chose **wire MMR through now** + **full vertical**.
 - **MMR anchor rides Nakama only** (Godot match server untouched): client → `lobby_client` OP_HELLO → lobby handler averages → **`avg_mmr` in GO** → `SceneManager.pending_ranked_avg_mmr` → match end. Verified live (`forming_lobby_test`: GO avg_mmr == 250).

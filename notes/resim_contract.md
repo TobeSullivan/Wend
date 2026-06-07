@@ -225,7 +225,7 @@ A build timer + early-start window opens before **every** round, not just the fi
    `match_coordinator.gd`; subsystems driven via `BoardState.sim_step` (spawn→towers→
    projectiles→mobs); seeded `coordinator.rng` for crit; tick-based build timer. Regression
    harness `src/tools/sim_harness.gd` — full match byte-identical across runs, 0 errors.
-   Open: wire server seed into `coordinator.sim_seed` (default 0 today). See STATE "Next step".
+   **→ Server seed DONE 2026-06-07.** `map_loader` wires `coordinator.sim_seed = map.seed`; for networked PVP the seed is server-issued (`match_room.gd` = `hash(uuidv4 match_id)`), and for solo Trials the per-window seeds are now server-owned via the `trials_seeds` RPC (§3) with an offline fallback. (The note's "default 0 today" was stale.)
 2. **Record capture** — emit the §2 record with the tick-tagged input log.
    **→ DONE 2026-06-07.** Lives on `match_coordinator.gd` (`log_input`/`make_record`,
    `record_enabled`, `map_ref`); capture sites in `build_controller`/`tower`; map_loader

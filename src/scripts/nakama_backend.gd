@@ -172,6 +172,19 @@ func _ranked_you(board_id: String, session) -> Variant:
 			return you
 	return null
 
+# --- Server-owned Trials seeds (leaderboard_schema.md §3) --------------------
+
+# { daily:[5], weekly:[5], monthly:[5] } of per-scale map seeds for the live windows. Empty on
+# any error / offline → the caller falls back to its local derivation.
+func fetch_trials_seeds() -> Dictionary:
+	if not _live():
+		return {}
+	var res = await _svc.client.rpc_async(_svc.session, "trials_seeds", "")
+	if res == null or res.is_exception():
+		return {}
+	var parsed = JSON.parse_string(res.payload)
+	return parsed if typeof(parsed) == TYPE_DICTIONARY else {}
+
 # --- Authoritative write (boards reject direct client writes) ----------------
 
 # kind: "trials" | "campaign" | "ranked". record_b64 = Resim.encode_record(...) base64'd (optional,

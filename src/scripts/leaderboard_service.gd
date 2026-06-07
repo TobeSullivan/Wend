@@ -159,6 +159,11 @@ static func ranked_ladder(season: int) -> Dictionary:
 static func campaign_board(mission: int) -> Dictionary:
 	return await backend().fetch_campaign(mission)
 
+# Server-owned per-window Trials map seeds (schema §3): { daily:[5], weekly:[5], monthly:[5] }.
+# Empty offline → pve_select falls back to its local window-identity derivation.
+static func trials_seeds() -> Dictionary:
+	return await backend().fetch_trials_seeds()
+
 
 # ============================================================================
 # Backend base — the store seam. Default impl returns empty boards so a missing
@@ -180,6 +185,9 @@ class LeaderboardBackend extends RefCounted:
 	# {entries, my_score}.
 	func fetch_campaign(_mission: int) -> Dictionary:
 		return {"entries": [], "my_score": 0}
+	# { daily:[5], weekly:[5], monthly:[5] } server-owned seeds; empty = caller derives locally.
+	func fetch_trials_seeds() -> Dictionary:
+		return {}
 
 
 # ============================================================================

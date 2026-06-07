@@ -32,7 +32,7 @@ var _tab_buttons: Dictionary = {}  # WindowType -> Button
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_generate_all_windows()
+	await _generate_all_windows()
 	_build_background()
 	_build_header()
 	_build_tabs()
@@ -41,13 +41,19 @@ func _ready() -> void:
 
 # --- Window identity + generation ---
 
+# Each window's five maps are seeded from the SERVER-owned per-window seeds (schema §3) so every
+# player that window shares the same five maps and a client can't pick an easy one. Offline (or
+# pre-Nakama) it falls back to the local window-identity derivation — deterministic per window,
+# just not server-authoritative.
 func _generate_all_windows() -> void:
+	var server: Dictionary = await LeaderboardService.trials_seeds()
 	for wt in [MapResourceScript.WindowType.DAILY, MapResourceScript.WindowType.WEEKLY, MapResourceScript.WindowType.MONTHLY]:
 		var meta: Dictionary = _window_meta(wt)
-		var base: int = hash(meta.date) + int(WINDOW_SALT[wt])
+		var server_seeds: Array = server.get(LeaderboardService.WINDOW_IDS.get(wt, ""), [])
+		var base: int = hash(meta.date) + int(WINDOW_SALT[wt])  # local fallback base
 		var maps: Array = []
 		for tier in range(1, 6):
-			var map_seed: int = base + tier * 1013
+			var map_seed: int = int(server_seeds[tier - 1]) if server_seeds.size() >= 5 else base + tier * 1013
 			maps.append(MapGen.generate(map_seed, tier, MapResourceScript.Mode.PVE, wt, meta.date))
 		_windows[wt] = maps
 
