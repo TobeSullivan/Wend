@@ -29,6 +29,26 @@ Last updated: 2026-06-07
 **Earlier (session 3): the MP + leaderboard spine** — `notes/resim_contract.md`, `leaderboard_schema.md`, `ghost_ladder.md`, `leaderboard_ui_spec.md` + mockups. Identity: Steam auth → Nakama, one identity, display name = Steam persona.
 
 ## Next step
+
+### ▶ NEXT SESSION — §4.1 legality check (+ record serialization)
+The re-sim spine is built (determinism → record → re-sim → authoritative write, all verified). The remaining anti-cheat half is **legality**: re-sim currently *assumes a legal log* — it closes score injection but not *illegal* logs. Make the re-sim **reject** a tampered log.
+
+**Plan (all in `src/scripts/resim.gd`, headless-verifiable):**
+1. Make `_apply` return success/failure instead of force-applying, and validate each action **at its tick against the replayed (authoritative) state**:
+   - `place`: `bot_place_tower` already validates affordability + `_is_valid_placement` (empty/in-bounds/not blocked/not entry-exit-checkpoint/supply cap/path stays open) — just **check its bool return**; false ⇒ illegal.
+   - `sell`: `_sell_tower_at_cell` returns false if no tower there ⇒ illegal.
+   - `upgrade`: target tower must exist (`_tower_at_cell`) **and** `board.can_afford(t.upgrade_cost(stat))` and `t.can_upgrade(stat)` (not maxed) — currently it force-spends without checking. Add the checks.
+   - **Phase gate:** place/sell/upgrade are build-only — reject any stamped at a tick where `coord.phase == "run"` (a tampered log could inject mid-run actions; `bot_place_tower` has no phase gate).
+2. `run()` collects `legal: bool` (+ first-illegal `{tick, seat, action, reason}` for diagnostics) and returns it. An illegal log ⇒ `legal=false`; the submit path rejects (writes no score).
+3. **Record serialization** (pairs naturally): `var_to_bytes`/`bytes_to_var` round-trip of `make_record()` (cells are `Vector2i`, JSON-unsafe — use Godot var encoding, kilobytes per §1). This is the wire/store format for the eventual submit path.
+4. **Verify** (`sim_harness.gd`): honest log ⇒ `legal=true`; then mutate a copy of the record (e.g. append a `place` at an occupied cell, or one when gold=0, or shift an action's tick into the run phase) ⇒ assert `legal=false` and **no score written**. Serialize→deserialize the record ⇒ identical re-sim result.
+
+**Two items that want Tobe (not blocking the above):**
+- **`end`-action nod** — I extended the "locked" §9.2 vocab with an `end` bow-out marker (flagged in `resim_contract.md`). Needs an OK or a different call.
+- **Human playtest** — drive a real match interactively; the tick logic is verified headless but the live UI/fast-forward path wasn't. De-risks the whole refactor; worth doing before building more on top.
+
+---
+
 - **CC — sim determinism conversion: DONE ✅ (2026-06-07).** The re-sim prerequisite (§5) is built and verified:
   - **§5.1 cross-platform float test:** floats bit-identical across Win/Mac/Linux-glibc → built on `float`, no fixed-point. Probe `src/tools/float_probe.gd` + CI guard `.github/workflows/float-probe.yml`; evidence `notes/float_probe_results.md`. (Caveat: if the prod re-sim server is musl/Alpine, add a musl CI leg — glibc-only doesn't clear musl's libm.)
   - **Fixed logical tick:** all sim subsystems now stepped by one fixed-timestep clock in `match_coordinator.gd` (`SIM_DT`, `sim_tick`, accumulator + `MAX_STEPS_PER_FRAME`). Towers/spawner/projectiles/mobs no longer self-`_process` — they expose `sim_step()` and are driven in a fixed order by `BoardState.sim_step` (spawn→towers→projectiles→mobs). Clients still sim locally (entity-step on every machine; clock host-only) so netcode is preserved.
