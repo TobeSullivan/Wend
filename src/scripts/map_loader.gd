@@ -42,6 +42,9 @@ const PlaytestLogScript := preload("res://scripts/playtest_log.gd")
 const ObstacleScript := preload("res://scripts/obstacle.gd")
 const ZoneDefinitionScript := preload("res://resources/zone_definition.gd")
 const MapResourceScript := preload("res://resources/map_resource.gd")
+const BuildGuideScript := preload("res://scripts/build_guide.gd")
+const TutorialDirectorScript := preload("res://scripts/tutorial_director.gd")
+const TutorialCalloutScript := preload("res://scripts/tutorial_callout.gd")
 
 const CHECKPOINT_TEX := preload("res://assets/maps/level_marker_flag.png")
 const GRASS_TEX := preload("res://assets/maps/summer_grass_tile.png")
@@ -128,6 +131,26 @@ static func build_match(host: Node2D, map, num_boards: int = 1, local_index: int
 	drawer.game_view = game_view  # so collapsing the dock can re-fit the board camera
 	host.add_child(game_view)
 
+	# Campaign tutorial: beats + ghost-outline build guidance for the LOCAL board only.
+	# Generated PVE/PVP maps carry no beats, so this is campaign-only by construction.
+	if map.mode == MapResourceScript.Mode.CAMPAIGN and map.tutorial_beats != null and not map.tutorial_beats.is_empty():
+		var guide = null
+		if _beats_use_ghost(map.tutorial_beats):
+			guide = BuildGuideScript.new()
+			guide.build_controller = local_ctrl
+			containers[local_index].add_child(guide)
+			local_ctrl.towers_changed.connect(guide._on_towers_changed)
+		var callout = TutorialCalloutScript.new()
+		host.add_child(callout)
+		var director = TutorialDirectorScript.new()
+		director.coordinator = coordinator
+		director.board = local_board
+		director.build_controller = local_ctrl
+		director.callout = callout
+		director.guide = guide
+		director.setup(map.tutorial_beats)
+		host.add_child(director)
+
 	# Arena leaderboard only for multi-board matches (PVP). It floats over the board's
 	# left edge as a collapsible drawer toggled by the action strip's leaderboard button.
 	if num_boards > 1:
@@ -162,6 +185,13 @@ static func build_match(host: Node2D, map, num_boards: int = 1, local_index: int
 # fill the remaining slots in seat order.
 # Identifies the exact map for the re-sim record (§2.1). Generated maps rebuild from
 # (seed, scale_tier, mode, window); authored campaign maps reload by mission index.
+# True if any beat carries ghost_cells — i.e. the mission needs a build-guide overlay.
+static func _beats_use_ghost(beats: Array) -> bool:
+	for b in beats:
+		if b.ghost_cells != null and not b.ghost_cells.is_empty():
+			return true
+	return false
+
 static func _map_ref_for(map) -> Dictionary:
 	if map.mode == MapResourceScript.Mode.CAMPAIGN:
 		return {"kind": "authored", "mission_index": map.mission_index, "tres_version": 1}

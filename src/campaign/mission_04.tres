@@ -1,56 +1,57 @@
 [gd_resource type="Resource" script_class="MapResource" format=3]
 
-[ext_resource type="Script" path="res://resources/zone_definition.gd" id="1_zone"]
-[ext_resource type="Script" path="res://resources/map_resource.gd" id="2_map"]
-[ext_resource type="Script" path="res://resources/obstacle_definition.gd" id="2_n1mjw"]
+[ext_resource type="Script" path="res://resources/tutorial_beat.gd" id="1_beat"]
+[ext_resource type="Script" path="res://resources/zone_definition.gd" id="2_zone"]
+[ext_resource type="Script" path="res://resources/map_resource.gd" id="3_map"]
 
 [sub_resource type="Resource" id="Zone_damage"]
-script = ExtResource("1_zone")
-cell = Vector2i(13, 5)
+script = ExtResource("2_zone")
+cell = Vector2i(8, 8)
 magnitude = 30
 
 [sub_resource type="Resource" id="Zone_atkspd"]
-script = ExtResource("1_zone")
+script = ExtResource("2_zone")
 type = 1
-cell = Vector2i(16, 9)
-magnitude = 40
+cell = Vector2i(12, 9)
+magnitude = 60
 
 [sub_resource type="Resource" id="Zone_range"]
-script = ExtResource("1_zone")
+script = ExtResource("2_zone")
 type = 2
-cell = Vector2i(9, 8)
-magnitude = 20
+cell = Vector2i(16, 8)
+magnitude = 30
 
-[sub_resource type="Resource" id="Resource_6iv1j"]
-script = ExtResource("2_n1mjw")
-prop_id = "building_ruin_11"
-origin = Vector2i(11, 8)
-footprint = Vector2i(1, 2)
+[sub_resource type="Resource" id="Zone_slow"]
+script = ExtResource("2_zone")
+type = 3
+cell = Vector2i(10, 6)
+magnitude = 40
 
-[sub_resource type="Resource" id="Resource_6iyan"]
-script = ExtResource("2_n1mjw")
-prop_id = "dead_tree_02"
-origin = Vector2i(18, 6)
+[sub_resource type="Resource" id="Beat_load"]
+script = ExtResource("1_beat")
+trigger = "on_mission_load"
+text = "New thing: bonus zones - the colored circles on the board. A tower sitting inside one gets stronger. Red boosts damage, yellow attack speed, blue range, and the cold ones slow enemies to a crawl right where your fire is thickest. Smaller circle, bigger bonus."
 
-[sub_resource type="Resource" id="Resource_drbfo"]
-script = ExtResource("2_n1mjw")
-prop_id = "hydrant"
-origin = Vector2i(5, 10)
+[sub_resource type="Resource" id="Beat_build"]
+script = ExtResource("1_beat")
+trigger = "on_build_phase_start"
+text = "Only one waypoint here, so the only new decision is the zones. Build your maze so your best towers stand inside them - and so the enemy lingers in the slow zones."
+anchor = "board"
 
 [resource]
-script = ExtResource("2_map")
+script = ExtResource("3_map")
 seed = 4
 entry_cell = Vector2i(0, 8)
 exit_cell = Vector2i(24, 8)
-checkpoint_cells = Array[Vector2i]([Vector2i(19, 3), Vector2i(6, 11)])
-obstacles = [SubResource("Resource_6iv1j"), SubResource("Resource_6iyan"), SubResource("Resource_drbfo")]
-bonus_zones = [SubResource("Zone_damage"), SubResource("Zone_atkspd"), SubResource("Zone_range")]
+checkpoint_cells = Array[Vector2i]([Vector2i(12, 4)])
+bonus_zones = [SubResource("Zone_damage"), SubResource("Zone_atkspd"), SubResource("Zone_range"), SubResource("Zone_slow")]
 supply_cap = 30
-round_count = 11
-mob_count = 12
-bronze_threshold = 140900
-silver_threshold = 234900
-gold_threshold = 352300
+round_count = 9
+mob_count = 10
+bronze_threshold = 12000
+silver_threshold = 22000
+gold_threshold = 34000
 mission_index = 4
 mission_name = "Hot Spots"
-mission_description = "Colored zones buff the towers that touch them - damage, attack speed, range. Stack a damage-built tower on a damage zone and the synergy shows in its color. Build on the hot spots."
+mission_description = "Bonus zones. One waypoint, so the zones are the only new variable."
+tutorial_beats = [SubResource("Beat_load"), SubResource("Beat_build")]

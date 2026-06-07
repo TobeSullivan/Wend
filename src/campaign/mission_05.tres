@@ -1,61 +1,63 @@
 [gd_resource type="Resource" script_class="MapResource" format=3]
 
-[ext_resource type="Script" path="res://resources/zone_definition.gd" id="1_zone"]
-[ext_resource type="Script" path="res://resources/map_resource.gd" id="2_map"]
-[ext_resource type="Script" path="res://resources/obstacle_definition.gd" id="2_x5d0l"]
+[ext_resource type="Script" path="res://resources/tutorial_beat.gd" id="1_beat"]
+[ext_resource type="Script" path="res://resources/zone_definition.gd" id="2_zone"]
+[ext_resource type="Script" path="res://resources/map_resource.gd" id="3_map"]
+
+[sub_resource type="Resource" id="Zone_damage"]
+script = ExtResource("2_zone")
+cell = Vector2i(7, 6)
+magnitude = 30
+
+[sub_resource type="Resource" id="Zone_atkspd"]
+script = ExtResource("2_zone")
+type = 1
+cell = Vector2i(13, 9)
+magnitude = 50
+
+[sub_resource type="Resource" id="Zone_range"]
+script = ExtResource("2_zone")
+type = 2
+cell = Vector2i(18, 6)
+magnitude = 30
 
 [sub_resource type="Resource" id="Zone_slow_a"]
-script = ExtResource("1_zone")
+script = ExtResource("2_zone")
 type = 3
-cell = Vector2i(13, 5)
+cell = Vector2i(11, 5)
 magnitude = 50
 
 [sub_resource type="Resource" id="Zone_slow_b"]
-script = ExtResource("1_zone")
+script = ExtResource("2_zone")
 type = 3
-cell = Vector2i(15, 10)
+cell = Vector2i(16, 11)
 magnitude = 40
 
-[sub_resource type="Resource" id="Zone_damage"]
-script = ExtResource("1_zone")
-cell = Vector2i(9, 8)
-magnitude = 30
+[sub_resource type="Resource" id="Beat_load"]
+script = ExtResource("1_beat")
+trigger = "on_mission_load"
+text = "No more training. This map has everything - checkpoints, zones, a full run - but it's hand-built, not random, so you can learn it. This is what a real match feels like."
 
-[sub_resource type="Resource" id="Resource_ejqay"]
-script = ExtResource("2_x5d0l")
-prop_id = "building_ruin_10"
-origin = Vector2i(11, 8)
-footprint = Vector2i(2, 2)
-
-[sub_resource type="Resource" id="Resource_1l8cj"]
-script = ExtResource("2_x5d0l")
-prop_id = "trash_can"
-origin = Vector2i(18, 6)
-
-[sub_resource type="Resource" id="Resource_l4ftk"]
-script = ExtResource("2_x5d0l")
-prop_id = "wheelie_bin"
-origin = Vector2i(8, 10)
-
-[sub_resource type="Resource" id="Resource_bkvka"]
-script = ExtResource("2_x5d0l")
-prop_id = "rubble_pile_03"
-origin = Vector2i(21, 5)
+[sub_resource type="Resource" id="Beat_build"]
+script = ExtResource("1_beat")
+trigger = "on_build_phase_start"
+text = "One last tip: pouring upgrades into a few towers unlocks crit and multishot - going tall often beats going wide. Experiment. Then go play Trials and Ranked for real."
+anchor = "upgrade_panel"
 
 [resource]
-script = ExtResource("2_map")
+script = ExtResource("3_map")
 seed = 5
 entry_cell = Vector2i(0, 8)
 exit_cell = Vector2i(24, 8)
-checkpoint_cells = Array[Vector2i]([Vector2i(20, 3), Vector2i(6, 11)])
-obstacles = [SubResource("Resource_ejqay"), SubResource("Resource_1l8cj"), SubResource("Resource_l4ftk"), SubResource("Resource_bkvka")]
-bonus_zones = [SubResource("Zone_slow_a"), SubResource("Zone_slow_b"), SubResource("Zone_damage")]
-supply_cap = 35
-round_count = 12
-mob_count = 14
-bronze_threshold = 192550
-silver_threshold = 320850
-gold_threshold = 481300
+checkpoint_cells = Array[Vector2i]([Vector2i(8, 3), Vector2i(16, 11), Vector2i(21, 4)])
+bonus_zones = [SubResource("Zone_damage"), SubResource("Zone_atkspd"), SubResource("Zone_range"), SubResource("Zone_slow_a"), SubResource("Zone_slow_b")]
+supply_cap = 40
+round_count = 10
+mob_count = 12
+bronze_threshold = 18000
+silver_threshold = 32000
+gold_threshold = 50000
 mission_index = 5
-mission_name = "Cold Feet"
-mission_description = "Slow zones drag the horde to a crawl. A mob stuck in the cold is a mob your towers hit again and again - maze the path straight through the slow and milk the extra time."
+mission_name = "The Gauntlet"
+mission_description = "Integration - everything together in a contained, hand-built map. Almost a real match."
+tutorial_beats = [SubResource("Beat_load"), SubResource("Beat_build")]

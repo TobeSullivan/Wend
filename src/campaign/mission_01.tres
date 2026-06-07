@@ -1,81 +1,62 @@
 [gd_resource type="Resource" script_class="MapResource" format=3]
 
-[ext_resource type="Script" path="res://resources/zone_definition.gd" id="1_zone"]
+[ext_resource type="Script" path="res://resources/tutorial_beat.gd" id="1_beat"]
 [ext_resource type="Script" path="res://resources/map_resource.gd" id="2_map"]
-[ext_resource type="Script" path="res://resources/obstacle_definition.gd" id="2_qdajn"]
 
-[sub_resource type="Resource" id="Zone_damage"]
-script = ExtResource("1_zone")
-cell = Vector2i(11, 4)
-magnitude = 20
+[sub_resource type="Resource" id="Beat_load"]
+script = ExtResource("1_beat")
+trigger = "on_mission_load"
+text = "Forget everything you know about tower defense. These enemies don't die - they shatter and instantly re-form, then keep marching. You'll never stop them, and you're not supposed to. Your only job is to deal as much damage as you can before the rounds run out. The longer you force them to walk through your fire, the higher you score."
+blocking = true
 
-[sub_resource type="Resource" id="Zone_atkspd"]
-script = ExtResource("1_zone")
-type = 1
-cell = Vector2i(9, 8)
-magnitude = 70
+[sub_resource type="Resource" id="Beat_build"]
+script = ExtResource("1_beat")
+trigger = "on_build_phase_start"
+text = "Place towers on the glowing tiles. Don't just line them up - bend the path. Every extra step the enemy takes is another second your towers get to shoot."
+anchor = "board"
+ghost_cells = Array[Vector2i]([Vector2i(12, 6), Vector2i(12, 7), Vector2i(12, 8), Vector2i(12, 9), Vector2i(12, 10), Vector2i(12, 11), Vector2i(12, 12), Vector2i(12, 13)])
 
-[sub_resource type="Resource" id="Zone_range"]
-script = ExtResource("1_zone")
-type = 2
-cell = Vector2i(16, 10)
-magnitude = 30
+[sub_resource type="Resource" id="Beat_first"]
+script = ExtResource("1_beat")
+trigger = "on_first_tower_placed"
+text = "That's a tower. It fires at anything in range. Tap it any time to upgrade it."
+anchor = "tower"
 
-[sub_resource type="Resource" id="Zone_slow"]
-script = ExtResource("1_zone")
-type = 3
-cell = Vector2i(14, 6)
-magnitude = 40
+[sub_resource type="Resource" id="Beat_start"]
+script = ExtResource("1_beat")
+trigger = "on_round_start"
+text = "Here they come. Watch what happens when one falls."
 
-[sub_resource type="Resource" id="Resource_pbiab"]
-script = ExtResource("2_qdajn")
-prop_id = "tire_03"
-origin = Vector2i(6, 5)
+[sub_resource type="Resource" id="Beat_kill"]
+script = ExtResource("1_beat")
+trigger = "on_first_kill"
+text = "See? It's already back and walking again. You're not killing them - you're farming damage off them. That number climbing in the corner is the only thing that matters."
+anchor = "respawn"
 
-[sub_resource type="Resource" id="Resource_gtpw0"]
-script = ExtResource("2_qdajn")
-prop_id = "trash_can"
-origin = Vector2i(8, 5)
+[sub_resource type="Resource" id="Beat_rend"]
+script = ExtResource("1_beat")
+trigger = "on_round_end"
+text = "That's your score. Bronze, Silver, Gold are targets to chase, but the real game is the leaderboard. For now - keep going."
+anchor = "score"
 
-[sub_resource type="Resource" id="Resource_m4hv8"]
-script = ExtResource("2_qdajn")
-prop_id = "building_ruin_11"
-origin = Vector2i(18, 6)
-footprint = Vector2i(1, 2)
-
-[sub_resource type="Resource" id="Resource_1nsqh"]
-script = ExtResource("2_qdajn")
-prop_id = "building_ruin_05"
-origin = Vector2i(20, 9)
-footprint = Vector2i(1, 2)
-
-[sub_resource type="Resource" id="Resource_vqdvs"]
-script = ExtResource("2_qdajn")
-prop_id = "oil_drum_fallen"
-origin = Vector2i(5, 10)
-
-[sub_resource type="Resource" id="Resource_npkoy"]
-script = ExtResource("2_qdajn")
-prop_id = "dead_tree_02"
-origin = Vector2i(13, 9)
-
-[sub_resource type="Resource" id="Resource_qgkc4"]
-script = ExtResource("2_qdajn")
-prop_id = "dead_tree_02"
-origin = Vector2i(21, 4)
+[sub_resource type="Resource" id="Beat_win"]
+script = ExtResource("1_beat")
+trigger = "on_win"
+text = "That's the whole game. Everything from here just adds wrinkles. Next: the enemy won't walk in a straight line for you anymore."
 
 [resource]
 script = ExtResource("2_map")
 seed = 1
 entry_cell = Vector2i(0, 8)
 exit_cell = Vector2i(24, 8)
-checkpoint_cells = Array[Vector2i]([Vector2i(23, 3), Vector2i(3, 11), Vector2i(23, 11)])
-obstacles = [SubResource("Resource_pbiab"), SubResource("Resource_gtpw0"), SubResource("Resource_m4hv8"), SubResource("Resource_1nsqh"), SubResource("Resource_vqdvs"), SubResource("Resource_npkoy"), SubResource("Resource_qgkc4")]
-bonus_zones = [SubResource("Zone_damage"), SubResource("Zone_atkspd"), SubResource("Zone_range"), SubResource("Zone_slow")]
-supply_cap = 60
-bronze_threshold = 282350
-silver_threshold = 470550
-gold_threshold = 705850
+checkpoint_cells = Array[Vector2i]([])
+supply_cap = 10
+round_count = 5
+mob_count = 6
+bronze_threshold = 2000
+silver_threshold = 4000
+gold_threshold = 7000
 mission_index = 1
 mission_name = "First Contact"
-mission_description = "Build a maze and milk the horde for damage. Place towers to lengthen the path, then upgrade and lean on the bonus zones."
+mission_description = "The core twist: enemies don't die. Build a short maze and farm damage."
+tutorial_beats = [SubResource("Beat_load"), SubResource("Beat_build"), SubResource("Beat_first"), SubResource("Beat_start"), SubResource("Beat_kill"), SubResource("Beat_rend"), SubResource("Beat_win")]

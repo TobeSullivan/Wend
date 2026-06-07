@@ -142,3 +142,10 @@ Real lines, not placeholders. Tone: plain, confident, a little blunt — matches
 - Tutorial-beat data is a **schema reopen**: pick a runtime shape (sidecar resource vs map-resource field), only the five campaign maps carry it. Design intent is in this file.
 - Ghost outline is programmatic overlay, **no new art**.
 - Tuning integers and B/S/G thresholds are uncalibrated → wait on the 25×14 retune + playtest. Don't invent final numbers; stub gentle values for M1 so the tutorial is winnable.
+
+### Implemented (CC, 2026-06-08)
+- **Path correction:** the maps live in **`src/campaign/`** (not `levels/campaign/`). `mission_06–10.tres` deleted; `CAMPAIGN_MISSION_COUNT`/`CAMPAIGN_MISSIONS`/`campaign_select.LESSONS` trimmed to 5.
+- **Schema shape chosen:** an array of `TutorialBeat` sub-resources on `MapResource.tutorial_beats` (mirrors `bonus_zones`/`obstacles`; generated maps leave it empty). `TutorialBeat` = `trigger / text / anchor / ghost_cells / blocking` (`src/resources/tutorial_beat.gd`).
+- **Runtime:** `TutorialDirector` (`src/scripts/tutorial_director.gd`) maps match signals → the 7 triggers (one-shot each); `TutorialCallout` (`src/scripts/tutorial_callout.gd`) shows a bottom/anchored toast, with a blocking modal that pauses the tree for M1's opener; `BuildGuide` (`src/scripts/build_guide.gd`) draws the dashed-tile + 40%-alpha-footprint ghost outline and clears a cell when a tower lands on it. All three are created by `map_loader` for the **local board in CAMPAIGN mode only**.
+- **Anchors:** positioned callouts (board/score/upgrade_panel), **no literal pointer-arrows yet** — arrows are deferred polish.
+- **Verified** headless (`src/tools/campaign_verify.gd`): all 5 resources parse, every `ghost_cells` set is a legal maze (path stays open), and the director/callout/overlay build end-to-end. The blocking-opener pause→ack→resume is **not** auto-tested (pausing the tree deadlocks a headless harness) → confirm in the human playtest.

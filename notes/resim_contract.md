@@ -233,10 +233,22 @@ A build timer + early-start window opens before **every** round, not just the fi
    owns `sim_tick`.)
 3. **Re-sim runner** — headless replay of a record → authoritative result; legality check
    for submitted solo logs.
-   **→ PARTIAL 2026-06-07.** `src/scripts/resim.gd` replays a record → per-board score,
-   round-trip verified (live score == re-sim score, `src/tools/sim_harness.gd`). **Still
-   open: the §4.1 legality check** (validate a *submitted* solo log — gold/empty-cell/valid-
-   target/supply — before trusting it) and record serialization for the submit path.
+   **→ DONE 2026-06-08.** `src/scripts/resim.gd` replays a record → per-board score,
+   round-trip verified (live score == re-sim score). **§4.1 legality check built:** `_apply`
+   now validates every action at its tick against the replayed authoritative state and
+   returns a reason on failure — `place` (affordability + `_is_valid_placement`), `sell`
+   (tower exists), `upgrade` (tower exists + not maxed + affordable; previously force-spent),
+   plus a **phase gate** (place/sell/upgrade rejected at any run-phase tick — a tampered log
+   could otherwise inject mid-run actions). `run()` returns `legal: bool` + first-illegal
+   `{tick, seat, action, reason}`; the first illegal action stops the replay unapplied.
+   **Record serialization** added: `encode_record`/`decode_record` (`var_to_bytes`/
+   `bytes_to_var` — Vector2i cells are JSON-unsafe; ~2.5 KB/record), the wire/store format
+   for the submit path. Verified in `src/tools/sim_harness.gd`: honest log ⇒ `legal=true`
+   round-trips; serialize→deserialize ⇒ identical re-sim; two tampered copies (occupied
+   cell ⇒ `illegal_place`, build action at a run tick ⇒ `phase_gate`) ⇒ `legal=false`.
+   *(Fixing the harness to pay for upgrades through the real economy — the legality check
+   exposed that it had been applying free upgrades — dropped the honest baseline from an
+   inflated 69962 to a legitimate 54985.)*
 4. **Wire outputs** — Trials score-write and Ranked placement both read from re-sim output,
    never from client claims.
    **→ Trials/PVE score-write DONE 2026-06-07.** `SceneManager.report_match_result`

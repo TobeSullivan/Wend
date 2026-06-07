@@ -31,22 +31,17 @@ var pending_local_index := 0    # the local player's seat in a networked match
 var pending_player_names: Array = []  # seat-indexed lobby handles
 var pending_seat_by_peer: Dictionary = {}  # {enet_peer_id: seat} — host uses it to map a disconnect to a board
 
-# Authored campaign missions, by mission index. All 10 are authored — a tutorial
-# curriculum where each mission isolates one decision on a rising curve (see the
-# Campaign curriculum table in DESIGN_MODES.md).
+# Authored campaign missions, by mission index. Five missions — a tutorial curriculum
+# that ramps from zero, one new concept per mission (design/CAMPAIGN.md). The old
+# ten-mission arc was deprecated 2026-06-06 and removed.
 const CAMPAIGN_MISSIONS := {
 	1: "res://campaign/mission_01.tres",
 	2: "res://campaign/mission_02.tres",
 	3: "res://campaign/mission_03.tres",
 	4: "res://campaign/mission_04.tres",
 	5: "res://campaign/mission_05.tres",
-	6: "res://campaign/mission_06.tres",
-	7: "res://campaign/mission_07.tres",
-	8: "res://campaign/mission_08.tres",
-	9: "res://campaign/mission_09.tres",
-	10: "res://campaign/mission_10.tres",
 }
-const CAMPAIGN_MISSION_COUNT := 10  # design cap; only authored entries are playable
+const CAMPAIGN_MISSION_COUNT := 5
 
 # The live match's MatchCoordinator, set by main.gd when a real match builds. Used to
 # derive the AUTHORITATIVE score by re-simming its record at match end (resim_contract
@@ -190,22 +185,29 @@ func report_match_result(advisory_damage: int) -> void:
 	if pending_map == null:
 		return
 	# resim_contract §4/§8: the score we RECORD is the authoritative re-sim of the match
-	# record, never the live client tally (that's advisory/UX). Locally the re-sim runs
-	# client-side — a stand-in for the server, and a continuous determinism self-check.
-	var damage := _authoritative_score(advisory_damage)
+	# record, never the live client tally (that's advisory/UX). An illegal log (§4.1) is
+	# rejected outright — no score is written. Locally the re-sim runs client-side: a
+	# stand-in for the server, and a continuous determinism self-check.
+	var result := _authoritative_score(advisory_damage)
+	if not bool(result["legal"]):
+		push_warning("Match record failed legality check (%s) — no score recorded." % str(result.get("reason", "")))
+		return
+	var damage: int = int(result["score"])
 	if pending_map.mode == MapResourceScript.Mode.CAMPAIGN and pending_map.mission_index > 0:
 		SaveData.record_campaign_medal(pending_map.mission_index, _medal_for(damage))
 	elif pending_map.mode == MapResourceScript.Mode.PVE:
 		SaveData.record_pve_score(pending_map.window_date, pending_map.scale_tier, damage)
 
 # Derive the local board's authoritative score by re-simming the captured match record.
-# Falls back to the advisory value only when there's no record to replay (e.g. a scene
-# opened directly with no coordinator). A mid-match bow-out logs an `end` marker first so
-# the re-sim scores the partial, not the played-out remainder.
-func _authoritative_score(advisory: int) -> int:
+# Returns { score, legal, reason }. Falls back to the advisory value (legal) only when
+# there's no record to replay (e.g. a scene opened directly with no coordinator). An
+# illegal record (§4.1) returns legal=false and the caller writes no score. A mid-match
+# bow-out logs an `end` marker first so the re-sim scores the partial, not the played-out
+# remainder.
+func _authoritative_score(advisory: int) -> Dictionary:
 	var coord = active_coordinator
 	if coord == null or not is_instance_valid(coord) or not coord.record_enabled:
-		return advisory
+		return {"score": advisory, "legal": true, "reason": ""}
 	if not coord.match_over:
 		coord.record_end_marker()
 	var record: Dictionary = coord.make_record()
@@ -213,13 +215,15 @@ func _authoritative_score(advisory: int) -> int:
 	add_child(host)
 	var res: Dictionary = ResimScript.run(host, record)
 	host.queue_free()
+	if not bool(res.get("legal", true)):
+		return {"score": 0, "legal": false, "reason": str(res.get("illegal", ""))}
 	var rboards: Array = res.get("boards", [])
 	if rboards.is_empty():
-		return advisory
+		return {"score": advisory, "legal": true, "reason": ""}
 	var score := int(rboards[0]["damage"])  # solo = seat 0
 	if score != advisory:
 		push_warning("Re-sim score %d differs from live %d — determinism check (recording re-sim)." % [score, advisory])
-	return score
+	return {"score": score, "legal": true, "reason": ""}
 
 func _medal_for(damage: int) -> String:
 	if pending_map == null:

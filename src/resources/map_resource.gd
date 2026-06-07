@@ -45,6 +45,10 @@ enum WindowType { DAILY, WEEKLY, MONTHLY }
 @export var mission_index: int = 0
 @export var mission_name: String = ""
 @export var mission_description: String = ""
+# Ordered tutorial beats (TutorialBeat sub-resources), driven by TutorialDirector for the
+# local board in campaign mode. Untyped + duck-typed (same reason as obstacles/bonus_zones).
+# Only the five campaign maps populate this; generated PVE/PVP maps leave it empty.
+@export var tutorial_beats: Array = []
 
 # === PVE-only (0/empty for campaign and PVP) ===
 @export var scale_tier: int = 0                       # 1–5
