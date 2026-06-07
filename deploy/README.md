@@ -1,11 +1,14 @@
 # Wend dedicated server — deploy
 
-Headless Godot match authority (Option A: the server **simulates** the match, so it's
-**one match per process**). Target box: **Hetzner CPX11, Ashburn** (see
+Headless Godot match authority. The server is a **room router**: one process hosts MANY
+concurrent matches keyed by `match_id` (`net/match_server.gd` + `match_room.gd`), each an
+isolated authority sim. Clients are pointed here by Nakama (matchmaking → forming lobby → GO),
+then `JOIN_ROOM`. Target box: **Hetzner CPX31, Hillsboro (`hil`)**, `5.78.110.182` (see
 `notes/server_decision.md`). Background + roadmap: `notes/remote_beta_plan.md`.
 
 The exported game binary *is* the server — `--headless -- --server` routes `boot.gd`
-into `SceneManager.start_dedicated_server()`. Transport is ENet over **UDP 8771**.
+into `SceneManager.start_dedicated_server()`. Transport is ENet over **UDP 8771**. Runs on the
+same box as the Nakama stack (`deploy/nakama/`).
 
 ---
 
@@ -67,20 +70,21 @@ systemctl daemon-reload && systemctl enable --now wend-server.service
 ```bash
 ssh root@<VPS_IP> systemctl status wend-server      # should be active (running)
 ssh root@<VPS_IP> journalctl -u wend-server -f       # expect:
-#   [server] dedicated lobby up on port 8771 — waiting for players
+#   [server] room router up on port 8771 — waiting for JOIN_ROOM
 ```
 
-Then point a local PC client at it (no rebuild needed):
-```powershell
-$env:MBTD_SERVER="<VPS_IP>"; & "C:\Users\tobes\Desktop\Godot.exe" --path src
-```
-Open PVP → Play Online. Two clients (any networks) joining + playing a full match = M1 done.
+Clients reach a room via Nakama (Find Match → matchmaker → forming lobby → GO points them here →
+`JOIN_ROOM`), so there's no connect-by-IP screen anymore. To smoke-test the server's room path
+directly over ENet without Nakama, run two `src/tools/room_e2e_client.tscn` instances with the same
+`MBTD_MATCH` (see that harness) — both should land in one room and get `START_MATCH`. Two real
+clients matchmaking + playing a full match across networks is the remaining human E2E.
 
 ## 4. Client address for shipped tester builds
 
-Testers' builds can't set an env var, so bake the IP into the client:
-`src/scripts/lobby.gd` → `const DEFAULT_SERVER := "127.0.0.1"` → set to `"<VPS_IP>"`,
-then export the PC/Android tester build. (Ask Claude to do this once the IP is known.)
+The client no longer hardcodes the match-server IP — it gets `{host, port}` from Nakama's lobby
+`GO` message. So the address lives **server-side** in `deploy/nakama/data/modules/index.js`
+(`MATCH_SERVER_HOST` / `MATCH_SERVER_PORT`); change it there + `docker compose restart nakama` and
+every client picks it up with no rebuild. (`lobby.gd`'s old `DEFAULT_SERVER` const is gone.)
 
 ---
 

@@ -1,5 +1,5 @@
 [Unit]
-Description=Wend dedicated match server (headless Godot, Option A — one match per process)
+Description=Wend dedicated match server (headless Godot — room router, many concurrent matches)
 Documentation=file:///opt/wend/README
 After=network-online.target
 Wants=network-online.target

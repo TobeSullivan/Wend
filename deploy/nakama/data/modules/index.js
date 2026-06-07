@@ -250,8 +250,9 @@ function _lobbyLaunch(dispatcher, nk, state, logger) {
 	if (state.launched) return;
 	state.launched = true;
 	var matchId = nk.uuidv4();
+	// count tells the Godot room how many peers to expect before it starts the match.
 	dispatcher.broadcastMessage(OP_GO, JSON.stringify({
-		match_id: matchId, host: MATCH_SERVER_HOST, port: MATCH_SERVER_PORT }), null, null);
+		match_id: matchId, host: MATCH_SERVER_HOST, port: MATCH_SERVER_PORT, count: _lobbyCount(state) }), null, null);
 	dispatcher.matchLabelUpdate(JSON.stringify({ mode: state.mode, open: 0 }));
 	logger.info("lobby launched: room=%s players=%d", matchId, _lobbyCount(state));
 }
