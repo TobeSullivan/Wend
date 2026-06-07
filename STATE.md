@@ -19,6 +19,26 @@ Last updated: 2026-06-07
 **"Wend"** (locked). Subtitle carries genre. **Modes: Trials (PVE), Ranked (PVP).**
 **Trials scale names: Thread · Weave · Tangle · Snarl · Knot** (1→5, locked 2026-06-06).
 
+---
+
+## Steam (closed beta) — account status [2026-06-07]
+First step toward the closed Steam beta is taken: **Steamworks partner account registered** against the existing personal Steam account (long-standing, Steam Guard on).
+- **Entity type:** registered as dev/publisher — individual-vs-company choice NOT confirmed in chat. **CONFIRM** which was selected (matters for tax/bank + later restructure).
+- **$100 Steam Direct fee: PAID.** → **30-day release clock is running.** Earliest possible main-game release ≈ **2026-07-07**.
+- **Tax (W-9, MI) + bank (checking / USD / US): submitted.** → **Identity Verification Pending, 2–7 business days** (third-party service Lilaham/TaxIdentity). Cannot change tax/bank info or finish account creation until it clears.
+
+**Blocked until verification clears (next actionable Steam step):**
+1. Create the **Wend App ID** (the main game app).
+2. Create the **Playtest app** off it — Associated Packages & DLC page → set Library capsule image + visible name ("Wend - Playtest") → walk the release-process checklist.
+
+**Open decision to make next session (drives the Playtest config):**
+- **Confidential / friends-only:** Playtest App ID + request Standard Release keys + set Playtest Playable + Store Visibility Hidden. No public page, no 2-week wait, nothing leaks. Hand keys directly to testers. *(Likely the right call for a few-friends beta.)*
+- **Public Coming Soon page + Playtest signup button:** more setup, reveals Wend publicly, and the store page must be live ≥2 weeks before main-game release — but starts banking wishlists immediately.
+
+(Steam *closed-beta mechanics* design — what the beta build actually contains/tests — remains a separate open design thread; see below.)
+
+---
+
 ## Current focus
 **Design session 4 done (2026-06-06): orchestration + Trials lobby + campaign rework specced.** Two new docs + three file edits ready for CC:
 - `notes/matchmaking_orchestration.md` (NEW) — the orchestration spine. Coordinator = Nakama match handler; re-sim = async headless-Godot workers. Ranked: queue → forming lobby (fills X/8, **unanimous-of-present vote at 4–7, abstain = no, no timeout**, auto-launch at 8) → instant-join (no ready-check) → run → validate (re-sim authoritative) → settle → teardown. Speed-beats-quality matching (safe because LP is MMR-anchored). Floor = 4. Post-launch drop = forfeit. Crash = void/no-LP. Trials routes through the same spine minus elimination.
@@ -87,3 +107,5 @@ The re-sim spine is built (determinism → record → re-sim → authoritative w
 
 ## Open questions / blocked on
 Full per-item status in `notes/open_items.md`. Active design: juice/game-feel pass · season-pass numbers · Steam closed-beta mechanics · GTM. CC chores: determinism (first job) · scale-name label-pass · campaign rebuild. Config-level: leaderboard reset anchors (proposed UTC), season length; queue escalation timings + join-window (dials, need telemetry). Blocked on data: B/S/G calibration, PVP seed-convergence, economy re-tune + campaign tuning integers for 25×14. Parked: individual-while-grouped Trials scoring, Ranked ready-check, crash match-reconstruction.
+
+**Steam (ops):** identity verification pending (2–7 biz days, started 2026-06-07) — blocks App ID + Playtest creation. Confirm entity type chosen at registration. Decide confidential-keys vs. public-Coming-Soon for the Playtest.
