@@ -41,17 +41,21 @@ First step toward the closed Steam beta is taken: **Steamworks partner account r
 ---
 
 ## Current focus
-**Design session 4 done (2026-06-06): orchestration + Trials lobby + campaign rework specced.** Two new docs + three file edits ready for CC:
-- `notes/matchmaking_orchestration.md` (NEW) — the orchestration spine. Coordinator = Nakama match handler; re-sim = async headless-Godot workers. Ranked: queue → forming lobby (fills X/8, **unanimous-of-present vote at 4–7, abstain = no, no timeout**, auto-launch at 8) → instant-join (no ready-check) → run → validate (re-sim authoritative) → settle → teardown. Speed-beats-quality matching (safe because LP is MMR-anchored). Floor = 4. Post-launch drop = forfeit. Crash = void/no-LP. Trials routes through the same spine minus elimination.
-- `design/CAMPAIGN.md` (NEW) — five-mission curriculum (ramp from zero, fixing the inverted old M1), the tutorial-beat system, the ghost-outline build-guidance spec, real tutorial copy. Old 10-mission `.tres` deprecated.
-- `design/DESIGN_MODES.md` (EDIT) — Trials reconciled (host launches, no ready-up gate; group size = board, no scoring vote; individual-while-grouped deferred); campaign cut to five w/ pointer to CAMPAIGN.md; PVP nav points at orchestration doc; **40×22→25×14 grid drift flagged**.
-- `notes/open_items.md`, `STATE.md` (EDIT) — backlog + state updated.
+**Multiplayer backend is LIVE and the full matchmaking spine is built end-to-end (2026-06-07).**
+On the box `5.78.110.182` (CPX31/`hil`): **Nakama** (`:7350` — device-auth identity, 66 leaderboards, `submit_score` RPC, forming-lobby match handler + matchmaker hook) and the **Godot match server** (UDP `8771` — room router hosting many concurrent matches). The client is fully wired: device auth → the 3 leaderboard surfaces on live data → **Find Match → matchmaker → forming lobby (X/8 + vote) → JOIN_ROOM a Godot room → networked match**. **Seven commits** `f178d01`→`e53d53c`, each phase verified headless or live against the box. Full per-phase build record under "Next step" below.
 
-**Earlier (session 3): the MP + leaderboard spine** — `notes/resim_contract.md`, `leaderboard_schema.md`, `ghost_ladder.md`, `leaderboard_ui_spec.md` + mockups. Identity: Steam auth → Nakama, one identity, display name = Steam persona.
+**Design context (drove the build):** session-4 specs `notes/matchmaking_orchestration.md` (orchestration spine — queue → forming lobby, unanimous-of-present vote 4–7, auto-at-8, floor 4, speed-beats-quality, crash=void), `design/CAMPAIGN.md`, `design/DESIGN_MODES.md`; session-3 spine `notes/resim_contract.md`, `leaderboard_schema.md`, `ghost_ladder.md`, `leaderboard_ui_spec.md`. Identity: device-auth now, Steam later (one identity, display name = Steam persona).
 
 ## Next step
 
-### ▶▶ NEXT SESSION — wire the Godot client to the (now-LIVE) Nakama
+### ▶▶ NEXT SESSION — the human through-line + ranked scoring
+The MP spine is built and every link is verified individually; what's left needs the live loop and people:
+1. **Human 2-client E2E** — two real clients press **Find Match** → matchmake on Nakama → forming lobby → vote → play a FULL networked match across networks. Each link is verified (headless/live, records below); this is the manual all-the-way run. (Ranked floor is 4, so exercising the *vote* path with <4 testers means temporarily lowering `LOBBY_FLOOR` in `index.js` + `restart nakama`, or auto-launch at the count you have.)
+2. **Ranked LP / Surface 2** — settle LP + placement on match end (the deferred ranked-scoring piece; `notes/pvp_ladder.md` + `leaderboard_schema.md`): live PVP result → LP engine → `ranked_s1` write (op `set`) → the post-match LP/global-rank-delta UI (`leaderboard_ui_spec.md` Surface 2).
+3. **Smaller tails:** wire the real server seed into `sim_seed` (resim_contract §10); the two human items (`end`-action vocab nod, an interactive solo playtest); ranked match-end submit currently posts Trials/campaign only.
+**To redeploy after server-side changes:** Godot server → rebuild Linux binary + `bash deploy/deploy.sh root@5.78.110.182`; Nakama JS module → `scp index.js` + `docker compose restart nakama` (NOT `up -d`).
+
+### ✅ COMPLETE 2026-06-07 — Nakama client + leaderboards + matchmaking spine (build record)
 **✅ Nakama is DEPLOYED & VERIFIED (2026-06-07, CC over SSH).** Box `5.78.110.182` (CPX31 @ `hil`, Ubuntu 26.04): Nakama healthy, external `:7350` → HTTP 200, **66 boards** (5 campaign + `ranked_s1` + 60 Trials) confirmed in Postgres, `submit_score` RPC registered. Console/gRPC are loopback-bound (tunnel: `ssh -L 7351:localhost:7351 root@5.78.110.182` → `http://localhost:7351`; login in gitignored `deploy/nakama/console_login.local.txt`). Server key lives in the box `.env`; pull it into the gitignored `src/nakama_local.cfg` for the client (USER chose "read from local config"). **Two deploy fixes** (both in `deploy/nakama/README.md` STATUS): Docker wasn't actually installed (CC installed it); compose entrypoint had a YAML folded-scalar bug that dropped `--database.address` (fixed to literal block). **No "confirm it's up" step needed — it's up; build directly against `:7350`.**
 
 Then build, in order (each testable against the live instance):
