@@ -36,11 +36,17 @@ accumulator drifted).
 
 ## Results
 
-| Platform | Godot | COMBINED | total_kills | Status |
-|---|---|---|---|---|
-| **Windows 11 x64** | 4.6.3.stable | `400dcbdd1e8d0209` | 573 | ✅ reference (3/3 runs identical) |
-| macOS | — | — | — | ⏳ pending (no Mac in dev env) |
-| Linux x64 (server) | — | — | — | ⏳ pending |
+| Platform | Godot | COMBINED | Status |
+|---|---|---|---|
+| **Windows 11 x64** (local) | 4.6.3.stable | `400dcbdd1e8d0209` | ✅ reference (3/3 runs identical) |
+| windows-latest (CI) | 4.6.3.stable | `400dcbdd1e8d0209` | ✅ matches |
+| macos-latest (CI) | 4.6.3.stable | `400dcbdd1e8d0209` | ✅ matches |
+| ubuntu-latest / glibc (CI) | 4.6.3.stable | `400dcbdd1e8d0209` | ✅ matches |
+
+> CI run [#27077971869](https://github.com/TobeSullivan/tower_defense/actions/runs/27077971869)
+> (2026-06-07): all three legs succeeded and the `compare` job passed — it only
+> goes green when the fingerprints are bit-identical, so all three equal the
+> Windows reference. **Cross-platform float determinism: CONFIRMED.**
 
 Full Windows reference block:
 
@@ -56,7 +62,9 @@ COMBINED    = 400dcbdd1e8d0209
 ```
 
 **Within-platform determinism (Windows): confirmed** — 3 consecutive runs bit-identical.
-Cross-platform is the open question; needs the Mac + Linux legs.
+**Cross-platform determinism (Win/Mac/Linux-glibc): CONFIRMED** via CI (above) —
+floats are safe; build the determinism conversion on `float`. (Open only if the
+prod server is musl/Alpine: add a musl CI leg, see below.)
 
 ## Decision rule
 

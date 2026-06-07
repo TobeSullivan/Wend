@@ -1,5 +1,5 @@
 # State — Wend
-Last updated: 2026-06-06
+Last updated: 2026-06-07
 
 > **Read order:** `claude-rules.md` → `RULES.md` → this file → `notes/open_items.md` (full backlog) → only the specific file the task needs.
 > **History:** older session logs were moved to `STATE_ARCHIVE.md` — reference only, don't load unless you're digging into a past decision.
@@ -29,13 +29,16 @@ Last updated: 2026-06-06
 **Earlier (session 3): the MP + leaderboard spine** — `notes/resim_contract.md`, `leaderboard_schema.md`, `ghost_ladder.md`, `leaderboard_ui_spec.md` + mockups. Identity: Steam auth → Nakama, one identity, display name = Steam persona.
 
 ## Next step
-- **CC — first job: make the sim deterministic** (the re-sim prerequisite). Fixed logical tick (towers/spawner/projectiles are on `_process(delta)` today — framerate-dependent); one seeded RNG with ordered draws (crit uses global `randf()` today); tick-based build timer. **TEST CROSS-PLATFORM FLOAT FIRST** (Win/Mac client vs Linux server) per `resim_contract.md` §5.1 — cheapest possible test, decides whether floats are OK or we go fixed-point. Pays off twice (anti-cheat AND clean lockstep MP).
+- **CC — make the sim deterministic** (the re-sim prerequisite). **§5.1 cross-platform float test: DONE ✅ (2026-06-07) — floats are bit-identical across Win/Mac/Linux-glibc, so we build the conversion on `float`, no fixed-point.** Probe `src/tools/float_probe.gd` + CI guard `.github/workflows/float-probe.yml` (stays as the regression test); evidence in `notes/float_probe_results.md`. **Remaining conversion work:** fixed logical tick (towers/spawner/projectiles are on `_process(delta)` today — framerate-dependent); one seeded RNG with ordered draws (crit uses global `randf()` at `tower.gd:175` today); tick-based build timer (currently wall-clock `delta` in `match_coordinator.gd:88`). This structural work is platform-neutral and pays off twice (anti-cheat AND clean lockstep MP). (Caveat: if the prod re-sim server ends up musl/Alpine, add a musl CI leg before trusting cross-platform — glibc-only doesn't clear musl's libm.)
 - **CC label-pass (mechanical):** Scale 1–5 → Thread/Weave/Tangle/Snarl/Knot across `design/DESIGN_MODES.md` + `design/VISUAL_SYSTEM.md`; remove the Trials "go home?" prompt. (Deliberately not done at wrap to avoid full-rewrite drift.)
 - **CC — campaign rebuild:** five missions per `design/CAMPAIGN.md`; deprecate old `levels/campaign/` `.tres`; build the tutorial-beat system (schema reopen, runtime shape CC's call) + ghost-outline overlay.
 - **Design — remaining big pieces:** juice/game-feel pass · Steam closed-beta mechanics · season-pass numbers · GTM. No design piece is currently blocking CC — the orchestration + campaign specs give CC a full plate.
 - Still needs two humans: a real 2-client cross-network match (targets the end-state stack).
 
 ## Recently touched files
+- `src/tools/float_probe.gd` — NEW (§5.1 cross-platform float probe)
+- `.github/workflows/float-probe.yml` — NEW (matrix CI determinism guard)
+- `notes/float_probe_results.md` — NEW (float test result: floats safe ✅)
 - `notes/matchmaking_orchestration.md` — NEW (orchestration spine)
 - `design/CAMPAIGN.md` — NEW (five-mission rework + tutorial beats + ghost outline)
 - `design/DESIGN_MODES.md` — EDIT (Trials reconciled, campaign cut to five, grid drift flagged)
