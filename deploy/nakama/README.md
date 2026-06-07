@@ -17,9 +17,24 @@ restore. Old box deleted (billing stopped). Latency: ~30–45 ms higher for US-E
 
 ---
 
-## 0. One-time: provision the box + install Docker  (USER) — DONE 2026-06-08
+## STATUS — DEPLOYED & LIVE 2026-06-07 (CC, over SSH)
 
-The box is already created and firewalled. Recorded here for reproducibility / future moves.
+Stack is up on `5.78.110.182` and verified: Nakama healthy, external `:7350` → HTTP 200,
+66 boards present (5 campaign + `ranked_s1` + 60 Trials), `submit_score` RPC registered,
+console/gRPC loopback-bound. Box is **Ubuntu 26.04 LTS**. Console login → `console_login.local.txt`
+(gitignored). Two fixes were needed during deploy:
+- **Docker wasn't actually installed** (this README's §0 was marked done prematurely) — CC ran
+  `get.docker.com` → Docker 29.5.3 + Compose v5.1.4.
+- **compose entrypoint bug** — the DB address was passed via a YAML *folded scalar* (`>`) with
+  more-indented continuation lines, so `migrate up` ran with no `--database.address` and Nakama
+  crash-looped against its CockroachDB default (`127.0.0.1:26257`). Fixed to a literal block (`|`)
+  with backslash-continuations; see the comment in `docker-compose.yml`. Drop-in lesson: never
+  put Nakama flags on more-indented `>` lines.
+
+## 0. One-time: provision the box + install Docker  (USER + CC)
+
+The box is created and firewalled (USER). Docker was installed by CC during the deploy above.
+Recorded here for reproducibility / future moves.
 
 1. **Create the server (Hetzner Console):** New server → location **Hillsboro (`hil`)** →
    image **Ubuntu** → type **CPX31** (4 vCPU / 8 GB) → your SSH key → create. (Note: the old
@@ -47,15 +62,15 @@ The box is already created and firewalled. Recorded here for reproducibility / f
    ```
    Same pattern for Postgres if ever needed: `-L 5432:localhost:5432`.
 
-> **TODO (CC, deploy-time hardening):** in `docker-compose.yml`, bind the console to loopback —
-> `127.0.0.1:7351:7351` instead of `7351:7351` — so the console is tunnel-only even if the
-> cloud firewall is ever misconfigured. The tunnel still works (targets the server's
-> 127.0.0.1). Leave 7350 on `0.0.0.0` — players need it public.
+> **DONE (CC, 2026-06-08):** `docker-compose.yml` binds the console **and** the gRPC API to
+> loopback — `127.0.0.1:7351:7351` and `127.0.0.1:7349:7349` — so both are tunnel-only even if
+> the cloud firewall is ever misconfigured. The SSH tunnel still works (it targets the server's
+> 127.0.0.1). Only **7350** stays on `0.0.0.0` (players need the client API public).
 
 > TLS: for the beta the Godot client talks plaintext to `:7350`. Before a public launch, put
 > Caddy/nginx + Let's Encrypt in front (a domain) and switch the client to `wss`/`https`.
 
-## 1. Deploy the stack
+## 1. Deploy the stack — DONE 2026-06-07 (re-run any time; idempotent)
 
 ```bash
 # From the dev machine — upload this folder (excludes .env/pgdata via .gitignore):

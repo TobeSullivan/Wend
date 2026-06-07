@@ -9,6 +9,11 @@ notes/screenshots/
 # Claude Code local state (plans, local settings, locks)
 .claude/
 
+# Local-only secrets — NEVER commit. Nakama console login + the Godot client's
+# server-key config (read at runtime by the NakamaClient autoload).
+deploy/nakama/*.local.txt
+src/nakama_local.cfg
+
 # OS junk
 .DS_Store
 Thumbs.db
