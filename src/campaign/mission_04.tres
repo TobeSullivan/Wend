@@ -1,57 +1,51 @@
 [gd_resource type="Resource" script_class="MapResource" format=3]
 
-[ext_resource type="Script" path="res://resources/tutorial_beat.gd" id="1_beat"]
 [ext_resource type="Script" path="res://resources/zone_definition.gd" id="2_zone"]
 [ext_resource type="Script" path="res://resources/map_resource.gd" id="3_map"]
 
-[sub_resource type="Resource" id="Zone_damage"]
-script = ExtResource("2_zone")
-cell = Vector2i(8, 8)
-magnitude = 30
-
-[sub_resource type="Resource" id="Zone_atkspd"]
+[sub_resource type="Resource" id="Zone_0"]
 script = ExtResource("2_zone")
 type = 1
-cell = Vector2i(12, 9)
-magnitude = 60
-
-[sub_resource type="Resource" id="Zone_range"]
-script = ExtResource("2_zone")
-type = 2
-cell = Vector2i(16, 8)
+cell = Vector2i(11, 7)
 magnitude = 30
 
-[sub_resource type="Resource" id="Zone_slow"]
+[sub_resource type="Resource" id="Zone_1"]
 script = ExtResource("2_zone")
 type = 3
-cell = Vector2i(10, 6)
-magnitude = 40
+cell = Vector2i(12, 4)
+magnitude = 30
 
-[sub_resource type="Resource" id="Beat_load"]
-script = ExtResource("1_beat")
-trigger = "on_mission_load"
-text = "New thing: bonus zones - the colored circles on the board. A tower sitting inside one gets stronger. Red boosts damage, yellow attack speed, blue range, and the cold ones slow enemies to a crawl right where your fire is thickest. Smaller circle, bigger bonus."
+[sub_resource type="Resource" id="Zone_2"]
+script = ExtResource("2_zone")
+type = 0
+cell = Vector2i(19, 12)
+magnitude = 30
 
-[sub_resource type="Resource" id="Beat_build"]
-script = ExtResource("1_beat")
-trigger = "on_build_phase_start"
-text = "Only one waypoint here, so the only new decision is the zones. Build your maze so your best towers stand inside them - and so the enemy lingers in the slow zones."
-anchor = "board"
+[sub_resource type="Resource" id="Zone_3"]
+script = ExtResource("2_zone")
+type = 2
+cell = Vector2i(4, 12)
+magnitude = 30
 
 [resource]
 script = ExtResource("3_map")
 seed = 4
+mode = 0
+grid_size = Vector2i(25, 16)
 entry_cell = Vector2i(0, 8)
 exit_cell = Vector2i(24, 8)
-checkpoint_cells = Array[Vector2i]([Vector2i(12, 4)])
-bonus_zones = [SubResource("Zone_damage"), SubResource("Zone_atkspd"), SubResource("Zone_range"), SubResource("Zone_slow")]
-supply_cap = 30
-round_count = 9
+checkpoint_cells = Array[Vector2i]([Vector2i(17, 3)])
+obstacle_cells = Array[Vector2i]([Vector2i(9, 0), Vector2i(14, 0), Vector2i(22, 0), Vector2i(21, 1), Vector2i(22, 1), Vector2i(6, 2), Vector2i(21, 2), Vector2i(22, 2), Vector2i(4, 3), Vector2i(11, 3), Vector2i(3, 7), Vector2i(8, 7), Vector2i(9, 7), Vector2i(14, 7), Vector2i(15, 7), Vector2i(20, 7), Vector2i(14, 8), Vector2i(15, 8), Vector2i(7, 10), Vector2i(14, 12), Vector2i(12, 14), Vector2i(17, 15)])
+bonus_zones = [SubResource("Zone_0"), SubResource("Zone_1"), SubResource("Zone_2"), SubResource("Zone_3")]
+supply_cap = 36
+round_count = 5
 mob_count = 10
-bronze_threshold = 12000
-silver_threshold = 22000
-gold_threshold = 34000
+bronze_threshold = 3000
+silver_threshold = 6000
+gold_threshold = 9000
 mission_index = 4
-mission_name = "Hot Spots"
-mission_description = "Bonus zones. One waypoint, so the zones are the only new variable."
-tutorial_beats = [SubResource("Beat_load"), SubResource("Beat_build")]
+mission_name = "Zones"
+mission_description = "The core twist: enemies don't die. Build a short maze and farm damage."
+tutorial_beats = []
+# build-phase ghost_cells (CC: drop into the on_build_phase_start TutorialBeat):
+# ghost_cells = Array[Vector2i]([Vector2i(9, 1), Vector2i(11, 1), Vector2i(14, 1), Vector2i(9, 2), Vector2i(11, 2), Vector2i(14, 2), Vector2i(17, 2), Vector2i(18, 2), Vector2i(19, 2), Vector2i(9, 3), Vector2i(14, 3), Vector2i(16, 3), Vector2i(21, 3), Vector2i(9, 4), Vector2i(12, 4), Vector2i(14, 4), Vector2i(17, 4), Vector2i(18, 4), Vector2i(19, 4), Vector2i(20, 4), Vector2i(9, 5), Vector2i(11, 5), Vector2i(12, 5), Vector2i(14, 5), Vector2i(16, 5), Vector2i(11, 6), Vector2i(12, 6), Vector2i(16, 6), Vector2i(10, 7), Vector2i(13, 7), Vector2i(7, 8), Vector2i(7, 9)])
