@@ -26,7 +26,7 @@ func _diag() -> void:
 	var vp := get_viewport().get_visible_rect().size
 	print("DIAG vp=", vp)
 	print("DIAG play_rect=", UiLayout.play_rect(false, vp))
-	print("DIAG top=", UiLayout.top_bar_h(), " bottom=", UiLayout.bottom_strip_h(), " insp=", UiLayout.insp_w())
+	print("DIAG rail=", UiLayout.rail_region(vp), " rail_w=", UiLayout.rail_w())
 	for c in get_children():
 		if c.get("_camera") != null:
 			var cam = c._camera

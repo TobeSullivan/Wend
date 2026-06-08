@@ -29,6 +29,20 @@ var _thresholds_vbox: VBoxContainer
 var _lb_vbox: VBoxContainer       # Trials post-match placement block (Surface 1)
 var _buttons_vbox: VBoxContainer
 
+# Scrim dims the (now-static) board behind any result (design/JUICE.md victory_screen_mock:
+# "board stays calm, dimmed; juice lives in the frame"). Shown for every result mode.
+var _scrim: ColorRect
+# Campaign victory composition (the mock): an angled gold hero overlapping the dimmed board,
+# square star tiles (full outline — fixes polish #7), a DAMAGE score, and leave-only buttons.
+# Separate from the card so the data-dense PVP/ranked/Trials modes keep their card layout.
+var _victory: Control
+var _hero: PanelContainer
+var _hero_big: Label
+var _hero_sub: Label
+var _tiles_row: HBoxContainer
+var _vscore_val: Label
+var _vbuttons: HBoxContainer
+
 const STAR_FOR_MEDAL := {"gold": 3, "silver": 2, "bronze": 1, "none": 0}
 const MEDAL_RESULT := {
 	"gold": "Three stars!", "silver": "Two stars", "bronze": "One star", "none": "No stars — try again",
@@ -51,6 +65,14 @@ func _ready() -> void:
 			coord.board_eliminated.connect(_on_board_eliminated)
 
 func _build_ui() -> void:
+	# Scrim behind everything (added first = drawn behind the card / victory composition).
+	_scrim = ColorRect.new()
+	_scrim.color = Color(0.03, 0.04, 0.02, 0.62)
+	_scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_scrim.mouse_filter = Control.MOUSE_FILTER_STOP  # absorb board clicks under the result
+	_scrim.visible = false
+	add_child(_scrim)
+
 	_panel = PanelContainer.new()
 	UiStyle.apply_card(_panel, 18)
 	_panel.anchor_left = 0.5
@@ -114,9 +136,102 @@ func _build_ui() -> void:
 	_buttons_vbox.add_theme_constant_override("separation", 8)
 	vbox.add_child(_buttons_vbox)
 
+	_build_victory()
+
+# --- Campaign victory composition (design/JUICE.md victory_screen_mock.html) ---
+# An angled gold hero overlapping the dimmed board, a row of square star tiles (full clean
+# outline — polish #7), the DAMAGE score, and leave-only buttons. Static positions now; the
+# staged reveal (cascade / pop / tick) is the later juice pass and slots onto these elements.
+func _build_victory() -> void:
+	_victory = Control.new()
+	_victory.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_victory.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_victory.visible = false
+	add_child(_victory)
+
+	# Centered column: hero (tilted) → star tiles → score. Lifted slightly above center so the
+	# bottom buttons have clear room.
+	var col := VBoxContainer.new()
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_theme_constant_override("separation", 30)
+	col.set_anchors_preset(Control.PRESET_CENTER)
+	col.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	col.grow_vertical = Control.GROW_DIRECTION_BOTH
+	col.offset_top = -70  # nudge the centered block up; buttons live at the bottom
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_victory.add_child(col)
+
+	# Hero — one tidy gold box, text on the box's angle (tilt applied after layout).
+	_hero = PanelContainer.new()
+	_hero.add_theme_stylebox_override("panel", UiStyle.flat_box(UiStyle.PILL_GOLD, 16, UiStyle.PILL_GOLD_BORDER, 2, true))
+	_hero.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var hm := MarginContainer.new()
+	hm.add_theme_constant_override("margin_left", 44); hm.add_theme_constant_override("margin_right", 44)
+	hm.add_theme_constant_override("margin_top", 14); hm.add_theme_constant_override("margin_bottom", 16)
+	_hero.add_child(hm)
+	var hv := VBoxContainer.new()
+	hv.alignment = BoxContainer.ALIGNMENT_CENTER
+	hv.add_theme_constant_override("separation", 2)
+	hm.add_child(hv)
+	_hero_big = _make_label(44, Color.WHITE)
+	_hero_big.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hero_big.add_theme_color_override("font_outline_color", UiStyle.PILL_GOLD_BORDER)
+	_hero_big.add_theme_constant_override("outline_size", 6)
+	hv.add_child(_hero_big)
+	_hero_sub = _make_label(15, UiStyle.PILL_GOLD_BORDER)
+	_hero_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hero_sub.add_theme_constant_override("outline_size", 0)
+	hv.add_child(_hero_sub)
+	col.add_child(_hero)
+
+	# Star tiles.
+	_tiles_row = HBoxContainer.new()
+	_tiles_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_tiles_row.add_theme_constant_override("separation", 18)
+	col.add_child(_tiles_row)
+
+	# Score block.
+	var sblk := VBoxContainer.new()
+	sblk.alignment = BoxContainer.ALIGNMENT_CENTER
+	sblk.add_theme_constant_override("separation", 2)
+	var skey := _make_label(13, UiStyle.LABEL_COL)
+	skey.text = "DAMAGE"
+	skey.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sblk.add_child(skey)
+	_vscore_val = _make_label(46, UiStyle.PILL_GOLD)
+	_vscore_val.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sblk.add_child(_vscore_val)
+	col.add_child(sblk)
+
+	# Buttons — axis-aligned (precision targets stay square), anchored bottom-center.
+	_vbuttons = HBoxContainer.new()
+	_vbuttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	_vbuttons.add_theme_constant_override("separation", 12)
+	_vbuttons.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_vbuttons.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_vbuttons.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_vbuttons.offset_bottom = -48  # 48px clear of the bottom edge
+	_victory.add_child(_vbuttons)
+
+# One 78px square star tile: earned = gold fill + full clean outline; empty = card fill.
+func _star_tile(earned: bool) -> Control:
+	var size := 78.0
+	var tile := PanelContainer.new()
+	tile.custom_minimum_size = Vector2(size, size)
+	var bg: Color = UiStyle.PILL_GOLD if earned else UiStyle.CHIP_BG
+	var border: Color = UiStyle.PILL_GOLD_BORDER if earned else UiStyle.CHIP_BORDER
+	tile.add_theme_stylebox_override("panel", UiStyle.flat_box(bg, 16, border, 3, earned))
+	var cc := CenterContainer.new()
+	tile.add_child(cc)
+	var l := _make_label(38, Color("fff8e6") if earned else Color("566049"))
+	l.text = "★"
+	cc.add_child(l)
+	return tile
+
 # --- Mode entry points ---
 
 func _on_match_ended() -> void:
+	_scrim.visible = true  # dim the now-static board behind any result
 	var coord = round_manager.coordinator
 	if coord != null and coord.is_pvp:
 		if ranked:
@@ -132,6 +247,7 @@ func _on_board_eliminated(board) -> void:
 	# (the final panel takes precedence then).
 	if board != round_manager or coord == null or coord.match_over:
 		return
+	_scrim.visible = true
 	var placement: int = coord.placement_of(round_manager)
 	_title_label.text = "Eliminated"
 	_result_label.text = "%s of %d" % [_ordinal(placement), coord.boards.size()]
@@ -309,6 +425,11 @@ func _on_view_season() -> void:
 	SceneManager.goto_leaderboards({"category": 1, "season": SaveData.ranked_season()})
 
 func _show_medal() -> void:
+	# Campaign → the break-the-grid victory composition (the mock); PVE Trials → the card +
+	# placement block below. (lb_ctx is set for PVE only.)
+	if lb_ctx.is_empty():
+		_show_campaign_victory()
+		return
 	var damage: int = round_manager.total_damage_dealt
 	var medal: String = round_manager.medal_for(damage)
 	_title_label.text = "Match Complete"
@@ -339,6 +460,73 @@ func _show_medal() -> void:
 		_lb_vbox.visible = false
 	_set_buttons(buttons)
 	_panel.visible = true
+
+# Campaign victory composition (the mock). Stars from the medal, DAMAGE score, leave-only
+# Next map / Trials / Ranked (resolves campaign follow-up #4: mission-end is leave-only).
+func _show_campaign_victory() -> void:
+	var damage: int = round_manager.total_damage_dealt
+	var medal: String = round_manager.medal_for(damage)
+	var stars: int = STAR_FOR_MEDAL[medal]
+	SceneManager.report_match_result(damage)  # persist before anything reads the board
+
+	_hero_big.text = "VICTORY" if stars >= 1 else "COMPLETE"
+	var idx := 0
+	var mname := ""
+	if SceneManager.pending_map != null:
+		idx = int(SceneManager.pending_map.mission_index)
+		mname = String(SceneManager.pending_map.mission_name)
+	_hero_sub.text = ("MISSION %d · %s" % [idx, mname.to_upper()]) if mname != "" else "MISSION %d" % idx
+
+	for c in _tiles_row.get_children():
+		c.queue_free()
+	for i in range(3):
+		_tiles_row.add_child(_star_tile(i < stars))
+
+	_vscore_val.text = _commas(damage)
+
+	for c in _vbuttons.get_children():
+		c.queue_free()
+	var has_next := SceneManager.has_campaign_mission(idx + 1)
+	_vbuttons.add_child(_vbutton("Next map" if has_next else "Campaign", _on_next_map, true))
+	_vbuttons.add_child(_vbutton("Trials", _on_goto_trials, false))
+	_vbuttons.add_child(_vbutton("Ranked", _on_goto_ranked, false))
+
+	_scrim.visible = true
+	_panel.visible = false
+	_victory.visible = true
+	_apply_hero_tilt.call_deferred()
+
+# Tilt the hero around its centre once it has a real size (break-the-grid: ~3.5° on heroes).
+func _apply_hero_tilt() -> void:
+	if _hero == null:
+		return
+	_hero.pivot_offset = _hero.size * 0.5
+	_hero.rotation_degrees = -3.5
+
+func _vbutton(text: String, cb: Callable, primary: bool) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = Vector2(150, 48)
+	b.add_theme_font_size_override("font_size", 16)
+	if primary:
+		UiStyle.style_go_button(b)
+	else:
+		UiStyle.style_menu_button(b)
+	b.pressed.connect(cb)
+	return b
+
+func _on_next_map() -> void:
+	var idx := int(SceneManager.pending_map.mission_index) if SceneManager.pending_map != null else 0
+	if SceneManager.has_campaign_mission(idx + 1):
+		SceneManager.start_campaign_mission(idx + 1)
+	else:
+		SceneManager.goto_campaign_select()
+
+func _on_goto_trials() -> void:
+	SceneManager.goto_pve_select()
+
+func _on_goto_ranked() -> void:
+	SceneManager.goto_lobby()
 
 # --- Helpers ---
 
@@ -465,6 +653,8 @@ func _commas(n: int) -> String:
 
 func _hide_panel() -> void:
 	_panel.visible = false
+	_victory.visible = false
+	_scrim.visible = false
 
 func _on_return_home() -> void:
 	SceneManager.net_close()  # leave the server cleanly (no-op for solo/campaign)

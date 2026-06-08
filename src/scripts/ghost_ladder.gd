@@ -87,6 +87,31 @@ func rung_count() -> int:
 			n += 1
 	return n + _ghost_rungs.size()
 
+# Up to `n` upcoming targets strictly above `score`, ascending — the rail's SCORE rungs
+# (notes/ghost_ladder.md bound to the rail frame; design/INMATCH_HUD.md §2). Each entry:
+#   {"kind": "star"|"ghost"|"your_best", "label": String, "target": int,
+#    "stars": int (1-3 for star kind, else 0), "name": String (ghost name, else "")}
+# Named tiers render as "1/2/3 star" — player-facing is STARS, never bronze/silver/gold.
+# Returns fewer than n when little remains; the rail pads the rest with blank rows that hold
+# their height (so the Buttons box below never shifts). Your prior best appears only once
+# you're past gold and clear of the ghosts (mirrors target_for's YOUR_BEST gating).
+func rungs_above(score: int, n: int = 3) -> Array:
+	var out: Array = []
+	var tiers := [bronze, silver, gold]
+	for i in range(3):
+		var t: int = tiers[i]
+		if t > 0 and score < t:
+			out.append({"kind": "star", "label": "%d star" % (i + 1), "target": t, "stars": i + 1, "name": ""})
+	for g in _ghost_rungs:
+		if int(g["score"]) > score:
+			out.append({"kind": "ghost", "label": str(g["name"]), "target": int(g["score"]), "stars": 0, "name": str(g["name"])})
+	if own_best > score and own_best > gold:
+		out.append({"kind": "your_best", "label": "Your best", "target": own_best, "stars": 0, "name": ""})
+	out.sort_custom(func(a, b): return int(a["target"]) < int(b["target"]))
+	if out.size() > n:
+		out = out.slice(0, n)
+	return out
+
 # --- Snapshot source ---------------------------------------------------------
 # The real snapshot is ONE cached leaderboard read fanned out per (map, window, group-size)
 # at match start (notes/ghost_ladder.md) — population-independent, not a per-player query.

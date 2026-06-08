@@ -121,10 +121,10 @@ func _test_wiring() -> void:
 	add_child(pve_host)
 	MapLoaderScript.build_match(pve_host, pve_map, 1, 0, false)
 	await _wait(0.1)
-	var pve_hud = _find(pve_host, "HUD")
-	_check("PVE: HUD exists", pve_hud != null, true)
+	var pve_hud = _find(pve_host, "Rail")
+	_check("PVE: rail exists", pve_hud != null, true)
 	if pve_hud != null:
-		_check("PVE: HUD has a ghost ladder", pve_hud.ghost_ladder != null, true)
+		_check("PVE: rail has a ghost ladder", pve_hud.ghost_ladder != null, true)
 	_check("PVE: no win panel (go-home prompt removed)", _find(pve_host, "WinPanel") == null, true)
 	pve_host.queue_free()
 
@@ -134,10 +134,10 @@ func _test_wiring() -> void:
 	add_child(camp_host)
 	MapLoaderScript.build_match(camp_host, camp_map, 1, 0, false)
 	await _wait(0.1)
-	var camp_hud = _find(camp_host, "HUD")
-	_check("Campaign: HUD exists", camp_hud != null, true)
+	var camp_hud = _find(camp_host, "Rail")
+	_check("Campaign: rail exists", camp_hud != null, true)
 	if camp_hud != null:
-		_check("Campaign: HUD has NO ghost ladder", camp_hud.ghost_ladder == null, true)
+		_check("Campaign: rail has NO ghost ladder", camp_hud.ghost_ladder == null, true)
 	_check("Campaign: win panel intact", _find(camp_host, "WinPanel") != null, true)
 	camp_host.queue_free()
 

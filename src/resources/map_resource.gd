@@ -13,7 +13,7 @@ enum WindowType { DAILY, WEEKLY, MONTHLY }
 @export var mode: Mode = Mode.CAMPAIGN
 
 # === Layout ===
-@export var grid_size: Vector2i = Vector2i(25, 14)  # canonical board; committed .tres inherit this (coords authored for it). Generated maps set it explicitly.
+@export var grid_size: Vector2i = Vector2i(25, 16)  # canonical board (locked universal, design/INMATCH_HUD.md); committed .tres set it explicitly, generated maps read Grid.COLS/ROWS.
 @export var entry_cell: Vector2i = Vector2i.ZERO
 @export var exit_cell: Vector2i = Vector2i.ZERO
 @export var checkpoint_cells: Array[Vector2i] = []   # 1–3 entries, in visit order

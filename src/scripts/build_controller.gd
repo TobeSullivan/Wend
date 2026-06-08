@@ -123,6 +123,21 @@ func _process(_delta: float) -> void:
 	# follows a cursor every frame.
 	if not _build_mode or _touch_mode:
 		return
+	# Out of supply: stop the placement cursor entirely (polish #8) — don't leave a ghost
+	# the player can never afford to place. It reappears if they sell a tower (supply frees).
+	if _supply_full():
+		if _ghost != null:
+			_ghost.visible = false
+		if _ghost_range != null:
+			_ghost_range.visible = false
+		if _show_projected:
+			_show_projected = false
+			_refresh_road_preview()
+		return
+	if _ghost != null and not _ghost.visible:
+		_ghost.visible = true
+		_ghost_range.visible = true
+		_last_ghost_cell = _NO_CELL  # force a fresh validity/path compute now that we're back
 	var cell := GridScript.world_to_cell(get_global_mouse_position())
 	var world := GridScript.cell_to_world(cell)
 	_ghost.position = world
@@ -221,8 +236,8 @@ func _set_build_mode(value: bool) -> void:
 		return
 	_build_mode = value
 	# In touch mode the ghost is hidden until a tap parks a preview; the mouse path
-	# shows it immediately so it can follow the cursor.
-	var show_ghost: bool = value and not _touch_mode
+	# shows it immediately so it can follow the cursor. Out of supply (polish #8): no ghost.
+	var show_ghost: bool = value and not _touch_mode and not _supply_full()
 	if _ghost != null:
 		_ghost.visible = show_ghost
 	if _ghost_range != null:
@@ -382,6 +397,9 @@ func _tower_at_cell(cell: Vector2i) -> Node2D:
 		if t.grid_cell == cell:
 			return t
 	return null
+
+func _supply_full() -> bool:
+	return towers.size() >= max_towers
 
 func _is_valid_placement(cell: Vector2i) -> bool:
 	if towers.size() >= max_towers:

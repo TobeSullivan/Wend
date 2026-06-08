@@ -1,7 +1,7 @@
 # In-Match HUD — Layout
 
 Repo path: `design/INMATCH_HUD.md`
-Status: **SIGNED OFF 2026-06-07** — right panel, board maximization, and tower overlay are locked. Board overlays (pop-out leaderboard, spectate banner, round-end overlay) are noted but not yet specced.
+Status: **SIGNED OFF 2026-06-07 · IMPLEMENTED 2026-06-08 (CC)** — right panel, board maximization, and tower info are built (`src/scripts/rail.gd`, `tower_drawer.gd`, `ui_layout.gd`; retired `hud.gd`/`action_strip.gd`). One decision refined at build time: **tower info docks IN the rail's lower gap by default** (the flagged in-rail alternative — measured to fit at 1080p with ~175px clearance), falling back to the over-board overlay only on windows too short to hold it. Board overlays (pop-out leaderboard, spectate banner, round-end overlay) remain noted but not yet specced.
 
 Visual tokens (palette, radii, bevel, shadow, Fredoka SemiBold + outline) are inherited from `design/VISUAL_SYSTEM.md` and not repeated here. This doc is **layout + content**, not styling.
 
@@ -89,7 +89,7 @@ Identical to the current in-game tower panel, with three changes: it's a **conte
 - **Content:** header (TOWER / name / `Lv n · selected`), six stat rows as one shared 4-column grid — **Stat · Now · Cost · [+]** — aligned down the panel; then **Total damage · n kills**; then **Sell**. No column headers. This is where **Trials kills** live (per-tower contribution).
 - **Behavior:** appears on tower-select, dismisses on click-off / Esc. **Fixed anchor** (top-right, hugging the board's right edge) — it does *not* follow the selected tower around the board (a jumping panel would occlude different cells and feel restless). Content updates to the selected tower; position holds.
 - **Range ring** draws on the board on select (existing behavior; lives with the overlay, not inside it).
-- **Live alternative (not locked, flagged for build time):** the overlay fits inside the rail's lower gap beneath the buttons. Tower-info *in the rail* (appearing on select) would mean zero board occlusion. Locked as an overlay, but in-rail is a close, fair alternative when implementing.
+- **Build-time decision (2026-06-08): in-rail by default + overlay fallback.** Measured the rail's lower gap at the 1080p reference (~495px free beneath the Buttons box; tower panel ~305px → ~175px clearance), so tower info now **docks in the rail's lower gap** (zero board occlusion) and only falls back to the over-board overlay when the window is too short to hold it (below ~900px tall, since the desktop rail is fixed-px). Both placements implemented in `tower_drawer.gd`; the rail exposes `tower_slot_rect()` (empty ⇒ fall back).
 
 ---
 

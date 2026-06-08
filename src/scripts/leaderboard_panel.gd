@@ -13,11 +13,12 @@ class_name LeaderboardPanel
 
 const UiLayout := preload("res://scripts/ui_layout.gd")
 const UiStyle := preload("res://scripts/ui_style.gd")
+const Motion := preload("res://scripts/motion.gd")
 
 var coordinator                # MatchCoordinator
 var boards: Array = []         # BoardState per board (index = board index)
 var local_index: int = 0
-var grid_size: Vector2i = Vector2i(25, 14)
+var grid_size: Vector2i = Vector2i(25, 16)
 var arena                      # GameView — for tap-to-spectate during run
 
 var _panel: Panel
@@ -217,18 +218,18 @@ func _open_drawer() -> void:
 	_panel.size = region.size
 	_refresh()
 	_kill_tween()
-	_tween = create_tween()
-	_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	_tween.tween_property(_panel, "position:x", region.position.x, 0.18)
+	# Arrive on the faithful curve (distance-independent ~11% overshoot — TRANS_BACK over this
+	# wide a slide would overshoot far past the rest edge). arrive_property arms `from` itself.
+	_tween = Motion.arrive_property(_panel, "position:x", region.position.x - region.size.x, region.position.x, Motion.M)
 	_open = true
 
 func _close_drawer() -> void:
 	var region := UiLayout.minimap_region(get_viewport().get_visible_rect().size)
 	_open = false  # taps pass through immediately while it slides out
 	_kill_tween()
+	# Leave: accelerate out, quicker than it arrived (M in, S out).
 	_tween = create_tween()
-	_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-	_tween.tween_property(_panel, "position:x", region.position.x - region.size.x, 0.16)
+	Motion.leave(_tween.tween_property(_panel, "position:x", region.position.x - region.size.x, Motion.dur(Motion.S)))
 
 func _kill_tween() -> void:
 	if _tween != null and _tween.is_valid():

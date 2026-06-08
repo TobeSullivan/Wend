@@ -80,6 +80,12 @@ Pause overlay, Settings overlay, Campaign select, and generic menu transitions i
 
 ## Open dials (numbers, not shape)
 Hero tilt −3.5° and the 130ms set-piece stagger are provisional — tune in playtest. The impact-event audio sting is flagged and undecided.
+- **Arrive overshoot = ~11%** (`Motion.ARRIVE_OVERSHOOT_S = 1.8`, easeOutBack, distance-independent). **Discrepancy flagged:** the motion-reference mock's literal `cubic-bezier(.34,1.32,.5,1)` only overshoots **~3.4%** — gentler than this doc's prose ("~10–12%") + the CC Godot-map both call for. CC honored the stated 10–12% (the shape — overshoot-then-settle — is what's locked; magnitude is a dial). If playtest wants the mock's gentler settle, drop `ARRIVE_OVERSHOOT_S` toward ~1.0 (≈3–4%).
+
+## Implementation status (CC)
+- ✅ **Shared motion helper** — `src/scripts/motion.gd` (preload-static, mirrors `UiStyle`). The single source: timing tokens (XS/S/M/L/SCREEN), the three verbs (`arrive`/`settle`/`leave`, usable on a whole Tween or one tweener), faithful distance-independent `arrive_ease`, `pop`/`fade_in`/`fade_out`/`slide_in`/`arrive_property`, `cascade`/`stagger_delay` (capped), and a `reduced` flag + `dur()` scaler wired through everything (Settings toggle pending). Pure math verified headless: `src/tools/motion_test.{gd,tscn}` (arrive curve · reduced-motion · stagger cap · tokens, all ✅).
+- ✅ **First adoptions** — the two surfaces that hand-rolled tweens now route through `Motion`: the round-end **wave-clear toast** (`round_toast.gd` — drops from the top on the arrive curve, holds, leaves faster; a named JUICE beat) and the in-match PVP **leaderboard drawer** (`leaderboard_panel.gd` — arrive in / leave out). Parse + match-build verified headless; **feel is a playtest item** (tween motion isn't headless-testable).
+- ▶ **Remaining surfaces** inherit the helper: in-match HUD rail stagger-in + tower-deepen pop, victory/result choreography, meta-menu transitions, staged climbs (Surface 2 + ghost ladder), and the generic pause/settings/select arrivals.
 
 ## Note for CC
-Every spec here is **motion + layout + type + color — no new art.** When implementing, match the mocks' feel, tune the Godot overshoot constant to land ~10–12%, and **arm entrance state before revealing a screen** (see Arm before reveal).
+Every spec here is **motion + layout + type + color — no new art.** When implementing, route through `Motion` (don't re-invent durations/curves), match the mocks' feel, and **arm entrance state before revealing a screen** (see Arm before reveal — baked into `slide_in`/`arrive_property`).

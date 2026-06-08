@@ -2,16 +2,16 @@ extends Node
 class_name Grid
 
 # Map dimensions in tiles.
-# Canonical board (2026-06-06): 25x14, PC-first. Widened 1 tile each side from the 23x14
-# tile-feel-check size so the board fills more of the frame and the maze has room before
-# the edges. Reverses the dead mobile-first 20x11 shrink — mobile would be a separate fork,
-# not a resize. Generated PVE/PVP maps read COLS/ROWS directly; the authored campaign .tres
-# (M1-M10) were rescaled to this board (tools/rescale_campaign.gd) and inherit this size via
-# the MapResource default. TILE_SIZE stays world-space; on-screen size is the camera's
-# concern, not a world value.
+# Canonical board (2026-06-07): 25x16, PC-first, LOCKED UNIVERSAL (design/INMATCH_HUD.md
+# "Board maximization"). Derived once at the 1080p reference: with the right rail reserved
+# (~280px) the board area fits 25 cols x 16 rows at the fixed tile size; the two extra rows
+# (over the old 25x14) fill what used to be the top/bottom letterbox. Every player runs
+# 25x16 regardless of monitor — other resolutions scale+center the same grid. Generated
+# PVE/PVP maps read COLS/ROWS directly; the authored campaign .tres are 25x16. TILE_SIZE
+# stays world-space; on-screen size is the camera's concern, not a world value.
 const TILE_SIZE := 48
 const COLS := 25
-const ROWS := 14  # 1200 x 672 world px
+const ROWS := 16  # 1200 x 768 world px
 
 const ORIGIN := Vector2.ZERO  # top-left of grid in world coordinates
 

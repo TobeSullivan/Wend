@@ -61,7 +61,9 @@ func _build_spectate_chrome(layer: CanvasLayer) -> void:
 	var s := UiLayout.scale_factor()
 
 	_frame = Panel.new()
-	_frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# Positioned to bracket the focused board (set in _update_label via board_screen_rect),
+	# not the whole viewport — the rail occupies the right edge.
+	_frame.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var fsb := StyleBoxFlat.new()
 	fsb.bg_color = Color(0, 0, 0, 0)        # border only — see the live board through it
@@ -126,6 +128,19 @@ func refit() -> void:
 func current_index() -> int:
 	return _spectate_index
 
+# The focused board's on-screen rectangle (screen-space px), derived from the camera zoom +
+# position. The tower info panel uses this to hug the board's right edge when it falls back
+# to the over-board overlay (short windows); the spectate frame uses it to bracket the board.
+func board_screen_rect() -> Rect2:
+	if _camera == null or _spectate_index < 0 or _spectate_index >= board_containers.size():
+		return Rect2()
+	var board_px := Vector2(grid_size.x, grid_size.y) * float(GridScript.TILE_SIZE)
+	var z: float = _camera.zoom.x
+	var vp := get_viewport_rect().size
+	var origin: Vector2 = board_containers[_spectate_index].position
+	var tl: Vector2 = (origin - _camera.position) * z + vp / 2.0
+	return Rect2(tl, board_px * z)
+
 # Frame board `i`: hide the others (no neighbour bleed) and fit it into the play rect.
 func _focus(i: int) -> void:
 	_spectate_index = i
@@ -158,6 +173,9 @@ func _update_label() -> void:
 	_banner.visible = spectating
 	_back_button.visible = spectating
 	if spectating:
+		var r := board_screen_rect()
+		_frame.position = r.position
+		_frame.size = r.size
 		_banner_label.text = "Spectating %s" % _name_for(_spectate_index)
 
 func _name_for(i: int) -> String:

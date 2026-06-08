@@ -19,8 +19,8 @@ const SpawnerScript := preload("res://scripts/spawner.gd")
 const BuildControllerScript := preload("res://scripts/build_controller.gd")
 const MatchCoordinatorScript := preload("res://scripts/match_coordinator.gd")
 const RoundManagerScript := preload("res://scripts/round_manager.gd")
-const HUDScript := preload("res://scripts/hud.gd")
-const ActionStripScript := preload("res://scripts/action_strip.gd")
+const RailScript := preload("res://scripts/rail.gd")
+const BuildConfirmScript := preload("res://scripts/build_confirm.gd")
 const TowerDrawerScript := preload("res://scripts/tower_drawer.gd")
 const MatchEndPanelScript := preload("res://scripts/match_end_panel.gd")
 const WinPanelScript := preload("res://scripts/win_panel.gd")
@@ -108,7 +108,7 @@ static func build_match(host: Node2D, map, num_boards: int = 1, local_index: int
 	var local_board = boards[local_index]
 	var local_ctrl = local_board.build_controller
 	var ui = _build_match_ui(host, local_board, local_ctrl, map, _build_ghost_ladder(map))
-	var strip = ui[0]
+	var rail = ui[0]
 	var drawer = ui[1]
 
 	# Playtest telemetry for threshold calibration (local board only; user:// only).
@@ -175,7 +175,7 @@ static func build_match(host: Node2D, map, num_boards: int = 1, local_index: int
 		leaderboard.grid_size = map.grid_size
 		leaderboard.arena = game_view
 		host.add_child(leaderboard)
-		strip.minimap = leaderboard  # the strip's PVP leaderboard button toggles it
+		rail.minimap = leaderboard  # the rail's Leaderboard button toggles the pop-out
 		game_view.minimap = leaderboard  # taps over the open panel don't poke the board
 		local_ctrl.minimap = leaderboard  # same guard for the mouse path
 
@@ -275,23 +275,22 @@ static func _build_board(container: Node2D, map, coordinator, is_local: bool, us
 
 	return board
 
-# Builds the on-screen UI frame for the local board and returns [strip, drawer] (so
-# the caller can inject the PVP minimap ref and wire the game_view tap guard). `map` is the
-# MapResource; `ghost_ladder` is the Trials target ladder (null outside PVE).
+# Builds the on-screen UI frame for the local board and returns [rail, drawer] (so the
+# caller can inject the PVP leaderboard ref and wire the game_view tap guard + drawer's
+# game_view). `map` is the MapResource; `ghost_ladder` is the Trials target ladder (null
+# outside PVE). The rail (design/INMATCH_HUD.md) is the single home for persistent UI; the
+# tower drawer is contextual (docks in the rail's lower gap, or overlays the board).
 static func _build_match_ui(host: Node2D, local_board, local_ctrl, map, ghost_ladder) -> Array:
 	var mode: int = int(map.mode)
-	var hud := HUDScript.new()
-	hud.round_manager = local_board
-	hud.build_controller = local_ctrl
-	hud.ghost_ladder = ghost_ladder  # set BEFORE add_child so _ready builds the caption
-
-	var strip := ActionStripScript.new()
-	strip.round_manager = local_board
-	strip.build_controller = local_ctrl
+	var rail := RailScript.new()
+	rail.round_manager = local_board
+	rail.build_controller = local_ctrl
+	rail.ghost_ladder = ghost_ladder  # set BEFORE add_child so the SCORE box builds its rungs
 
 	var drawer := TowerDrawerScript.new()
 	drawer.round_manager = local_board
 	drawer.build_controller = local_ctrl
+	drawer.rail = rail  # ask the rail for the in-rail dock slot (else it overlays the board)
 
 	var match_end := MatchEndPanelScript.new()
 	match_end.round_manager = local_board
@@ -308,11 +307,15 @@ static func _build_match_ui(host: Node2D, local_board, local_ctrl, map, ghost_la
 	var pause_menu := PauseMenuScript.new()
 	pause_menu.build_controller = local_ctrl
 	pause_menu.round_manager = local_board
-	strip.pause_menu = pause_menu  # the strip's on-screen Pause button drives the menu
+	rail.pause_menu = pause_menu  # the rail's Menu button drives the pause/menu overlay
 
-	host.add_child(hud)
-	host.add_child(strip)
+	host.add_child(rail)
 	host.add_child(drawer)
+	# Touch-only bottom-center placement confirm (a board interaction, not rail state).
+	if DisplayServer.is_touchscreen_available():
+		var build_confirm := BuildConfirmScript.new()
+		build_confirm.build_controller = local_ctrl
+		host.add_child(build_confirm)
 	host.add_child(match_end)
 	# The gold-reached "you won — keep playing / go home?" prompt is a campaign-ism. Trials
 	# (PVE) runs until its rounds are spent — never interrupt a climb (notes/ghost_ladder.md).
@@ -322,7 +325,7 @@ static func _build_match_ui(host: Node2D, local_board, local_ctrl, map, ghost_la
 		host.add_child(win_panel)
 	host.add_child(round_toast)
 	host.add_child(pause_menu)
-	return [strip, drawer]
+	return [rail, drawer]
 
 # Trials only: build the in-match ghost ladder (notes/ghost_ladder.md). The snapshot of
 # ghost scores is one cached leaderboard read fanned out per (map, window, group-size) at
