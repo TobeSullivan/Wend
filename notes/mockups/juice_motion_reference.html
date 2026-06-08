@@ -1,0 +1,327 @@
+<!-- Wend — Motion Foundation reference. Demonstrates the shared motion language
+     every juice surface inherits. Palette = locked VISUAL_SYSTEM tokens. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wend — Motion Foundation</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* locked palette */
+    --panel:#323d2c; --panel-b:#1a2012;
+    --chip:#39402c;  --chip-b:#23170d;
+    --card:#2a3322;  --card-b:#161c0f;
+    --gold:#b38e2c;  --gold-b:#5e4710;
+    --green:#5fbe38; --green-b:#2c5a18;
+    --terra:#b04a2a; --terra-b:#5e2310;
+    --ink:#ffffff;   --sage:#b9c7a4;
+    --grass:#5e6c3c; /* approximation of the toned-grass backdrop */
+    --studio:#161c12;
+
+    /* TIMING SCALE (ms) */
+    --t-xs:90ms; --t-s:160ms; --t-m:260ms; --t-l:440ms; --t-screen:320ms;
+    --stagger:60ms;
+
+    /* EASING SIGNATURES */
+    --ease-arrive:cubic-bezier(.34,1.32,.5,1);  /* fast in, ~11% overshoot, settle */
+    --ease-settle:cubic-bezier(.22,1,.36,1);    /* smooth out, no overshoot */
+    --ease-leave:cubic-bezier(.4,0,1,1);        /* accelerate out */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--studio);
+    color:var(--ink);
+    font-family:'Fredoka','Baloo 2','Quicksand',system-ui,sans-serif;
+    font-weight:600;
+    -webkit-font-smoothing:antialiased;
+    padding:28px 22px 60px;
+  }
+  .wrap{max-width:1040px;margin:0 auto}
+  h1{font-size:30px;margin:0 0 2px;letter-spacing:.3px;
+     text-shadow:0 2px 0 var(--panel-b)}
+  .sub{color:var(--sage);font-weight:500;font-size:14px;margin:0 0 22px}
+
+  /* token legend */
+  .legend{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 26px}
+  .tok{background:var(--chip);border:2px solid var(--chip-b);border-bottom-width:4px;
+       border-radius:12px;padding:6px 11px;font-size:12.5px;color:var(--sage)}
+  .tok b{color:var(--ink);font-weight:600}
+
+  section{background:var(--panel);border:2px solid var(--panel-b);border-bottom-width:4px;
+          border-radius:18px;padding:18px 18px 20px;margin:0 0 18px;
+          box-shadow:0 5px 7px rgba(0,0,0,.42)}
+  .head{display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin:0 0 14px}
+  .head h2{font-size:18px;margin:0}
+  .head .why{color:var(--sage);font-weight:500;font-size:13px;text-align:right;max-width:560px}
+
+  button.play{font-family:inherit;font-weight:600;font-size:13px;color:var(--ink);
+    background:var(--green);border:2px solid var(--green-b);border-bottom-width:4px;
+    border-radius:12px;padding:7px 14px;cursor:pointer;text-shadow:0 1px 0 var(--green-b)}
+  button.play:active{transform:translateY(2px);border-bottom-width:2px}
+  button.ghost{background:var(--chip);border-color:var(--chip-b)}
+
+  .stages{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+  .stage{position:relative;height:120px;background:var(--studio);border-radius:14px;
+         overflow:hidden;border:2px solid var(--card-b)}
+  .stage .cap{position:absolute;left:10px;top:8px;font-size:12px;color:var(--sage);font-weight:500;z-index:3}
+  .mover{position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);
+         padding:11px 16px;border-radius:14px;border:2px solid var(--gold-b);border-bottom-width:4px;
+         background:var(--gold);font-size:14px;white-space:nowrap;text-shadow:0 1px 0 var(--gold-b)}
+
+  /* ARRIVE */
+  #m-arrive{transform:translate(60px,-50%);opacity:0}
+  #m-arrive.go{transform:translate(-50%,-50%);opacity:1;
+               transition:transform var(--t-m) var(--ease-arrive),opacity var(--t-s) ease-out}
+  /* SETTLE — slides between two slots, no overshoot */
+  #m-settle{left:18%;transform:translate(-50%,-50%)}
+  #m-settle.go{left:82%;transition:left var(--t-m) var(--ease-settle)}
+  /* LEAVE */
+  #m-leave{opacity:1}
+  #m-leave.go{transform:translate(-50%,calc(-50% + 90px)) scale(.9);opacity:0;
+              transition:transform var(--t-s) var(--ease-leave),opacity var(--t-s) var(--ease-leave)}
+
+  /* TIMING RACE */
+  .race{display:flex;flex-direction:column;gap:9px}
+  .lane{position:relative;height:30px;background:var(--studio);border-radius:8px;border:2px solid var(--card-b)}
+  .lane .tag{position:absolute;left:9px;top:5px;font-size:11px;color:var(--sage);font-weight:500;z-index:2}
+  .pip{position:absolute;top:5px;left:6px;width:18px;height:18px;border-radius:6px;background:var(--green)}
+  .pip.go{left:calc(100% - 24px)}
+  #pxs.go{transition:left var(--t-xs) var(--ease-settle)}
+  #ps.go{transition:left var(--t-s) var(--ease-settle)}
+  #pm.go{transition:left var(--t-m) var(--ease-settle)}
+  #pl.go{transition:left var(--t-l) var(--ease-settle)}
+
+  /* STAGGER */
+  .stagrow{display:flex;gap:10px;align-items:flex-end;min-height:70px;margin-bottom:8px}
+  .star{width:52px;height:52px;border-radius:14px;background:var(--card);border:2px solid var(--card-b);
+        display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--gold);
+        transform:translateY(22px) scale(.6);opacity:0}
+  .star.go{transform:none;opacity:1;
+           transition:transform var(--t-m) var(--ease-arrive),opacity var(--t-s) ease-out}
+  .ladder{display:flex;flex-direction:column-reverse;gap:5px}
+  .rung{height:22px;border-radius:7px;background:var(--chip);border:2px solid var(--chip-b);
+        color:var(--sage);font-size:11px;font-weight:500;display:flex;align-items:center;padding:0 9px;
+        transform:translateX(-26px);opacity:0}
+  .rung.go{transform:none;opacity:1;transition:transform var(--t-s) var(--ease-arrive),opacity var(--t-xs) ease-out}
+
+  /* EMPHASIS POP */
+  .popline{display:flex;gap:18px;align-items:center}
+  .scorebox,.lpchip{background:var(--card);border:2px solid var(--card-b);border-bottom-width:4px;border-radius:14px;padding:10px 16px}
+  .scorebox{font-size:26px;color:var(--gold);min-width:150px;text-align:center}
+  .lpchip{font-size:15px;color:var(--green)}
+  .pop{animation:pop var(--t-s) var(--ease-arrive)}
+  @keyframes pop{0%{transform:scale(1)}45%{transform:scale(1.14)}100%{transform:scale(1)}}
+
+  /* SPATIAL CHOREOGRAPHY */
+  .screen{position:relative;height:240px;border-radius:14px;overflow:hidden;border:2px solid var(--card-b);
+          background:var(--studio);display:flex}
+  .board{flex:1;margin:8px;border-radius:12px;background:var(--grass);position:relative;
+         background-image:linear-gradient(rgba(0,0,0,.10) 1px,transparent 1px),
+                          linear-gradient(90deg,rgba(0,0,0,.10) 1px,transparent 1px);
+         background-size:26px 26px}
+  .board .lab{position:absolute;left:10px;bottom:8px;font-size:12px;color:rgba(255,255,255,.8);font-weight:500}
+  .rail{width:118px;margin:8px 8px 8px 0;border-radius:12px;background:var(--panel);border:2px solid var(--panel-b);
+        padding:9px;display:flex;flex-direction:column;gap:7px;transform:translateX(150%)}
+  .rail.go{transform:none;transition:transform var(--t-screen) var(--ease-arrive)}
+  .railbar{height:20px;border-radius:6px;background:var(--chip)}
+  .toast{position:absolute;top:10px;left:50%;transform:translate(-50%,-46px);opacity:0;
+         background:var(--panel);border:2px solid var(--panel-b);border-bottom-width:4px;border-radius:12px;
+         padding:7px 14px;font-size:12.5px;color:var(--sage);font-weight:500;z-index:4}
+  .toast.go{transform:translate(-50%,0);opacity:1;transition:transform var(--t-m) var(--ease-arrive),opacity var(--t-s) ease-out}
+  .result{position:absolute;left:50%;bottom:46px;transform:translate(-50%,70px) scale(.92);opacity:0;
+          background:var(--gold);border:2px solid var(--gold-b);border-bottom-width:4px;border-radius:14px;
+          padding:12px 22px;font-size:18px;color:var(--ink);z-index:5;text-shadow:0 1px 0 var(--gold-b)}
+  .result.go{transform:translate(-50%,0) scale(1);opacity:1;
+             transition:transform var(--t-l) var(--ease-arrive),opacity var(--t-m) ease-out}
+
+  /* BREAK THE GRID compare — box overlaps the SURFACE; text stays in the box, on the box's angle */
+  .compare{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .cell{height:170px;border-radius:12px;background:var(--studio);border:2px solid var(--card-b);
+        position:relative;overflow:hidden}
+  .cell .note{position:absolute;left:10px;top:8px;font-size:11.5px;color:var(--sage);font-weight:500;z-index:6}
+  .board2{position:absolute;inset:30px 30px 26px 30px;border-radius:12px;background:var(--grass);
+    background-image:linear-gradient(rgba(0,0,0,.10) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(0,0,0,.10) 1px,transparent 1px);
+    background-size:24px 24px}
+  /* the box is ONE unit; text is a plain child so it shares the box transform */
+  .ovl{position:absolute;background:var(--gold);border:2px solid var(--gold-b);border-bottom-width:4px;
+       border-radius:12px;padding:11px 18px;font-size:18px;font-weight:700;color:var(--ink);white-space:nowrap;
+       text-shadow:-2px 0 var(--gold-b),2px 0 var(--gold-b),0 -2px var(--gold-b),0 2px var(--gold-b);
+       box-shadow:0 5px 7px rgba(0,0,0,.42);z-index:3}
+  /* geometry: axis-aligned, sits fully inside the surface, overlaps nothing */
+  .ovl.flat{left:50%;top:50%;transform:translate(-50%,-50%)}
+  /* style: angled as one unit, straddling the surface edge */
+  .ovl.over{right:-12px;top:50%;transform:translateY(-50%) rotate(-3.5deg)}
+
+  .foot{color:var(--sage);font-weight:500;font-size:13px;line-height:1.55;margin-top:8px}
+  .foot b{color:var(--ink);font-weight:600}
+  code{background:var(--studio);border:1px solid var(--card-b);border-radius:5px;padding:1px 6px;color:var(--sage);font-size:12.5px}
+</style>
+
+<div class="wrap">
+  <h1>Wend — Motion Foundation</h1>
+  <p class="sub">The shared language every juice surface inherits. Confident and springy, not frantic. One hand.</p>
+
+  <div class="legend">
+    <span class="tok"><b>XS 90ms</b> tap / micro</span>
+    <span class="tok"><b>S 160ms</b> element</span>
+    <span class="tok"><b>M 260ms</b> panel (default)</span>
+    <span class="tok"><b>L 440ms</b> set-piece</span>
+    <span class="tok"><b>stagger 60ms</b> per sibling</span>
+    <span class="tok">arrive <b>cubic-bezier(.34,1.32,.5,1)</b></span>
+    <span class="tok">settle <b>(.22,1,.36,1)</b></span>
+    <span class="tok">leave <b>(.4,0,1,1)</b></span>
+  </div>
+
+  <section>
+    <div class="head">
+      <h2>1 · The three verbs</h2>
+      <div class="why">Nothing teleports. Things <b>arrive</b> (overshoot + settle), <b>settle</b> (reposition, no overshoot), or <b>leave</b> (accelerate out, faster than they came).</div>
+    </div>
+    <div class="stages">
+      <div class="stage"><span class="cap">ARRIVE</span><div class="mover" id="m-arrive">+45 LP</div></div>
+      <div class="stage"><span class="cap">SETTLE</span><div class="mover" id="m-settle">rank ▲</div></div>
+      <div class="stage"><span class="cap">LEAVE</span><div class="mover" id="m-leave">Build phase</div></div>
+    </div>
+    <div style="margin-top:12px"><button class="play" onclick="playVerbs()">▶ replay verbs</button></div>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>2 · Timing scale</h2>
+      <div class="why">Four durations, reused everywhere. Same start — watch how far each travels. Exits use the short end; set-pieces earn the long one.</div>
+    </div>
+    <div class="race">
+      <div class="lane"><span class="tag">XS · taps, micro-feedback</span><div class="pip" id="pxs"></div></div>
+      <div class="lane"><span class="tag">S · single element</span><div class="pip" id="ps"></div></div>
+      <div class="lane"><span class="tag">M · panels, transitions</span><div class="pip" id="pm"></div></div>
+      <div class="lane"><span class="tag">L · staged moments</span><div class="pip" id="pl"></div></div>
+    </div>
+    <div style="margin-top:12px"><button class="play" onclick="playRace()">▶ replay race</button></div>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>3 · Stagger</h2>
+      <div class="why">Sibling sets cascade at 60ms steps, never all at once. Stars fill low importance → high; ladder rungs climb bottom → top.</div>
+    </div>
+    <div class="stagrow" id="stars">
+      <div class="star">★</div><div class="star">★</div><div class="star">★</div>
+    </div>
+    <div class="ladder" id="ladder">
+      <div class="rung">your best · 41,200</div>
+      <div class="rung">ghost · 52,800</div>
+      <div class="rung">ghost · 67,100</div>
+      <div class="rung">TOP · 88,400</div>
+    </div>
+    <div style="margin-top:12px"><button class="play" onclick="playStagger()">▶ replay cascade</button></div>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>4 · Emphasis pop</h2>
+      <div class="why">A value that just changed gets a quick scale pop (XS–S). The only motion the eye needs to catch a number moving.</div>
+    </div>
+    <div class="popline">
+      <div class="scorebox" id="score">54,985</div>
+      <div class="lpchip" id="lp">+45 LP</div>
+      <button class="play ghost" onclick="playPop()">▶ tick + pop</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>5 · Spatial grammar</h2>
+      <div class="why">Elements enter from the edge they belong to. <b>Board stays calm</b> — it never moves while you read it. Rail comes from the right, the round toast drops from top, the result rises from the play.</div>
+    </div>
+    <div class="screen">
+      <div class="board"><span class="lab">board — calm, never churns</span></div>
+      <div class="rail" id="s-rail"><div class="railbar"></div><div class="railbar"></div><div class="railbar"></div></div>
+      <div class="toast" id="s-toast">Wave cleared</div>
+      <div class="result" id="s-result">★★☆ &nbsp; Victory</div>
+    </div>
+    <div style="margin-top:12px"><button class="play" onclick="playScreen()">▶ play screen-in</button></div>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>6 · Break the grid (static)</h2>
+      <div class="why">The style half. A styled box is one tidy unit — text matched to the box's angle, contained, <b>never escaping it</b>. The signature move is the box <b>overlapping the play surface</b> (or a neighboring panel), not text breaking out of its container.</div>
+    </div>
+    <div class="compare">
+      <div class="cell">
+        <span class="note">geometry — boxed, axis-aligned, sits inside its lane</span>
+        <div class="board2"></div>
+        <div class="ovl flat">+DMG&nbsp;▲</div>
+      </div>
+      <div class="cell">
+        <span class="note">style — one angled unit, overlapping the surface edge</span>
+        <div class="board2"></div>
+        <div class="ovl over">+DMG&nbsp;▲</div>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">
+    <b>Carried constraints:</b> the playfield stays legible and calm — angle, overlap, and motion live in the frame and the moments between rounds, never on the board mid-read.
+    No invented assets: the references' pointing hand, dice, and cut-ins are bespoke art we don't have — we take the <i>attitude</i> (angled boxes that overlap the surface, contained outlined type, color blocks) from primitives, type, and color.
+    A <b>reduced-motion</b> toggle drops overshoot → plain ease and shortens durations.<br>
+    <b>Godot map for CC:</b> arrive → <code>TRANS_BACK, EASE_OUT</code> (tune overshoot down to ~10–12%) · settle → <code>TRANS_QUINT, EASE_OUT</code> · leave → <code>TRANS_CUBIC, EASE_IN</code> · pop → quick scale tween on <code>TRANS_BACK, EASE_OUT</code>. Promote durations + curves to one shared helper so no surface re-invents them.
+  </p>
+</div>
+
+<script>
+  function arm(el){ el.classList.remove('go'); void el.offsetWidth; }
+  function fire(el){ el.classList.add('go'); }
+
+  function playVerbs(){
+    ['m-arrive','m-settle','m-leave'].forEach(function(id){ arm(document.getElementById(id)); });
+    requestAnimationFrame(function(){
+      fire(document.getElementById('m-arrive'));
+      fire(document.getElementById('m-settle'));
+      fire(document.getElementById('m-leave'));
+    });
+    // reset LEAVE so it can be replayed
+    setTimeout(function(){ arm(document.getElementById('m-leave')); }, 900);
+  }
+
+  function playRace(){
+    ['pxs','ps','pm','pl'].forEach(function(id){ arm(document.getElementById(id)); });
+    requestAnimationFrame(function(){
+      ['pxs','ps','pm','pl'].forEach(function(id){ fire(document.getElementById(id)); });
+    });
+    setTimeout(function(){ ['pxs','ps','pm','pl'].forEach(function(id){ arm(document.getElementById(id)); }); }, 1000);
+  }
+
+  function cascade(containerId, sel){
+    var kids = document.querySelectorAll('#'+containerId+' '+sel);
+    kids.forEach(function(k){ k.classList.remove('go'); });
+    void document.getElementById(containerId).offsetWidth;
+    kids.forEach(function(k,i){ setTimeout(function(){ k.classList.add('go'); }, i*60); });
+  }
+  function playStagger(){ cascade('stars','.star'); cascade('ladder','.rung'); }
+
+  function playPop(){
+    var s=document.getElementById('score'), lp=document.getElementById('lp');
+    var n=54985+Math.floor(Math.random()*900+100);
+    s.textContent=n.toLocaleString();
+    s.classList.remove('pop'); lp.classList.remove('pop'); void s.offsetWidth;
+    s.classList.add('pop');
+    setTimeout(function(){ lp.classList.add('pop'); }, 80);
+  }
+
+  function playScreen(){
+    var r=document.getElementById('s-rail'), t=document.getElementById('s-toast'), res=document.getElementById('s-result');
+    [r,t,res].forEach(function(el){ el.classList.remove('go'); });
+    void document.querySelector('.screen').offsetWidth;
+    requestAnimationFrame(function(){ r.classList.add('go'); });
+    setTimeout(function(){ t.classList.add('go'); }, 150);
+    setTimeout(function(){ res.classList.add('go'); }, 300);
+  }
+
+  // gentle auto-intro so the page isn't dead on open
+  window.addEventListener('load', function(){
+    setTimeout(playStagger, 300);
+    setTimeout(playScreen, 500);
+  });
+</script>

@@ -1,0 +1,336 @@
+<!-- Wend — In-match HUD mock. Applies the motion foundation + break-the-grid grammar
+     to the locked HUD layout (design/INMATCH_HUD.md). The board stays calm; the rail
+     and the contextual tower overlay carry the juice. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wend — In-match HUD</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --panel:#323d2c; --panel-b:#1a2012;
+    --chip:#39402c;  --chip-b:#23170d;
+    --card:#2a3322;  --card-b:#161c0f;
+    --gold:#b38e2c;  --gold-b:#5e4710;
+    --green:#5fbe38; --green-b:#2c5a18;
+    --terra:#b04a2a; --terra-b:#5e2310;
+    --ink:#ffffff;   --sage:#b9c7a4;
+    --grass:#5e6c3c; --path:#7c8157; --studio:#0f130c;
+    --t-xs:90ms; --t-s:160ms; --t-m:260ms; --t-l:440ms;
+    --arrive:cubic-bezier(.34,1.32,.5,1);
+    --settle:cubic-bezier(.22,1,.36,1);
+    --leave:cubic-bezier(.4,0,1,1);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--studio);min-height:100%;display:flex;flex-direction:column;align-items:center;
+    font-family:'Fredoka','Baloo 2','Quicksand',system-ui,sans-serif;font-weight:600;color:var(--ink);
+    -webkit-font-smoothing:antialiased;padding:20px 14px 36px}
+  .bar{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;max-width:980px}
+  .bar .ttl{color:var(--sage);font-weight:500;font-size:13px;margin-right:4px}
+  .hint{color:#6f7a5f;font-weight:500;font-size:12px}
+  button.t{font-family:inherit;font-weight:600;font-size:12.5px;color:var(--ink);background:var(--chip);
+    border:2px solid var(--chip-b);border-bottom-width:4px;border-radius:10px;padding:6px 11px;cursor:pointer}
+  button.t:active{transform:translateY(2px);border-bottom-width:2px}
+
+  .stage{position:relative;width:980px;max-width:97vw;aspect-ratio:16/9;display:flex;gap:10px;
+    border-radius:16px;background:var(--studio);padding:10px;border:2px solid var(--panel-b);
+    box-shadow:0 8px 24px rgba(0,0,0,.5)}
+
+  /* ---------- BOARD (calm) ---------- */
+  .board{position:relative;flex:1;border-radius:12px;overflow:hidden;background:var(--grass);
+    background-image:linear-gradient(rgba(0,0,0,.10) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(0,0,0,.10) 1px,transparent 1px);
+    background-size:calc(100%/25) calc(100%/16)}
+  .seg{position:absolute;background:var(--path);border-radius:7px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+  .tower{position:absolute;width:24px;height:24px;border-radius:7px;border:2px solid rgba(0,0,0,.4);
+    transform:translate(-50%,-50%);cursor:pointer;box-shadow:0 2px 3px rgba(0,0,0,.35);transition:background var(--t-m) var(--settle)}
+  .tower:hover{outline:2px solid rgba(255,255,255,.45)}
+  .tower.sel{outline:3px solid var(--ink)}
+  .tower.pop{animation:pop var(--t-s) var(--arrive)}
+  @keyframes pop{0%{}45%{transform:translate(-50%,-50%) scale(1.22)}100%{transform:translate(-50%,-50%) scale(1)}}
+  .ring{position:absolute;border:2px dashed rgba(255,255,255,.5);border-radius:50%;transform:translate(-50%,-50%);
+    pointer-events:none;opacity:0;transition:opacity var(--t-s) ease-out}
+  .ring.show{opacity:1}
+  .mob{position:absolute;width:13px;height:13px;border-radius:50%;background:var(--terra);
+    border:2px solid var(--terra-b);transform:translate(-50%,-50%);visibility:hidden;
+    animation:travel 7s linear infinite;animation-play-state:paused}
+  .board.run .mob{visibility:visible;animation-play-state:running}
+  @keyframes travel{
+    0%{left:-4%;top:18%} 20%{left:70%;top:18%} 40%{left:70%;top:50%}
+    60%{left:18%;top:50%} 80%{left:18%;top:82%} 100%{left:104%;top:82%}}
+  .toast{position:absolute;top:12px;left:50%;transform:translate(-50%,-46px);opacity:0;z-index:8;
+    background:var(--panel);border:2px solid var(--panel-b);border-bottom-width:4px;border-radius:11px;
+    padding:6px 13px;font-size:12.5px;color:var(--sage);font-weight:500}
+  .toast.go{transform:translate(-50%,0);opacity:1;transition:transform var(--t-m) var(--arrive),opacity var(--t-s) ease-out}
+
+  /* ---------- TOWER OVERLAY (contextual, hugs board's top-right) ---------- */
+  .ovl{position:absolute;top:8px;right:8px;width:236px;z-index:9;
+    transform:translateX(24px);opacity:0;pointer-events:none}
+  .ovl.show{transform:translateX(0);opacity:1;pointer-events:auto;
+    transition:transform var(--t-m) var(--arrive),opacity var(--t-s) ease-out}
+  /* the ONE styled touch on this surface: a small angled header tab. Body stays square+legible. */
+  .ovl .hdr{background:var(--gold);border:2px solid var(--gold-b);border-bottom-width:4px;border-radius:11px;
+    padding:7px 13px;transform:rotate(-2deg);transform-origin:left center;box-shadow:0 4px 7px rgba(0,0,0,.42);
+    position:relative;z-index:2;margin:0 6px -4px 0}
+  .ovl .hdr .nm{font-size:15px;font-weight:700;text-shadow:-1px 0 var(--gold-b),1px 0 var(--gold-b),0 1px var(--gold-b)}
+  .ovl .hdr .lv{font-size:11px;font-weight:600;color:var(--panel-b)}
+  .ovl .body{background:var(--panel);border:2px solid var(--panel-b);border-bottom-width:4px;border-radius:13px;
+    padding:11px 11px 12px;box-shadow:0 5px 9px rgba(0,0,0,.45)}
+  .grid{display:grid;grid-template-columns:1fr auto auto;gap:6px 9px;align-items:center}
+  .grid .s{font-size:12.5px;color:var(--sage);font-weight:500}
+  .grid .now{font-size:13px;text-align:right;min-width:42px}
+  .grid .plus{font-size:13px;font-weight:700;color:var(--ink);background:var(--green);border:2px solid var(--green-b);
+    border-bottom-width:3px;border-radius:8px;width:30px;height:26px;line-height:1;cursor:pointer;
+    display:flex;align-items:center;justify-content:center}
+  .grid .plus:active{transform:translateY(2px);border-bottom-width:2px}
+  .grid .cost{font-size:10.5px;color:var(--sage);font-weight:500;text-align:right;grid-column:2;margin-top:-3px}
+  .now.pop{animation:popn var(--t-s) var(--arrive);display:inline-block}
+  @keyframes popn{0%{}45%{transform:scale(1.18)}100%{transform:scale(1)}}
+  .ovl .tot{margin-top:10px;padding-top:9px;border-top:1px solid var(--card-b);
+    font-size:12.5px;color:var(--sage);font-weight:500;display:flex;justify-content:space-between}
+  .ovl .sell{margin-top:10px;width:100%;font-family:inherit;font-weight:600;font-size:13px;color:var(--ink);
+    background:var(--terra);border:2px solid var(--terra-b);border-bottom-width:4px;border-radius:11px;
+    padding:8px;cursor:pointer}
+  .ovl .sell:active{transform:translateY(2px);border-bottom-width:2px}
+
+  /* ---------- RIGHT RAIL ---------- */
+  .rail{width:210px;display:flex;flex-direction:column;gap:8px}
+  .box{background:var(--panel);border:2px solid var(--panel-b);border-bottom-width:4px;border-radius:13px;
+    padding:10px 11px;box-shadow:0 4px 7px rgba(0,0,0,.4);
+    transform:translateX(26px);opacity:0}
+  .box.go{transform:none;opacity:1;transition:transform var(--t-m) var(--arrive),opacity var(--t-s) ease-out}
+  .row{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;padding:3px 0}
+  .row .k{color:var(--sage);font-weight:500}
+  .row .v{font-weight:600}
+  .row .v.gold{color:var(--gold)}
+  .row .v.gold.pop,.hero .cur.pop{animation:popn var(--t-s) var(--arrive);display:inline-block}
+
+  .scorehead{font-size:11px;font-weight:600;color:var(--sage);letter-spacing:2px;margin-bottom:4px}
+  .hero{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+  .hero .lbl{font-size:12px;color:var(--sage);font-weight:500}
+  .hero .cur{font-size:22px;font-weight:700;color:var(--gold);
+    text-shadow:-1px 0 var(--panel-b),1px 0 var(--panel-b),0 1px var(--panel-b)}
+  .rung{display:flex;justify-content:space-between;align-items:center;font-size:12px;height:22px;
+    border-radius:7px;background:var(--chip);border:1px solid var(--chip-b);padding:0 8px;margin-bottom:4px}
+  .rung .nm{color:var(--sage);font-weight:500}
+  .rung .sc{font-weight:600}
+  .rung.top .nm{color:var(--gold)}
+
+  .btns{display:flex;flex-direction:column;gap:7px}
+  .gbtn{font-family:inherit;font-weight:600;font-size:14px;color:var(--ink);border-radius:11px;padding:9px;
+    border:2px solid var(--chip-b);border-bottom-width:4px;background:var(--chip);cursor:pointer;text-align:center}
+  .gbtn:active{transform:translateY(2px);border-bottom-width:2px}
+  .gbtn.primary{background:var(--green);border-color:var(--green-b);text-shadow:0 1px 0 var(--green-b)}
+  .gbtn.primary.leaving{transform:translateY(-8px) scale(.96);opacity:0;
+    transition:transform var(--t-s) var(--leave),opacity var(--t-s) var(--leave)}
+  .gbtn.disabled{opacity:.4;cursor:default;color:var(--sage)}
+  .gbtn.disabled.enabled{opacity:1;color:var(--ink);transition:opacity var(--t-m) ease-out}
+
+  .note{color:var(--sage);font-weight:500;font-size:12.5px;max-width:980px;margin-top:13px;line-height:1.5}
+  .note b{color:var(--ink);font-weight:600}
+</style>
+
+<div class="bar">
+  <span class="ttl">Wend — In-match HUD (build phase)</span>
+  <button class="t" onclick="reset()">↺ reset to build</button>
+  <span class="hint">click a tower → overlay · [+] upgrades (deepens the tower) · Start Round → run</span>
+</div>
+
+<div class="stage" id="stage">
+  <div class="board" id="board" onclick="boardClick(event)">
+    <!-- path corridor -->
+    <div class="seg" style="left:0;top:14.5%;width:73%;height:7%"></div>
+    <div class="seg" style="left:66.5%;top:14.5%;width:7%;height:42%"></div>
+    <div class="seg" style="left:14.5%;top:46.5%;width:59%;height:7%"></div>
+    <div class="seg" style="left:14.5%;top:46.5%;width:7%;height:42%"></div>
+    <div class="seg" style="left:14.5%;top:78.5%;width:86%;height:7%"></div>
+    <!-- range ring (sized/placed on select) -->
+    <div class="ring" id="ring"></div>
+    <!-- mobs (animate only in run) -->
+    <div class="mob" style="animation-delay:0s"></div>
+    <div class="mob" style="animation-delay:-1.6s"></div>
+    <div class="mob" style="animation-delay:-3.3s"></div>
+    <div class="mob" style="animation-delay:-5s"></div>
+    <!-- towers, varied investment levels along the ramp -->
+    <div class="tower" data-lv="0" style="left:60%;top:27%"></div>
+    <div class="tower" data-lv="1" style="left:77%;top:36%"></div>
+    <div class="tower" data-lv="2" style="left:60%;top:59%"></div>
+    <div class="tower" data-lv="3" style="left:25%;top:59%"></div>
+    <div class="tower" data-lv="4" style="left:25%;top:91%"></div>
+    <div class="toast" id="toast">Wave cleared</div>
+
+    <!-- contextual tower overlay -->
+    <div class="ovl" id="ovl">
+      <div class="hdr"><div class="nm">TOWER</div><div class="lv" id="ovl-lv">Lv 3 · selected</div></div>
+      <div class="body">
+        <div class="grid" id="grid"></div>
+        <div class="tot"><span>Total damage</span><span id="tot-dmg">12,840</span></div>
+        <div class="tot" style="margin-top:2px"><span>Kills</span><span id="tot-k">96</span></div>
+        <button class="sell" onclick="deselect(event)">Sell</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT RAIL -->
+  <div class="rail">
+    <div class="box" id="b1">
+      <div class="row"><span class="k">Round</span><span class="v">7 / 13</span></div>
+      <div class="row"><span class="k">Phase</span><span class="v" id="phase">Build · 0:18</span></div>
+      <div class="row"><span class="k">Supply</span><span class="v">18 / 24</span></div>
+      <div class="row"><span class="k">Gold</span><span class="v gold" id="gold">340</span></div>
+    </div>
+
+    <div class="box" id="b2">
+      <div class="scorehead">SCORE</div>
+      <div class="hero"><span class="lbl">Current</span><span class="cur" id="cur">54,985</span></div>
+      <div class="rung"><span class="nm">★★★</span><span class="sc">60,000</span></div>
+      <div class="rung"><span class="nm">ghost · kael</span><span class="sc">67,100</span></div>
+      <div class="rung top"><span class="nm">TOP</span><span class="sc">88,400</span></div>
+    </div>
+
+    <div class="box" id="b3">
+      <div class="btns">
+        <button class="gbtn primary" id="start" onclick="startRound()">Start Round</button>
+        <button class="gbtn disabled" id="speed" onclick="toggleSpeed()">Speed 3×</button>
+        <button class="gbtn">Build [B]</button>
+        <button class="gbtn">Menu</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="note">
+  <b>What's incorporated:</b> the three rail boxes <b>arrive from the right</b>, staggered, on match start.
+  Click any tower → the inspector <b>arrives over the board's top-right</b>, anchored (it doesn't chase the
+  tower), with a range ring — the only styled touch is the slightly angled header tab; the <b>stat grid stays
+  square and legible</b> because you read and act on it. <b>[+]</b> spends gold (pops), bumps the stat (pops),
+  and <b>deepens the selected tower</b> one step along the pale → vivid → near-black investment ramp (pops on
+  the board). <b>Start Round</b> flips build → run: the button leaves upward, <b>Speed un-greys</b> (it's only
+  active in run, per the locked rule), mobs travel the maze, and the score climbs + pops. The board itself
+  never has UI churning over its active area — the overlap is one anchored panel you summoned.
+</p>
+
+<script>
+  var RAMP=['#aebbe6','#7d8fd8','#4f63c9','#33409e','#1e2660','#11163a']; // pale -> near-black
+  var STATS=[
+    ['Damage','42','60'],['Range','3.0','80'],['Attack speed','1.2/s','70'],
+    ['Crit chance','12%','90'],['Crit damage','1.8\u00d7','75'],['Multishot','1','120']
+  ];
+  var gold=340, sel=null;
+
+  // paint towers from their level
+  function paintTowers(){
+    document.querySelectorAll('.tower').forEach(function(t){
+      t.style.background=RAMP[Math.min(parseInt(t.dataset.lv||'0'),RAMP.length-1)];
+    });
+  }
+
+  function buildGrid(){
+    var g=document.getElementById('grid'); g.innerHTML='';
+    STATS.forEach(function(s,i){
+      var name=document.createElement('div'); name.className='s'; name.textContent=s[0];
+      var now=document.createElement('span'); now.className='now'; now.id='now'+i; now.textContent=s[1];
+      var nowWrap=document.createElement('div'); nowWrap.style.textAlign='right'; nowWrap.appendChild(now);
+      var plus=document.createElement('button'); plus.className='plus'; plus.textContent='+';
+      plus.onclick=function(e){ e.stopPropagation(); upgrade(i); };
+      g.appendChild(name); g.appendChild(nowWrap); g.appendChild(plus);
+    });
+  }
+
+  function setGold(n){
+    gold=n; var el=document.getElementById('gold'); el.textContent=n;
+    el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+  }
+
+  function bump(stat){
+    // numeric-ish bump for the demo
+    var num=parseFloat(stat); if(isNaN(num)) return stat;
+    var step = stat.indexOf('%')>-1?3 : (stat.indexOf('/s')>-1?0.2 : (stat.indexOf('\u00d7')>-1?0.2:6));
+    var nv=(num+step);
+    var suffix = stat.replace(/[0-9.]/g,'');
+    return (step%1===0? Math.round(nv): nv.toFixed(1))+suffix;
+  }
+
+  function upgrade(i){
+    if(!sel) return;
+    var cost=60 + i*8;
+    if(gold<cost){ return; }
+    setGold(gold-cost);
+    var now=document.getElementById('now'+i);
+    now.textContent=bump(now.textContent);
+    now.classList.remove('pop'); void now.offsetWidth; now.classList.add('pop');
+    // deepen the selected tower one ramp step + pop
+    var lv=Math.min(parseInt(sel.dataset.lv||'0')+1, RAMP.length-1);
+    sel.dataset.lv=lv; sel.style.background=RAMP[lv];
+    document.getElementById('ovl-lv').textContent='Lv '+(lv+1)+' \u00b7 selected';
+    sel.classList.remove('pop'); void sel.offsetWidth; sel.classList.add('pop');
+  }
+
+  function selectTower(t){
+    document.querySelectorAll('.tower').forEach(function(x){ x.classList.remove('sel'); });
+    t.classList.add('sel'); sel=t;
+    buildGrid();
+    document.getElementById('ovl-lv').textContent='Lv '+(parseInt(t.dataset.lv||'0')+1)+' \u00b7 selected';
+    // range ring centered on tower
+    var ring=document.getElementById('ring');
+    ring.style.left=t.style.left; ring.style.top=t.style.top;
+    ring.style.width='150px'; ring.style.height='150px';
+    ring.classList.add('show');
+    document.getElementById('ovl').classList.add('show');
+  }
+
+  function deselect(e){
+    if(e) e.stopPropagation();
+    document.getElementById('ovl').classList.remove('show');
+    document.getElementById('ring').classList.remove('show');
+    document.querySelectorAll('.tower').forEach(function(x){ x.classList.remove('sel'); });
+    sel=null;
+  }
+
+  function boardClick(e){
+    var t=e.target.closest('.tower');
+    if(t){ selectTower(t); }
+    else { deselect(); }
+  }
+
+  var climb=null;
+  function startRound(){
+    var board=document.getElementById('board');
+    board.classList.add('run');
+    document.getElementById('phase').textContent='Run';
+    var start=document.getElementById('start');
+    start.classList.add('leaving');
+    setTimeout(function(){ start.style.display='none'; }, 200);
+    var sp=document.getElementById('speed'); sp.classList.remove('disabled'); sp.classList.add('enabled');
+    // score climbs + pops
+    var cur=document.getElementById('cur'); var n=54985;
+    climb=setInterval(function(){
+      n+=Math.floor(Math.random()*700+200); cur.textContent=n.toLocaleString();
+      cur.classList.remove('pop'); void cur.offsetWidth; cur.classList.add('pop');
+    }, 900);
+    // a wave-clear toast a bit in
+    setTimeout(function(){
+      var to=document.getElementById('toast'); to.classList.add('go');
+      setTimeout(function(){ to.classList.remove('go'); }, 1600);
+    }, 2600);
+  }
+  function toggleSpeed(){ /* demo no-op */ }
+
+  function reset(){
+    if(climb){ clearInterval(climb); climb=null; }
+    var board=document.getElementById('board'); board.classList.remove('run');
+    document.getElementById('phase').textContent='Build \u00b7 0:18';
+    document.getElementById('cur').textContent='54,985';
+    var sp=document.getElementById('speed'); sp.classList.add('disabled'); sp.classList.remove('enabled');
+    var start=document.getElementById('start'); start.style.display=''; start.classList.remove('leaving');
+    deselect();
+  }
+
+  // boot: paint towers, then stagger the rail boxes in
+  window.addEventListener('load', function(){
+    paintTowers(); buildGrid();
+    ['b1','b2','b3'].forEach(function(id,i){
+      setTimeout(function(){ document.getElementById(id).classList.add('go'); }, 200 + i*90);
+    });
+  });
+</script>

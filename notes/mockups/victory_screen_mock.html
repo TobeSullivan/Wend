@@ -1,0 +1,197 @@
+<!-- Wend — Victory screen mock. Applies the motion foundation + break-the-grid grammar
+     to a real campaign result screen. Locked palette. Board stays calm (dimmed, static);
+     juice lives in the frame and the staged moment. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wend — Victory screen</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --panel:#323d2c; --panel-b:#1a2012;
+    --chip:#39402c;  --chip-b:#23170d;
+    --card:#2a3322;  --card-b:#161c0f;
+    --gold:#b38e2c;  --gold-b:#5e4710;
+    --green:#5fbe38; --green-b:#2c5a18;
+    --terra:#b04a2a; --terra-b:#5e2310;
+    --ink:#ffffff;   --sage:#b9c7a4;
+    --grass:#5e6c3c;
+    --studio:#0f130c;
+    --t-s:160ms; --t-m:260ms; --t-l:440ms; --t-screen:320ms;
+    --arrive:cubic-bezier(.34,1.32,.5,1);
+    --settle:cubic-bezier(.22,1,.36,1);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--studio);min-height:100%;display:flex;flex-direction:column;align-items:center;
+    font-family:'Fredoka','Baloo 2','Quicksand',system-ui,sans-serif;font-weight:600;
+    -webkit-font-smoothing:antialiased;padding:22px 16px 40px;color:var(--ink)}
+  .bar{display:flex;gap:10px;align-items:center;margin-bottom:14px}
+  .bar .ttl{color:var(--sage);font-weight:500;font-size:13px;margin-right:6px}
+  button.play{font-family:inherit;font-weight:600;font-size:13px;color:var(--ink);background:var(--chip);
+    border:2px solid var(--chip-b);border-bottom-width:4px;border-radius:11px;padding:7px 13px;cursor:pointer}
+  button.play:active{transform:translateY(2px);border-bottom-width:2px}
+
+  /* ---- the screen ---- */
+  .screen{position:relative;width:960px;max-width:96vw;aspect-ratio:16/9;border-radius:16px;overflow:hidden;
+    border:2px solid var(--panel-b);box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  .board{position:absolute;inset:0;background:var(--grass);
+    background-image:linear-gradient(rgba(0,0,0,.10) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(0,0,0,.10) 1px,transparent 1px);
+    background-size:38px 38px}
+  /* a couple of static maze hints so it reads as a real board, calm + dimmed */
+  .obst{position:absolute;background:rgba(0,0,0,.18);border-radius:6px}
+  .twr{position:absolute;width:26px;height:26px;border-radius:7px;border:2px solid rgba(0,0,0,.35)}
+  .scrim{position:absolute;inset:0;background:rgba(8,11,6,0);}
+  .scrim.go{background:rgba(8,11,6,.62);transition:background var(--t-m) ease-out}
+
+  /* HERO — angled box overlapping the (dimmed) board; text inside, same angle, one unit */
+  .hero{position:absolute;left:50%;top:58px;z-index:5;transform:translate(-50%,-140%) rotate(-3.5deg);opacity:0}
+  .hero.go{transform:translate(-50%,0) rotate(-3.5deg);opacity:1;
+    transition:transform var(--t-l) var(--arrive),opacity var(--t-m) ease-out}
+  .hero .face{position:relative;background:var(--gold);border:2px solid var(--gold-b);border-bottom-width:5px;
+    border-radius:14px;padding:14px 40px;box-shadow:0 6px 10px rgba(0,0,0,.42)}
+  .hero .face .big{font-size:40px;font-weight:700;letter-spacing:1px;line-height:1;
+    text-shadow:-2px 0 var(--gold-b),2px 0 var(--gold-b),0 -2px var(--gold-b),0 2px var(--gold-b)}
+  .hero .face .sm{font-size:14px;font-weight:600;color:var(--panel-b);margin-top:3px;letter-spacing:.5px}
+
+  /* stars */
+  .stars{position:absolute;left:50%;top:200px;transform:translateX(-50%);z-index:5;display:flex;gap:18px}
+  .star{width:78px;height:78px;border-radius:18px;display:flex;align-items:center;justify-content:center;
+    font-size:38px;transform:translateY(28px) scale(.55);opacity:0}
+  .star.go{transform:none;opacity:1;transition:transform var(--t-m) var(--arrive),opacity var(--t-s) ease-out}
+  .star.earned{background:var(--gold);border:3px solid var(--gold-b);color:#fff8e6;
+    text-shadow:0 2px 0 var(--gold-b)}
+  .star.empty{background:var(--card);border:3px solid var(--card-b);color:#566049}
+  .star.pop{animation:pop var(--t-s) var(--arrive)}
+  @keyframes pop{0%{}45%{transform:scale(1.16)}100%{transform:scale(1)}}
+
+  /* score + best */
+  .scoreblk{position:absolute;left:50%;top:312px;transform:translateX(-50%);z-index:5;text-align:center;opacity:0}
+  .scoreblk.go{opacity:1;transition:opacity var(--t-m) ease-out}
+  .scoreblk .k{font-size:13px;font-weight:600;color:var(--sage);letter-spacing:2px}
+  .scoreblk .v{font-size:46px;font-weight:700;color:var(--gold);line-height:1.05;
+    text-shadow:-2px 0 var(--panel-b),2px 0 var(--panel-b),0 2px var(--panel-b)}
+  .scoreblk .v.pop{animation:pop var(--t-s) var(--arrive)}
+  .best{display:inline-block;margin-top:6px;background:var(--chip);border:2px solid var(--chip-b);border-bottom-width:4px;
+    border-radius:11px;padding:5px 12px;font-size:12.5px;font-weight:500;color:var(--green)}
+
+  /* buttons — axis-aligned: precision targets stay square */
+  .btns{position:absolute;left:0;right:0;bottom:26px;display:flex;justify-content:center;gap:12px;z-index:6}
+  .btn{font-size:15px;font-weight:600;color:var(--ink);border-radius:13px;padding:11px 20px;
+    border:2px solid var(--chip-b);border-bottom-width:4px;background:var(--chip);
+    transform:translateY(22px);opacity:0;cursor:default}
+  .btn.go{transform:none;opacity:1;transition:transform var(--t-s) var(--arrive),opacity var(--t-s) ease-out}
+  .btn.primary{background:var(--green);border-color:var(--green-b);text-shadow:0 1px 0 var(--green-b)}
+
+  .caption{position:absolute;left:14px;bottom:12px;z-index:6;color:rgba(255,255,255,.55);font-weight:500;font-size:12px}
+  .note{color:var(--sage);font-weight:500;font-size:12.5px;max-width:960px;margin-top:14px;line-height:1.5}
+  .note b{color:var(--ink);font-weight:600}
+</style>
+
+<div class="bar">
+  <span class="ttl">Wend — Victory screen (motion + break-the-grid, in context)</span>
+  <button class="play" onclick="playAll()">▶ replay</button>
+</div>
+
+<div class="screen" id="screen">
+  <div class="board" id="board"></div>
+  <div class="scrim" id="scrim"></div>
+
+  <div class="hero" id="hero">
+    <div class="face">
+      <div class="big">VICTORY</div>
+      <div class="sm">MISSION 3 · SWITCHBACKS</div>
+    </div>
+  </div>
+
+  <div class="stars" id="stars">
+    <div class="star earned">★</div>
+    <div class="star earned">★</div>
+    <div class="star empty">★</div>
+  </div>
+
+  <div class="scoreblk" id="scoreblk">
+    <div class="k">DAMAGE</div>
+    <div class="v" id="scorev">0</div>
+    <div class="best" id="best">▲ new best — was 41,200</div>
+  </div>
+
+  <div class="btns" id="btns">
+    <div class="btn primary">Next map</div>
+    <div class="btn">Trials</div>
+    <div class="btn">Ranked</div>
+  </div>
+
+  <div class="caption">leave-only flow · board behind stays calm + dimmed</div>
+</div>
+
+<p class="note">
+  <b>What's incorporated:</b> board dims (it never moves — the match is over, so motion over it is fine) →
+  the angled <b>VICTORY box overlaps the board</b> as one unit, text on the box's angle, depth from its own
+  bevel + shadow (no stacked duplicate) → the three star tiles
+  <b>cascade low→high</b>, each landing with a pop (full clean outline — fixes polish #7's corner-only tiles) →
+  the damage value <b>ticks up and pops</b> → buttons settle in last, and they stay <b>axis-aligned</b> because
+  they're precision targets. The long 440ms duration is spent only on the hero — everything else rides S/M.
+</p>
+
+<script>
+  function arm(el){ el.classList.remove('go'); void el.offsetWidth; }
+
+  function tickScore(target, dur){
+    var el=document.getElementById('scorev'); var t0=null;
+    function ease(x){ return 1-Math.pow(1-x,3); }
+    function step(ts){
+      if(t0===null) t0=ts; var p=Math.min((ts-t0)/dur,1);
+      el.textContent=Math.floor(ease(p)*target).toLocaleString();
+      if(p<1){ requestAnimationFrame(step); }
+      else { el.textContent=target.toLocaleString(); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+    }
+    requestAnimationFrame(step);
+  }
+
+  function playAll(){
+    var scrim=document.getElementById('scrim'), hero=document.getElementById('hero'),
+        score=document.getElementById('scoreblk'), v=document.getElementById('scorev');
+    var stars=document.querySelectorAll('#stars .star');
+    var btns=document.querySelectorAll('#btns .btn');
+
+    [scrim,hero,score].forEach(arm);
+    stars.forEach(function(s){ s.classList.remove('go','pop'); });
+    btns.forEach(function(b){ b.classList.remove('go'); });
+    v.textContent='0';
+
+    // 1 dim
+    requestAnimationFrame(function(){ scrim.classList.add('go'); });
+    // 2 hero rises (earns the long duration)
+    setTimeout(function(){ hero.classList.add('go'); }, 180);
+    // 3 stars cascade low->high, each pops on land (set-piece stagger a touch wider: 130ms)
+    stars.forEach(function(s,i){
+      setTimeout(function(){
+        s.classList.add('go');
+        setTimeout(function(){ if(s.classList.contains('earned')) s.classList.add('pop'); }, 180);
+      }, 560 + i*130);
+    });
+    // 4 score appears + ticks + pops
+    setTimeout(function(){ score.classList.add('go'); tickScore(54985, 620); }, 1080);
+    // 5 buttons settle in
+    btns.forEach(function(b,i){ setTimeout(function(){ b.classList.add('go'); }, 1480 + i*70); });
+  }
+
+  // scatter a few static board props so it reads as a real maze, then play
+  window.addEventListener('load', function(){
+    var board=document.getElementById('board');
+    var props=[[8,12,90,30],[30,55,120,24],[62,20,70,40],[46,74,150,22]];
+    props.forEach(function(p){
+      var o=document.createElement('div'); o.className='obst';
+      o.style.left=p[0]+'%'; o.style.top=p[1]+'%'; o.style.width=p[2]+'px'; o.style.height=p[3]+'px';
+      board.appendChild(o);
+    });
+    var tw=[['#b38e2c',18,40],['#7a6420',26,48],['#3f3614',40,30],['#b38e2c',55,62],['#2a240e',70,52]];
+    tw.forEach(function(t){
+      var d=document.createElement('div'); d.className='twr';
+      d.style.background=t[0]; d.style.left=t[1]+'%'; d.style.top=t[2]+'%';
+      board.appendChild(d);
+    });
+    setTimeout(playAll, 350);
+  });
+</script>

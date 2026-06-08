@@ -1,0 +1,250 @@
+<!-- Wend - Staged climbs mock. Two climbing surfaces: Ranked post-match LP/promotion
+     (Surface 2) and the in-match ghost-ladder (SCORE box). Reuses the motion foundation:
+     bar fills on settle, values pop, promotion is a staged L-duration set-piece, ladder
+     rungs leave from the top and arrive from the bottom. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wend - Staged climbs</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --panel:#323d2c; --panel-b:#1a2012;
+    --chip:#39402c;  --chip-b:#23170d;
+    --card:#2a3322;  --card-b:#161c0f;
+    --gold:#b38e2c;  --gold-b:#5e4710;
+    --green:#5fbe38; --green-b:#2c5a18;
+    --terra:#b04a2a; --terra-b:#5e2310;
+    --ink:#ffffff;   --sage:#b9c7a4;
+    --studio:#11160d;
+    --t-xs:90ms; --t-s:160ms; --t-m:260ms; --t-l:440ms;
+    --arrive:cubic-bezier(.34,1.32,.5,1);
+    --settle:cubic-bezier(.22,1,.36,1);
+    --leave:cubic-bezier(.4,0,1,1);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--studio);color:var(--ink);
+    font-family:'Fredoka','Baloo 2','Quicksand',system-ui,sans-serif;font-weight:600;
+    -webkit-font-smoothing:antialiased;padding:24px 18px 50px;display:flex;flex-direction:column;align-items:center}
+  h1{font-size:24px;margin:0 0 18px;text-shadow:0 2px 0 var(--panel-b)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;max-width:880px;width:100%}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .col{display:flex;flex-direction:column;gap:10px}
+  .lbl{color:var(--sage);font-weight:500;font-size:13px}
+  button.play{align-self:flex-start;font-family:inherit;font-weight:600;font-size:13px;color:var(--ink);
+    background:var(--green);border:2px solid var(--green-b);border-bottom-width:4px;border-radius:11px;
+    padding:8px 15px;cursor:pointer;text-shadow:0 1px 0 var(--green-b)}
+  button.play:active{transform:translateY(2px);border-bottom-width:2px}
+  label.tg{font-size:12.5px;color:var(--sage);font-weight:500;display:flex;align-items:center;gap:7px;cursor:pointer}
+
+  .surface{background:var(--panel);border:2px solid var(--panel-b);border-bottom-width:4px;border-radius:16px;
+    padding:16px;box-shadow:0 6px 12px rgba(0,0,0,.45);position:relative;overflow:hidden}
+
+  /* ---------- RANKED RESULT (Surface 2) ---------- */
+  .rhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .place{background:var(--gold);border:2px solid var(--gold-b);border-bottom-width:4px;border-radius:11px;
+    padding:6px 14px;font-size:17px;font-weight:700;transform:rotate(-2deg);box-shadow:0 4px 7px rgba(0,0,0,.42);
+    text-shadow:-1px 0 var(--gold-b),1px 0 var(--gold-b),0 1px var(--gold-b);opacity:0}
+  .place.go{opacity:1;animation:rise var(--t-m) var(--arrive)}
+  @keyframes rise{0%{transform:translateY(16px) rotate(-2deg);opacity:0}100%{transform:translateY(0) rotate(-2deg);opacity:1}}
+  .tierline{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .tier{font-size:15px;font-weight:700;color:var(--gold)}
+  .tier.pop{animation:pop var(--t-m) var(--arrive);display:inline-block}
+  @keyframes pop{0%{}45%{transform:scale(1.18)}100%{transform:scale(1)}}
+  .lpchip{margin-left:auto;background:var(--green);border:2px solid var(--green-b);border-bottom-width:3px;
+    border-radius:9px;padding:3px 10px;font-size:13px;font-weight:700;opacity:0}
+  .lpchip.go{opacity:1;animation:pop var(--t-s) var(--arrive)}
+  .lpbar{height:16px;border-radius:8px;background:var(--card-b);overflow:hidden;border:1px solid var(--card-b)}
+  .lpbar i{display:block;height:100%;width:47%;background:linear-gradient(0deg,var(--gold-b),var(--gold));
+    border-radius:8px;transition:width 720ms var(--settle)}
+  .tonext{font-size:12px;color:var(--sage);font-weight:500;margin-top:5px}
+  .promo{position:absolute;left:50%;top:64px;transform:translate(-50%,-30px) rotate(-3deg);opacity:0;z-index:6;
+    background:var(--green);border:2px solid var(--green-b);border-bottom-width:5px;border-radius:13px;
+    padding:9px 22px;font-size:18px;font-weight:700;box-shadow:0 6px 12px rgba(0,0,0,.5);
+    text-shadow:-1px 0 var(--green-b),1px 0 var(--green-b),0 1px var(--green-b)}
+  .promo.go{opacity:1;transform:translate(-50%,0) rotate(-3deg);transition:transform var(--t-l) var(--arrive),opacity var(--t-m) ease}
+
+  .order{margin-top:14px;border-top:1px solid var(--card-b);padding-top:10px}
+  .orow{display:flex;align-items:center;gap:9px;font-size:13px;height:26px;border-radius:8px;padding:0 9px;margin-bottom:4px;
+    background:var(--chip);border:1px solid var(--chip-b);transform:translateX(-18px);opacity:0}
+  .orow.go{transform:none;opacity:1;transition:transform var(--t-s) var(--arrive),opacity var(--t-xs) ease}
+  .orow .pos{color:var(--sage);font-weight:600;width:22px}
+  .orow .nm{font-weight:500}
+  .orow .lv{margin-left:auto;font-weight:600}
+  .orow.you{background:var(--green-b);border-color:var(--green)}
+  .orow.out{opacity:.55}.orow.out .lv{color:var(--terra)}
+
+  /* ---------- GHOST LADDER (in-match SCORE box) ---------- */
+  .scorebox{width:210px}
+  .schead{font-size:11px;font-weight:600;color:var(--sage);letter-spacing:2px;margin-bottom:5px}
+  .hero{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
+  .hero .k{font-size:12px;color:var(--sage);font-weight:500}
+  .hero .cur{font-size:22px;font-weight:700;color:var(--gold);
+    text-shadow:-1px 0 var(--panel-b),1px 0 var(--panel-b),0 1px var(--panel-b)}
+  .hero .cur.pop{animation:pop var(--t-s) var(--arrive);display:inline-block}
+  .rungs{display:flex;flex-direction:column}
+  .rung{display:flex;justify-content:space-between;align-items:center;font-size:12px;height:24px;
+    border-radius:7px;background:var(--chip);border:1px solid var(--chip-b);padding:0 8px;margin-bottom:5px;
+    max-height:24px;overflow:hidden}
+  .rung .nm{color:var(--sage);font-weight:500}.rung .sc{font-weight:600}
+  .rung.top .nm{color:var(--gold)}
+  .rung.leaving{max-height:0;margin-bottom:0;opacity:0;transform:translateY(-8px);padding-top:0;padding-bottom:0;
+    border-width:0;transition:max-height var(--t-m) var(--leave),opacity var(--t-s) var(--leave),
+    margin var(--t-m) var(--leave),transform var(--t-s) var(--leave)}
+  .rung.entering{max-height:0;opacity:0;transform:translateY(10px);margin-bottom:0}
+  .rung.enter-go{max-height:24px;opacity:1;transform:none;margin-bottom:5px;
+    transition:max-height var(--t-m) var(--arrive),opacity var(--t-s) ease,transform var(--t-m) var(--arrive),margin var(--t-m) var(--arrive)}
+  .cap{font-size:10.5px;color:#6f7a5f;font-weight:500;margin-top:2px}
+
+  .note{color:var(--sage);font-weight:500;font-size:12.5px;max-width:880px;margin-top:18px;line-height:1.5}
+  .note b{color:var(--ink);font-weight:600}
+</style>
+
+<h1>Wend - Staged climbs</h1>
+
+<div class="grid2">
+
+  <!-- RANKED RESULT -->
+  <div class="col">
+    <span class="lbl">Ranked post-match (Surface 2) - LP fill + promotion</span>
+    <div class="surface" id="ranked">
+      <div class="promo" id="promo">PROMOTED</div>
+      <div class="rhead">
+        <div class="place" id="place">2nd of 8</div>
+        <span class="lpchip" id="chip">+30 LP</span>
+      </div>
+      <div class="tierline"><span class="tier" id="tier">BRONZE III</span><span class="lbl" id="lpval">47 LP</span></div>
+      <div class="lpbar"><i id="fill"></i></div>
+      <div class="tonext" id="tonext">23 LP to Bronze II</div>
+
+      <div class="order" id="order">
+        <div class="orow" data-d="0"><span class="pos">1</span><span class="nm">kael</span><span class="lv">9 lives</span></div>
+        <div class="orow you" data-d="1"><span class="pos">2</span><span class="nm">you</span><span class="lv">7 lives</span></div>
+        <div class="orow" data-d="2"><span class="pos">3</span><span class="nm">rhe</span><span class="lv">5 lives</span></div>
+        <div class="orow" data-d="3"><span class="pos">4</span><span class="nm">vex</span><span class="lv">3 lives</span></div>
+        <div class="orow out" data-d="4"><span class="pos">5</span><span class="nm">orin</span><span class="lv">OUT</span></div>
+        <div class="orow out" data-d="5"><span class="pos">6</span><span class="nm">sable</span><span class="lv">OUT</span></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:14px;align-items:center">
+      <button class="play" onclick="playRanked()">&#9654; play result</button>
+      <label class="tg"><input type="checkbox" id="promoChk"> show promotion</label>
+    </div>
+  </div>
+
+  <!-- GHOST LADDER -->
+  <div class="col">
+    <span class="lbl">In-match ghost-ladder - passed targets leave the top, next climbs in</span>
+    <div class="surface scorebox">
+      <div class="schead">SCORE</div>
+      <div class="hero"><span class="k">Current</span><span class="cur" id="cur">54,985</span></div>
+      <div class="rungs" id="rungs"></div>
+      <div class="cap">standings as of match start</div>
+    </div>
+    <button class="play" onclick="climb()">&#9654; climb one rung</button>
+  </div>
+
+</div>
+
+<p class="note">
+  <b>Two climbs, one vocabulary.</b> Ranked: the placement rises in, the <b>+LP chip pops</b>, the bar
+  <b>fills on the settle curve</b>, the final order staggers in. Tick "show promotion" and crossing the tier
+  cap becomes a <b>staged set-piece</b> - the bar fills out, the tier name pops over, and PROMOTED arrives on
+  the long duration. Ghost-ladder: each climb ticks the current value (pop), the <b>passed rung falls off the
+  top</b> (collapses up), the rest settle into the gap, and the <b>next ghost climbs in from the bottom</b> -
+  never asserting a live rank mid-match, just the targets ahead.
+</p>
+
+<script>
+  // ---------- RANKED ----------
+  function playRanked(){
+    var promote=document.getElementById('promoChk').checked;
+    var place=document.getElementById('place'), chip=document.getElementById('chip'),
+        fill=document.getElementById('fill'), tier=document.getElementById('tier'),
+        lpval=document.getElementById('lpval'), tonext=document.getElementById('tonext'),
+        promo=document.getElementById('promo');
+    // reset
+    [place,chip,promo].forEach(function(e){ e.classList.remove('go'); });
+    tier.classList.remove('pop'); tier.textContent='BRONZE III'; lpval.textContent='47 LP';
+    tonext.textContent='23 LP to Bronze II'; fill.style.transition='none'; fill.style.width='47%';
+    document.querySelectorAll('#order .orow').forEach(function(r){ r.classList.remove('go'); });
+    void fill.offsetWidth; fill.style.transition='';
+
+    // sequence
+    requestAnimationFrame(function(){ place.classList.add('go'); });
+    var gain = promote? 66:30;
+    chip.textContent='+'+gain+' LP';
+    setTimeout(function(){ chip.classList.add('go'); }, 220);
+    setTimeout(function(){
+      if(promote){
+        fill.style.width='100%'; lpval.textContent='100 LP';
+        setTimeout(function(){
+          // promotion set-piece
+          tier.textContent='SILVER I'; tier.classList.add('pop'); lpval.textContent='13 LP';
+          promo.classList.add('go'); tonext.textContent='87 LP to Silver II';
+          fill.style.transition='none'; fill.style.width='0%'; void fill.offsetWidth;
+          fill.style.transition=''; fill.style.width='13%';
+          setTimeout(function(){ promo.classList.remove('go'); }, 1400);
+        }, 760);
+      } else {
+        fill.style.width='77%'; lpval.textContent='77 LP'; tonext.textContent='23 LP to Bronze II';
+      }
+    }, 360);
+    // final order
+    document.querySelectorAll('#order .orow').forEach(function(r){
+      setTimeout(function(){ r.classList.add('go'); }, 900 + parseInt(r.dataset.d)*70);
+    });
+  }
+
+  // ---------- GHOST LADDER ----------
+  var cur=54985;
+  var queue=[ // ascending targets; first three shown, rest feed in from the bottom
+    {nm:'\u2605\u2605\u2605',sc:60000,top:false},
+    {nm:'ghost \u00b7 kael',sc:67100,top:false},
+    {nm:'TOP',sc:88400,top:true},
+    {nm:'ghost \u00b7 rhe',sc:95200,top:false},
+    {nm:'ghost \u00b7 vex',sc:110400,top:false},
+    {nm:'ghost \u00b7 orin',sc:128900,top:false}
+  ];
+  var idx=0; // next target index at the TOP of the visible list
+
+  function rungHTML(t){
+    return '<span class="nm">'+t.nm+'</span><span class="sc">'+t.sc.toLocaleString()+'</span>';
+  }
+  function renderLadder(){
+    var box=document.getElementById('rungs'); box.innerHTML='';
+    for(var i=idx;i<Math.min(idx+3,queue.length);i++){
+      var d=document.createElement('div'); d.className='rung'+(queue[i].top?' top':'');
+      d.innerHTML=rungHTML(queue[i]); box.appendChild(d);
+    }
+  }
+
+  function climb(){
+    if(idx>=queue.length-1) return;
+    var passed=queue[idx];
+    // tick current to just past the passed target
+    var curEl=document.getElementById('cur');
+    cur = passed.sc + 850;
+    curEl.textContent=cur.toLocaleString();
+    curEl.classList.remove('pop'); void curEl.offsetWidth; curEl.classList.add('pop');
+
+    var box=document.getElementById('rungs');
+    var top=box.firstElementChild;
+    // top rung falls off
+    top.classList.add('leaving');
+    // bring in the next target at the bottom (if one exists)
+    var nextIdx=idx+3;
+    if(nextIdx<queue.length){
+      var d=document.createElement('div');
+      d.className='rung entering'+(queue[nextIdx].top?' top':'');
+      d.innerHTML=rungHTML(queue[nextIdx]);
+      box.appendChild(d);
+      requestAnimationFrame(function(){ requestAnimationFrame(function(){
+        d.classList.remove('entering'); d.classList.add('enter-go');
+      });});
+    }
+    setTimeout(function(){ if(top && top.parentNode) top.parentNode.removeChild(top); idx++; }, 280);
+  }
+
+  window.addEventListener('load', function(){ renderLadder(); setTimeout(playRanked,400); });
+</script>

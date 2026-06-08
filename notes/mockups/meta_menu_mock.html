@@ -1,0 +1,249 @@
+<!-- Wend - Meta menu mock. Home + Trials scale-select, faithful to VISUAL_SYSTEM.md layouts.
+     This is the attitude surface: break-the-grid flexes here (heroes, headers), while text-forward
+     stat content stays square + legible. Demonstrates the home->select screen transition. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wend - Meta menu</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --panel:#323d2c; --panel-b:#1a2012;
+    --chip:#39402c;  --chip-b:#23170d;
+    --card:#2a3322;  --card-b:#161c0f;
+    --gold:#b38e2c;  --gold-b:#5e4710;
+    --green:#5fbe38; --green-b:#2c5a18;
+    --terra:#b04a2a; --terra-b:#5e2310;
+    --ink:#ffffff;   --sage:#b9c7a4;
+    --grass:#5e6c3c; --studio:#0f130c;
+    --t-xs:90ms; --t-s:160ms; --t-m:260ms; --t-l:440ms; --t-screen:320ms;
+    --arrive:cubic-bezier(.34,1.32,.5,1);
+    --settle:cubic-bezier(.22,1,.36,1);
+    --leave:cubic-bezier(.4,0,1,1);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--studio);min-height:100%;display:flex;flex-direction:column;align-items:center;
+    font-family:'Fredoka','Baloo 2','Quicksand',system-ui,sans-serif;font-weight:600;color:var(--ink);
+    -webkit-font-smoothing:antialiased;padding:20px 14px 36px}
+  .bar{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+  .bar .ttl{color:var(--sage);font-weight:500;font-size:13px}
+  button.t{font-family:inherit;font-weight:600;font-size:12.5px;color:var(--ink);background:var(--chip);
+    border:2px solid var(--chip-b);border-bottom-width:4px;border-radius:10px;padding:6px 11px;cursor:pointer}
+  button.t:active{transform:translateY(2px);border-bottom-width:2px}
+
+  .app{position:relative;width:980px;max-width:97vw;aspect-ratio:16/9;border-radius:16px;overflow:hidden;
+    border:2px solid var(--panel-b);box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  /* inert grass + vignette backdrop (no fabricated decoration) */
+  .app::before{content:"";position:absolute;inset:0;background:var(--grass);
+    background-image:linear-gradient(rgba(0,0,0,.07) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(0,0,0,.07) 1px,transparent 1px);background-size:40px 40px}
+  .app::after{content:"";position:absolute;inset:0;
+    background:radial-gradient(120% 90% at 50% 38%, rgba(8,11,6,.12), rgba(8,11,6,.78))}
+
+  .screen{position:absolute;inset:0;z-index:2;padding:0;
+    transition:transform var(--t-screen) var(--settle),opacity var(--t-m) ease}
+  /* home visible by default; select parked to the right */
+  .home{transform:none;opacity:1}
+  .app.sel .home{transform:translateX(-7%);opacity:0;pointer-events:none}
+  .select{transform:translateX(46px);opacity:0;pointer-events:none}
+  .app.sel .select{transform:none;opacity:1;pointer-events:auto;transition:transform var(--t-screen) var(--arrive),opacity var(--t-m) ease}
+
+  /* ---------- HOME ---------- */
+  .season{position:absolute;top:16px;left:50%;transform:translate(-50%,-30px);opacity:0;z-index:4;
+    display:flex;align-items:center;gap:10px;background:var(--panel);border:2px solid var(--panel-b);
+    border-bottom-width:4px;border-radius:12px;padding:6px 14px;font-size:12.5px;color:var(--sage);font-weight:500}
+  .season.go{transform:translate(-50%,0);opacity:1;transition:transform var(--t-m) var(--arrive),opacity var(--t-s) ease}
+  .season b{color:var(--ink);font-weight:600}
+  .pbar{width:120px;height:7px;border-radius:4px;background:var(--chip-b);overflow:hidden}
+  .pbar i{display:block;height:100%;width:62%;background:var(--gold)}
+  .badge{width:22px;height:22px;border-radius:7px;background:var(--gold);border:2px solid var(--gold-b)}
+
+  .corner{position:absolute;z-index:4;font-size:13px;font-weight:600;color:var(--ink);background:var(--chip);
+    border:2px solid var(--chip-b);border-bottom-width:4px;border-radius:11px;padding:8px 12px;cursor:pointer;opacity:0;transition:opacity var(--t-m) ease}
+  .corner.go{opacity:1}
+  .gear{top:16px;right:16px}
+  .quit{left:16px;bottom:16px}
+
+  .heroes{position:absolute;left:0;right:0;top:46%;transform:translateY(-50%);z-index:3;
+    display:flex;justify-content:center;align-items:center;gap:34px}
+  .hero{position:relative;width:248px;height:166px;border-radius:18px;cursor:pointer;
+    background:var(--panel);border:2px solid var(--panel-b);border-bottom-width:6px;
+    box-shadow:0 7px 12px rgba(0,0,0,.45);display:flex;flex-direction:column;justify-content:flex-end;
+    padding:18px;transform:translateY(34px) rotate(-2.5deg) scale(.96);opacity:0}
+  .hero.go{opacity:1;transition:transform var(--t-l) var(--arrive),opacity var(--t-m) ease}
+  .hero.trials.go{transform:translateY(-12px) rotate(-2.5deg)}
+  .hero.ranked.go{transform:translateY(12px) rotate(-2.5deg)}
+  .hero:hover{filter:brightness(1.08)}
+  .hero .slot{position:absolute;top:16px;left:18px;width:34px;height:34px;border-radius:10px;
+    background:var(--card);border:2px solid var(--card-b)}
+  .hero .accent{position:absolute;top:22px;right:-6px;background:var(--gold);color:var(--panel-b);
+    font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;transform:rotate(-2.5deg);
+    box-shadow:0 3px 5px rgba(0,0,0,.4)}
+  .hero .big{font-size:38px;font-weight:700;letter-spacing:1px;line-height:1;
+    text-shadow:-2px 0 var(--panel-b),2px 0 var(--panel-b),0 -2px var(--panel-b),0 2px var(--panel-b)}
+  .hero .sub{font-size:13px;font-weight:500;color:var(--sage);margin-top:4px}
+
+  .campaign{position:absolute;left:50%;bottom:40px;transform:translate(-50%,22px);opacity:0;z-index:3;
+    background:var(--chip);border:2px solid var(--chip-b);border-bottom-width:4px;border-radius:13px;
+    padding:11px 26px;font-size:15px;color:var(--sage);font-weight:600;cursor:pointer}
+  .campaign.go{transform:translate(-50%,0);opacity:1;transition:transform var(--t-s) var(--arrive),opacity var(--t-s) ease}
+  .campaign:hover{color:var(--ink)}
+
+  /* ---------- SCALE SELECT ---------- */
+  .select{padding:18px 18px}
+  .selhead{position:relative;display:flex;align-items:center;gap:16px;z-index:3;margin:6px 0 2px 4px}
+  .selttl{background:var(--gold);border:2px solid var(--gold-b);border-bottom-width:5px;border-radius:12px;
+    padding:8px 20px;font-size:22px;font-weight:700;transform:rotate(-2deg);transform-origin:left center;
+    box-shadow:0 5px 8px rgba(0,0,0,.42);
+    text-shadow:-1px 0 var(--gold-b),1px 0 var(--gold-b),0 1px var(--gold-b)}
+  .tabs{display:flex;gap:6px}
+  .tab{font-size:13px;font-weight:600;color:var(--sage);background:var(--chip);border:2px solid var(--chip-b);
+    border-bottom-width:4px;border-radius:10px;padding:7px 14px;cursor:pointer}
+  .tab.on{color:var(--ink);background:var(--panel);border-color:var(--panel-b)}
+  .countdown{margin-left:auto;font-size:12.5px;color:var(--sage);font-weight:500}
+  .countdown b{color:var(--gold);font-weight:600}
+  .backbtn{position:absolute;right:18px;bottom:16px;z-index:5}
+
+  .cards{position:absolute;left:18px;right:18px;top:84px;bottom:18px;z-index:3;
+    display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:start}
+  .card{background:var(--panel);border:2px solid var(--panel-b);border-bottom-width:5px;border-radius:15px;
+    padding:0 0 12px;box-shadow:0 5px 9px rgba(0,0,0,.42);cursor:pointer;
+    transform:translateY(30px) scale(.94);opacity:0;overflow:visible}
+  .card.go{transform:none;opacity:1;transition:transform var(--t-m) var(--arrive),opacity var(--t-s) ease}
+  .card:hover{filter:brightness(1.07)}
+  .card .nm{display:inline-block;background:var(--card);border:2px solid var(--card-b);border-bottom-width:4px;
+    border-radius:11px;padding:7px 14px;font-size:16px;font-weight:700;transform:rotate(-2deg);
+    margin:-8px 0 8px 10px;box-shadow:0 3px 6px rgba(0,0,0,.4)}
+  .card .scale{font-size:10.5px;color:var(--sage);font-weight:500;padding:0 13px;margin-bottom:8px;letter-spacing:1px}
+  .stat{display:flex;justify-content:space-between;font-size:12px;padding:3px 13px}
+  .stat .k{color:var(--sage);font-weight:500}
+  .foot{margin:9px 11px 0;padding-top:9px;border-top:1px solid var(--card-b)}
+  .best{font-size:12.5px;color:var(--gold);font-weight:600}
+  .best .none{color:#6f7a5f;font-weight:500}
+  .rank{display:inline-block;margin-top:6px;background:var(--chip);border:2px solid var(--chip-b);
+    border-radius:9px;padding:3px 9px;font-size:11.5px;color:var(--sage);font-weight:600}
+
+  .note{color:var(--sage);font-weight:500;font-size:12.5px;max-width:980px;margin-top:13px;line-height:1.5}
+  .note b{color:var(--ink);font-weight:600}
+</style>
+
+<div class="bar">
+  <span class="ttl">Wend - Home + Trials scale-select (click TRIALS to transition · Back to return)</span>
+</div>
+
+<div class="app" id="app">
+
+  <!-- HOME -->
+  <div class="screen home" id="home">
+    <div class="season" id="season">
+      <span>SEASON 1</span><span class="pbar"><i></i></span><b>Tier 4</b><span class="badge"></span>
+    </div>
+    <div class="corner gear" id="gear">&#9881;</div>
+    <div class="corner quit" id="quit">Quit</div>
+
+    <div class="heroes">
+      <div class="hero trials" id="h-trials" onclick="goSelect()">
+        <div class="slot"></div>
+        <div class="accent">CO-OP</div>
+        <div class="big">TRIALS</div>
+        <div class="sub">Climb the daily boards</div>
+      </div>
+      <div class="hero ranked" id="h-ranked">
+        <div class="slot"></div>
+        <div class="accent">1-8</div>
+        <div class="big">RANKED</div>
+        <div class="sub">Versus ladder</div>
+      </div>
+    </div>
+
+    <div class="campaign" id="campaign">Campaign</div>
+  </div>
+
+  <!-- SCALE SELECT -->
+  <div class="screen select" id="select">
+    <div class="selhead">
+      <div class="selttl">TRIALS</div>
+      <div class="tabs">
+        <div class="tab on">Daily</div><div class="tab">Weekly</div><div class="tab">Monthly</div>
+      </div>
+      <div class="countdown">resets in <b>6:42:10</b></div>
+    </div>
+    <div class="cards" id="cards"></div>
+    <button class="t backbtn" onclick="goHome()">&#8592; Back</button>
+  </div>
+
+</div>
+
+<p class="note">
+  <b>What's incorporated:</b> on the home screen the two mode heroes <b>arrive on the long duration</b>,
+  vertically offset and tilted the same small angle so the row reads dynamic, not rigid (the break-the-grid
+  attitude - bold outlined labels, a gold accent tag overlapping the box edge). Click <b>TRIALS</b> and the
+  whole screen <b>transitions</b> (home slides left + fades, select arrives from the right) - that's the
+  connective-tissue layer. The five scale cards then <b>cascade in</b>, each with an angled name tab, but the
+  <b>stat rows stay square</b> because you read them to choose. Hierarchy is by size; green stays reserved.
+  No fabricated backdrop decoration - just toned grass + vignette.
+</p>
+
+<script>
+  var CARDS=[
+    {nm:'Thread',sc:'SCALE 1',rounds:8,supply:16,zones:0,mobs:1,cp:1,best:'41,200',rank:'#14'},
+    {nm:'Weave', sc:'SCALE 2',rounds:10,supply:18,zones:1,mobs:1,cp:2,best:'38,900',rank:'#22'},
+    {nm:'Tangle',sc:'SCALE 3',rounds:12,supply:20,zones:2,mobs:1,cp:3,best:'54,985',rank:'#9'},
+    {nm:'Snarl', sc:'SCALE 4',rounds:13,supply:22,zones:3,mobs:1,cp:4,best:null,rank:null},
+    {nm:'Knot',  sc:'SCALE 5',rounds:15,supply:24,zones:5,mobs:1,cp:5,best:null,rank:null}
+  ];
+
+  function buildCards(){
+    var c=document.getElementById('cards'); c.innerHTML='';
+    CARDS.forEach(function(d){
+      var el=document.createElement('div'); el.className='card';
+      var best = d.best
+        ? '<div class="best">&#9733; '+d.best+'</div><div class="rank">'+d.rank+' &#8250;</div>'
+        : '<div class="best"><span class="none">no score yet</span></div>';
+      el.innerHTML =
+        '<div class="nm">'+d.nm+'</div>'+
+        '<div class="scale">'+d.sc+'</div>'+
+        '<div class="stat"><span class="k">Rounds</span><span>'+d.rounds+'</span></div>'+
+        '<div class="stat"><span class="k">Supply</span><span>'+d.supply+'</span></div>'+
+        '<div class="stat"><span class="k">Zones</span><span>'+d.zones+'</span></div>'+
+        '<div class="stat"><span class="k">Mobs</span><span>'+d.mobs+'</span></div>'+
+        '<div class="stat"><span class="k">Checkpoints</span><span>'+d.cp+'</span></div>'+
+        '<div class="foot">'+best+'</div>';
+      c.appendChild(el);
+    });
+  }
+
+  function armHome(){
+    ['season','h-trials','h-ranked','campaign','gear','quit'].forEach(function(id){
+      document.getElementById(id).classList.remove('go');
+    });
+  }
+  function armCards(){
+    document.querySelectorAll('#cards .card').forEach(function(k){ k.classList.remove('go'); });
+  }
+  function showHome(){
+    var els=[['season',0],['h-trials',160],['h-ranked',280],['campaign',480],['gear',600],['quit',600]];
+    els.forEach(function(p){ var e=document.getElementById(p[0]); setTimeout(function(){ e.classList.add('go'); }, p[1]); });
+  }
+  function showCards(){
+    document.querySelectorAll('#cards .card').forEach(function(k,i){ setTimeout(function(){ k.classList.add('go'); }, i*90); });
+  }
+
+  // ARM the target screen's entrance state BEFORE it is revealed, so the final
+  // layout never flashes and then re-animates. (Implementation rule for CC too.)
+  function goSelect(){
+    armCards(); void document.getElementById('cards').offsetWidth;
+    document.getElementById('app').classList.add('sel');
+    setTimeout(showCards, 220);
+  }
+  function goHome(){
+    armHome(); void document.getElementById('home').offsetWidth;
+    document.getElementById('app').classList.remove('sel');
+    setTimeout(showHome, 200);
+  }
+
+  window.addEventListener('load', function(){
+    buildCards(); armHome(); armCards(); void document.getElementById('app').offsetWidth;
+    setTimeout(showHome, 250);
+  });
+</script>

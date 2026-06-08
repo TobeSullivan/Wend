@@ -9,7 +9,7 @@ Source: 2026-06-07 in-game review (Tobe). These are CC tasks unless noted. Items
 
 2. **Text too thin.** Fredoka's variable-font default weight is Light (300), and "set bold" silently no-ops in Godot. Fix per `design/VISUAL_SYSTEM.md`: ship a static **Fredoka-SemiBold.ttf** and point the project default font at it (most reliable), or `variation_embolden`. Promote weight + outline to a shared `Theme` so it can't regress screen-by-screen.
 
-3. **Em-dashes in strings.** Literal "—" appears in UI strings (e.g. "Trials — daily/weekly"), reads unnatural. Sweep all user-facing strings and remove/replace.
+3. **Em-dashes in strings.** Literal "—" appears in UI strings (e.g. "Trials — daily/weekly"), reads unnatural. Sweep all user-facing strings and remove/replace. **(2026-06-08) Specific drift found: `design/VISUAL_SYSTEM.md` PVE-select section still says "em-dash if unplayed" for an empty best-score — that's a user-facing string. Use "no score yet" (as in `notes/mockups/meta_menu_mock.html`).**
 
 4. **Speed bug + speed rules.** If default speed is set to 3×, the round starts at 3× but the speed **button doesn't reflect it** (state desync). Also: speed must **never change during build phase** — run phase only. To speed up build, the player just hits Start Round. (Matches the rail spec: Speed is disabled in build.)
 
@@ -17,7 +17,7 @@ Source: 2026-06-07 in-game review (Tobe). These are CC tasks unless noted. Items
 
 6. **In-game layout rework.** ✅ Resolved in design — reserved right rail + maximized 25×16 board + contextual tower overlay (`design/INMATCH_HUD.md`, reference mock `notes/mockups/inmatch_assembly.html`). CC implements against that spec. (The board white-corner artifact from #1 is part of this surface.)
 
-7. **Victory screen star tiles.** The 1/2/3-star tiles have a white outline on the corners only — looks flat/inverted and awkward next to the bottom buttons. Either a full outline or none; the corner-only outline reads as a bug, not a choice.
+7. **Victory screen star tiles.** The 1/2/3-star tiles have a white outline on the corners only — looks flat/inverted and awkward next to the bottom buttons. Either a full outline or none; the corner-only outline reads as a bug, not a choice. **(2026-06-08) Design ref for the fix: `notes/mockups/victory_screen_mock.html` — full clean outline, no corner-only.**
 
 8. **Build mode — out of supply.** When the player runs out of supply, automatically **stop the tower hover/placement cursor** (don't leave a placement ghost you can't afford to place).
 
