@@ -2,8 +2,12 @@ extends Node2D
 
 # Campaign rebuild verification harness (design/CAMPAIGN.md).
 # PASS 1 (all missions): load each mission_NN.tres, validate the resource + tutorial beats,
-# and prove every ghost_cells set is a BUILDABLE maze — place all prompted cells through the
-# real placement path (bot_place_tower) and assert each succeeds (so the mob path stays open).
+# and prove every ghost_cells set is a BUILDABLE maze on three independent axes:
+#   (A) supply — the outline fits supply_cap (player can place every cell),
+#   (B) legality — placing all cells keeps the mob path open (gold is topped up first so the
+#       economy can't masquerade as a path closure: with no income, 250g only buys 25 towers),
+#   (C) affordability — the outline's gold cost is earnable by the final round (start + per-round
+#       kill/bonus income), so the player can actually buy the whole suggested maze in a match.
 # PASS 2 (one non-blocking mission): full-build with UI + TutorialDirector and tick a few
 # frames to smoke-test the director/callout/overlay wiring end to end.
 # Drive headlessly: godot --headless --path src res://tools/campaign_verify.tscn
@@ -69,26 +73,57 @@ func _verify_mission(idx: int) -> bool:
 		print("M", idx, " ❌ ", blocking_count, " blocking beats (max 1)")
 		ok = false
 
-	# Maze: place every ghost cell through the real path; each must be a legal placement
-	# (in-bounds, empty, not entry/exit/checkpoint, supply cap, path stays open).
+	# Maze: place every ghost cell through the real placement path and assert each keeps the
+	# mob path open. The match economy is NOT a maze property, so we top up gold before the
+	# loop — otherwise bot_place_tower's can_afford gate (250g/10 = 25 towers, no income yet)
+	# falsely rejects legal cells and masks them as "closes the path." Affordability is a
+	# SEPARATE check below (can the player buy the whole outline by the final round?).
+	var ghost_cells: Array = []
+	for b in beats:
+		if b.ghost_cells != null:
+			for c in b.ghost_cells:
+				ghost_cells.append(c)
+	var ghost_total := ghost_cells.size()
+
+	# A) The outline must fit the supply cap — otherwise the player can't build it all.
+	if ghost_total > int(map.supply_cap):
+		print("M", idx, " ❌ outline has ", ghost_total, " cells > supply_cap ", map.supply_cap,
+			" (player can't place the whole outline)")
+		ok = false
+
+	# B) Maze legality: every ghost cell is a legal placement and the path stays open.
 	var host := Node2D.new()
 	add_child(host)
 	var boards: Array = MapLoaderScript.build_match(host, map, 1, -1, false)
 	var ctrl = boards[0].build_controller
-	var ghost_total := 0
-	for b in beats:
-		var cells = b.ghost_cells
-		if cells == null:
-			continue
-		for c in cells:
-			ghost_total += 1
-			if not ctrl.bot_place_tower(c):
-				print("M", idx, " ❌ ghost cell ", c, " is not a legal placement (closes the path or blocked)")
-				ok = false
+	ctrl.round_manager.gold = 1_000_000  # decouple from economy; affordability checked in (C)
+	for c in ghost_cells:
+		if not ctrl.bot_place_tower(c):
+			print("M", idx, " ❌ ghost cell ", c, " is not a legal placement (closes the path or blocked)")
+			ok = false
 	host.queue_free()
 
+	# C) Affordability: the suggested outline (ghost_total towers @ TOWER_COST) must be buyable
+	# by the time the player reaches the final round. Income per completed round = mob kills +
+	# round bonus (interest is ignored — a conservative lower bound on gold). The player has
+	# (round_count - 1) rounds of income in hand entering the final build phase.
+	var outline_cost := ghost_total * GameConstants.TOWER_COST
+	var gold := GameConstants.STARTING_GOLD
+	var affordable_by := -1
+	if outline_cost <= gold:
+		affordable_by = 1
+	for r in range(1, int(map.round_count)):  # rounds 1..round_count-1 completed before final round
+		gold += int(map.mob_count) * GameConstants.KILL_BONUS + GameConstants.ROUND_BONUS_BASE + r
+		if affordable_by < 0 and outline_cost <= gold:
+			affordable_by = r + 1  # affordable entering this build phase
+	if outline_cost > gold:
+		print("M", idx, " ❌ outline costs ", outline_cost, "g but only ", gold,
+			"g earnable by the final round (round ", map.round_count, ")")
+		ok = false
+
 	print("M", idx, " ", ("✅" if ok else "❌"), " beats=", beats.size(),
-		" ghost_cells=", ghost_total, " CP=", map.checkpoint_cells.size(),
+		" ghost_cells=", ghost_total, " cost=", outline_cost, "g affordable_by_round=", affordable_by,
+		" CP=", map.checkpoint_cells.size(),
 		" zones=", map.bonus_zones.size(), " supply=", map.supply_cap,
 		" rounds=", map.round_count)
 	return ok
