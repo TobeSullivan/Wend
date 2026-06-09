@@ -1,107 +1,109 @@
-# Beta design brief — what to resolve before the build push
+# Closed-Beta Mechanics — design brief
 
-Captured 2026-06-06. Goal: get a playable desktop beta into two friends' hands
-(one Mac, one PC) to validate **multiplayer** and (if pulled forward) **leaderboards**.
+Locked 2026-06-08. This rewrites the old itch.io-era brief entirely (that framing is dead:
+the target is a **closed Steam beta**, $100 Direct fee paid, no itch/zip distribution).
 
-Three items are both **undesigned and beta-relevant** — resolving them unblocks the
-whole beta build (distribution + leaderboard slice + group/onboarding flow) in one
-coordinated push. Everything else in `notes/open_items.md` is either already locked,
-not beta-relevant, or blocked on playtest data. Per the design-before-code rule, CC
-should not build the UI here without an agreed design.
-
-Context that's already settled (don't re-litigate):
-- Platform: PC/Mac-first, mobile dead. Distribution leaning **itch.io draft** (free,
-  Win+Mac, itch app auto-updates + strips macOS quarantine). Steam is the eventual
-  launch home but **not** for a 2-friend beta (Steamworks $100 + multi-day Valve review).
-- Connection plumbing is DONE: clients connect outbound to the live Hetzner match
-  server (`5.78.110.182`, UDP 8771) — no port-forwarding, no NAT punching.
-- Leaderboard *system/data* design is locked in `notes/leaderboards.md` (Nakama backend;
-  board set; metric = total damage; group scoring per-team; window cadence). What's
-  missing is the **UI** and the **identity model** below.
+This doc is **what the beta build contains and tests** — distinct from the Steam *ops*
+(App ID / Playtest app creation), which is blocked on identity verification clearing.
 
 ---
 
-## 1. Leaderboard UI + player identity
+## Why the beta exists — the three jobs
 
-The strategic layer is locked (`notes/leaderboards.md`); the UI and identity layers are not.
-Leaderboards = Nakama = M3, so doing this pulls M3 forward ahead of its "toward launch" slot.
-Good news: leaderboards are Nakama's easiest feature (define board → write score → read
-board); the heavy Nakama parts (matchmaking) stay deferred — the fixed match server already
-handles connections.
+The beta answers three questions, in priority order:
 
-### Open questions — identity (underpins everything)
-- **How does a player get a persistent name?** Today names are local display handles only
-  ("You" / opponent handles, `match_coordinator.gd:54`) — no account system exists.
-  Options: device-auth + a one-time entered handle (simplest for beta) · email/Google ·
-  defer to Steam name at launch. A leaderboard score is meaningless without a stable name
-  attached across sessions.
-- **Is the beta identity throwaway or forward-compatible?** i.e. do we want these beta
-  accounts/handles to survive into the real Nakama identity at launch, or is beta auth
-  disposable?
-- **One handle, or per-mode?** (Almost certainly one. Confirm.)
-
-### Open questions — UI surfaces (need a design/mockup for each)
-- **Post-match placement panel** (the highest-value surface): "You placed #14 this week"
-  + the rows around you + "View full board." What does it look like, where does it sit
-  relative to the redesigned victory panel? Trials and Ranked variants differ (Ranked = LP
-  delta + ladder position; Trials = damage rank).
-- **Full board-browse screen:** the tucked-away tertiary destination. Row layout, how you
-  switch board (map × window × group-size for Trials; the single ladder for Ranked; the 10
-  campaign boards). How deep does browsing go — top N + your neighborhood, or full scroll?
-- **Trials-select entry point:** that screen already shows 5 maps + your best score with
-  daily/weekly/monthly tabs. How does "your best score" become a tappable board entry?
-
-### Technical (we can derive, but confirm the convention)
-- **Board-id schema / Nakama tournament config** — the naming convention for
-  `(map, window, group-size)` Trials boards, the 10 campaign boards, the Ranked season
-  ladder. Listed "Open" in `notes/leaderboards.md:49`.
+1. **Is it fun?** The core single-tower mazing loop — is it genuinely compelling, or shallow
+   once the novelty fades. This is the load-bearing question; art and bugs are fixable, a
+   boring core loop is a design problem.
+2. **Does it look professional, not cheap?** The art read — answered by testers who are
+   artists and have played enough games to judge.
+3. **Does the full networked loop work, and does onboarding land?** The cross-network MP run
+   (the one thing that can't be tested solo) + whether a non-SC2 newcomer can get in and through.
 
 ---
 
-## 2. Trials group-lobby flow (co-op PVE)
+## The five locked decisions
 
-*Untouched* in `open_items.md`. The group *scoring* is locked (per-team, separate boards by
-size) but the *lobby flow* is undesigned. Only matters for the beta if you want the friends
-to test **co-op Trials**, not just head-to-head Ranked.
+### 1. Build scope — all three modes, everything unlocked
+Campaign (M1–M5), Trials (all five scales), and Ranked all ship in the one build. Each carries
+a different job: **Campaign** is the art-read + onboarding surface, **Trials** is the solo
+leaderboard loop, **Ranked** is the cross-network MP run that's been blocked on distribution.
+One build, one cohort, all three reads at once — if Ranked is broken you hear it from people
+you can talk to directly. Nothing is gated/locked inside the build; it's a test, not a ladder.
 
-### Open questions
-- **How do 2–3 friends get into the same Trials match?** Reuse the existing lobby/join-by-
-  server flow, or a match/room code? (Server is single-match Option A today — fine for one
-  group.)
-- **Ready-up flow:** who picks the map/window, how does everyone signal ready, what's the
-  countdown/start gate?
-- **Shared vs individual within the run:** lives are pooled (locked). Anything else shared —
-  vision, build budget? (Likely nothing else; confirm.)
-- **Is co-op in beta scope at all,** or is beta head-to-head Ranked only? (Cheapest beta =
-  Ranked only; co-op adds the lobby-flow design + build.)
+### 2. Ranked matchmaking — lobby floor 2 for the beta
+Production floor is 4 (auto-launch at 8, unanimous-of-present vote at 4–7). With a handful of
+friends across timezones you can't reliably get 4 queued at once, and the thing the beta needs
+from Ranked — a real networked match + LP/MMR settling with real opponents — only needs **two**
+people. So **drop `LOBBY_FLOOR` to 2 for the beta** (vote path stays intact: any two friends
+queue → lobby → vote → match → LP settle, exercising the full orchestration at small scale).
+**Reverts to 4 at launch** — a one-line constant in `index.js` + `docker compose restart nakama`.
+
+### 3. Feedback — Discord, plus a targeted artist prompt
+A **Discord server** is the feedback spine: low-friction, where these people already are,
+conversational so bugs/balance/general flow into channels. **It doubles as the community hub**
+(closes the open GTM item — built once, not twice). A heavyweight per-session survey, friends
+won't fill out; an in-game feedback button is engineering you don't need for five people.
+
+The art read needs structure or it comes back as polite "looks good." Hand the **artists** a
+short, pointed prompt that forces them to point at *what* reads cheap, not deliver a verdict:
+
+> **Artist art-read prompt (hand to the artists specifically):**
+> 1. First-screen test: in the first 10 seconds, does this read as a finished commercial game
+>    or a hobby project? What's the single thing dragging that read down?
+> 2. Point at the weakest surface: capsule/title screen, the in-game board, the UI type, the
+>    juice/motion, or the color palette. Name the one you'd fix first.
+> 3. Where does it look *cheap* specifically — spacing, contrast, fonts, asset consistency,
+>    alignment? Be concrete; "it's fine" doesn't help me.
+> 4. Where does it already look *right* — what should I not touch?
+> 5. If a stranger saw a screenshot, would they assume it costs $10–15 or that it's free?
+
+### 4. Beta data — separate beta season/boards
+The beta plays against the **live** backend (same `hil` box). To keep the launch ladder honest,
+beta progress lands on a **separate season/board set** — `ranked_s0` + beta-flagged Trials
+boards — so launch opens on a **virgin `s1` by construction, with nothing to wipe.** The schema
+already parameterizes seasons, so this is a config value, not throwaway architecture. Bonus:
+beta data survives for analysis instead of being destroyed. (Beats the alternative — beta on
+the real boards + a manual pre-launch wipe — because a forgotten/partial wipe quietly corrupts
+the real ladder.)
+
+### 5. Exit criteria — three tiers
+- **Continue gate (fun).** Read it *behaviorally*, not verbally — do testers return unprompted,
+  play "one more run," talk strategy on their own (the tell that the depth is real)? The honest
+  verbal version: *"would you pay $10–15 for this if it weren't mine?"* Fail here and it's a
+  design problem — the most important thing the beta can tell you, before a dollar is spent on a
+  capsule.
+- **Page gate (art).** The artists' read comes back professional (or you've worked through their
+  punch-list). This alone **unblocks the public Steam page** — it's the exact insecurity holding it.
+- **Launch gate (all four).** Fun confirmed + art good + **≥1 clean full networked Ranked match
+  across networks with LP settling correctly** + **a non-SC2 newcomer finishes the campaign**
+  without getting stuck + **zero open P0/blocker bugs.**
 
 ---
 
-## 3. Onboarding for non-SC2 players
+## Cohort spec (falls out of the gates)
+The gates can't be read with the wrong people:
+- **Fun gate** needs ≥1–2 testers who'd play a maze TD *anyway* (favor-players give polite praise
+  and never return unprompted — they can't produce the behavioral signal).
+- **Onboarding gate** needs ≥1 tester who is **not** an SC2 / Random TD vet.
+- **Ranked launch gate** needs ≥2 who'll get online at the same time across networks.
+- **Art gate** needs the artists.
 
-*Untouched*. Both friends may not intuitively grok single-tower mazing. With the campaign now
-*optional* (not the forced tutorial), a newcomer might bounce. Directly affects whether the
-beta is *usable* — a confused tester gives you noise, not signal.
-
-### Open questions
-- **Do your two specific friends already know mazing** (SC2 Random TD background)? If yes,
-  beta onboarding can be a one-paragraph "how to play" and this de-prioritizes — the real
-  onboarding design becomes a launch concern, not a beta blocker.
-- **If not:** minimum viable teach for the beta — a first-run tooltip pass? a "play mission 1
-  first" nudge? a single explainer card? (Not the full onboarding system — just enough that
-  the beta produces clean feedback.)
-- **What's the one concept that must land?** Probably: *you build the maze; longer path = more
-  time on target.* Everything else is secondary.
+Minimum viable cohort ≈ five people doubling up roles. **Tobe confirms his pool covers it.**
 
 ---
 
-## After this brief is answered → the build push
+## CC / ops items (logged to `notes/open_items.md`)
+- **Beta-season flag** in the Nakama board init (`index.js`): create `ranked_s0` + beta-flagged
+  Trials boards for the beta so launch's `s1` is untouched.
+- **`LOBBY_FLOOR = 2`** for the beta in `index.js`, with a documented **revert to 4 at launch**
+  (one constant + `restart nakama`). Don't let it ship to launch at 2.
 
-Once these are decided, the beta build is roughly:
-1. **Win + Mac client export presets** (don't exist yet — only Android-dead + Linux-server).
-2. **Real 2-client cross-network match** (never done with full clients — the core MP validation).
-3. **itch.io draft** + `butler` push pipeline; secret link to each friend.
-4. **(If leaderboards in scope)** thin Nakama slice: deploy Nakama (Docker+Postgres on the
-   Hetzner box) → auth/identity → score write on match end → the post-match + browse UI.
-5. **(If co-op in scope)** Trials group-lobby flow.
-6. **(If needed)** minimal onboarding teach.
+---
+
+## Out of scope here (deliberately)
+- **Steam ops** (App ID, Playtest app, Win+Mac export presets, steampipe) — blocked on identity
+  verification; tracked under Steam in STATE/open_items.
+- **The cosmetics & collection meta-layer** (catalog, locker/equip, codex, season-pass screen) —
+  a separate undesigned arc surfaced 2026-06-08. **Not a beta blocker** (cosmetics sit below the
+  fun gate). Next design session, at-the-computer with the art folders.

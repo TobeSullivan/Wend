@@ -8,6 +8,16 @@ Status key: **RESOLVED** · **NEAR** · **REC-PENDING** · **DIRECTION-SET** · 
 
 ---
 
+## Resolved 2026-06-08 (design — closed-beta mechanics)
+Full plan in `notes/beta_design_brief.md` (rewritten; itch.io framing dead). Five locks:
+- **Build = all three modes** (Campaign / Trials / Ranked), everything unlocked. One build, one cohort, all three reads at once.
+- **Ranked lobby floor = 2 for the beta** (vote path kept) → **reverts to 4 at launch** (`LOBBY_FLOOR` in `index.js` + `restart nakama`). Two friends are enough to exercise the full queue→lobby→vote→match→LP-settle path.
+- **Feedback = Discord** (channels + a targeted artist art-read prompt — drafted in the brief), **doubling as the community hub** (closes that GTM item).
+- **Separate beta season/boards** (`ranked_s0` + beta-flagged Trials) → launch opens on a virgin `s1` **by construction, nothing to wipe**.
+- **Three-tier exit:** fun = continue-or-rethink gate (read behaviorally) · art = page gate (unblocks the public Steam page) · all four = launch gate (fun + art + ≥1 clean cross-network Ranked match w/ LP + a non-SC2 newcomer finishes the campaign + zero P0s).
+- **Cohort spec** derived from the gates (artists + ≥1 genre-liker who isn't a favor-player + ≥1 non-SC2 newcomer + 2 who'll coordinate) — Tobe confirms covered.
+- **Steam confidential-vs-public DECIDED:** beta runs **confidential / friends-only**; the public Coming Soon page is **gated on the art read** clearing.
+
 ## Resolved 2026-06-07 (Nakama deployed + client wired + matchmaking spine — commits f178d01→e53d53c)
 - **Nakama backend DEPLOYED & LIVE** on the `hil` box (`5.78.110.182:7350`): Postgres + Nakama in Docker, 66 boards (5 campaign + ranked_s1 + 60 Trials), `submit_score` RPC, forming-lobby match handler + matchmaker hook. Console/gRPC loopback-bound. Fixed on deploy: Docker wasn't actually installed; compose YAML folded-scalar bug dropped `--database.address` (→ literal block).
 - **Godot client wired to Nakama:** `com.heroiclabs.nakama` addon vendored; `NakamaService` autoload (device auth, session persist/restore, socket); `NakamaBackend` lights the 3 leaderboard surfaces with live data (`LeaderboardService` reads now `await`-tolerant); match-end posts Trials/campaign scores via the RPC. (The "when Nakama lands, add a NakamaBackend + set_backend" note under the leaderboard items below is now DONE.)
@@ -91,12 +101,15 @@ Status key: **RESOLVED** · **NEAR** · **REC-PENDING** · **DIRECTION-SET** · 
 - **Backend box moved `ash`→`hil` (2026-06-08).** New box: `5.78.110.182`, CPX31 (4 vCPU / 8 GB / 160 GB), Hetzner Hillsboro (us-west), Ubuntu. Old CPX11 at `ash` deleted (billing stopped). Reason: CPX11 is a deprecated Gen1 type and `ash` had no CPX31 rescale capacity; created fresh (nothing wired yet, so cleaner than a snapshot restore). Firewall `firewall-1` = 3 inbound rules (TCP 22, TCP 7350, UDP 8771 — all any-IP); console reached via SSH tunnel, NOT a public 7351 rule (residential IP is dynamic). IP swapped across repo docs + `src/scripts/lobby.gd`.
 - **CC, deploy-time hardening — ✅ DONE 2026-06-07.** `deploy/nakama/docker-compose.yml` binds the console AND gRPC to loopback (`127.0.0.1:7351:7351`, `127.0.0.1:7349:7349`); only 7350 is public. Confirmed in the deployed `docker compose ps` port map.
 - **Two boxes, one host:** the `hil` box now runs BOTH the Nakama stack (Docker, `deploy/nakama/`) and the Godot match server (systemd `wend-server.service`, `deploy/`, UDP 8771). Redeploy paths differ: Nakama JS module = `scp index.js` + `docker compose restart nakama`; Godot server = rebuild Linux binary + `bash deploy/deploy.sh root@5.78.110.182`.
+- **CC — beta-season boards (from beta mechanics, 2026-06-08):** the Nakama board init (`index.js`) needs to create a **separate beta season + beta-flagged Trials boards** (`ranked_s0`) so the closed beta never touches launch's `s1`. Launch then opens clean by construction.
+- **CC — beta `LOBBY_FLOOR = 2` (from beta mechanics, 2026-06-08):** set the lobby floor to 2 in `index.js` for the beta (vote path unchanged), with a **documented revert to 4 at launch**. Must not ship to launch at 2.
 
 ## Drift / audit
 - **40×22 → 25×14 grid figure** — DESIGN_MODES campaign section now flags it; sweep for other stale 40×22 / mission-count references across docs at next audit.
-- **`notes/beta_design_brief.md` stale framing** — still says itch.io draft + "Steam not for a 2-friend beta"; both reversed (closed Steam beta is the target, $100 paid). IP was swapped but the distribution framing wasn't rewritten (out of scope at the server-move wrap). Fix at next audit.
+- **`notes/beta_design_brief.md` stale framing — RESOLVED 2026-06-08.** Rewritten from scratch with the locked closed-beta mechanics; the itch.io / "Steam not for a 2-friend beta" framing is gone.
 
 ## Own session (large)
-- **Juice / game-feel pass** — tweens, particles, hit-pause, shake, road shader. Light taste mockup exists.
-- **Full GTM / marketing plan** — Steam page, capsule/tags/trailer, Next Fest/demo, streamer outreach. See `notes/gtm.md`.
-- **Steam closed-beta mechanics** — app id ($100), Playtest vs beta branch, Win+Mac export presets, steampipe pipeline.
+- **Cosmetics & collection meta-layer** — NEW arc, 2026-06-08. Entirely undesigned: the content **catalog** + **slot taxonomy** (boards/paths/towers/zones/projectiles/mobs/profile flair), the **locker/equip** surface, the **codex / sticker-book** (owned vs unearned), the **season-pass track screen**, and the **meta-menu IA** tying them in. **Upstream of finalizing season-pass numbers** (`season_pass.md` has a soft 8wk/30-tier/1000pt worked example, but you can't tier a pass or build a locker until the catalog + slots exist). **Color constraint (direction noted, not locked):** tower investment is already legible via multishot + fire-rate + the info box, so move the growth signal off body-color (base aura / size / other) to free the body for skins; zones are fine to skin as long as labels stay. Next session is at-the-computer with the art folders uploaded → triage rewards (now vs later, what's cheap) first.
+- **Full GTM / marketing plan** — Steam page, capsule/tags/trailer, Next Fest/demo, streamer outreach. See `notes/gtm.md` (stub is stale: name resolved, juice done, slice = beta; public page gated on the beta art read). Capsule (~$250+) is the one paid item worth prioritizing.
+- **Steam closed-beta *ops*** — the mechanics are now DESIGNED (`notes/beta_design_brief.md`); what remains is the Steam-side pipeline: App ID, Playtest app, Win+Mac export presets, steampipe. Blocked on identity verification clearing.
+- **Juice / game-feel pass — DONE (2026-06-08, CC).** Implemented against `design/JUICE.md`; every locked surface shipped. Remaining = playtest dials + the optional audio-sting decision.
