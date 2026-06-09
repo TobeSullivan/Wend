@@ -1,8 +1,8 @@
 extends Control
 
-# Throwaway capture harness for the home screen (polish #1 white-corner diagnosis). Instances
-# the real HomeScreen, lets it render, then saves a full screenshot + 8x corner crops so the
-# corner pixels are clearly inspectable. Run WINDOWED (headless saves blank images):
+# Throwaway capture harness for the home screen. Instances the real HomeScreen and saves a
+# mid-arrival frame + the settled frame, to eyeball the JUICE entrance + break-the-grid hero
+# attitude (design/JUICE.md + meta_menu_mock). Run WINDOWED (headless saves blank images):
 #   Godot.exe --path . res://tools/home_shot.tscn
 
 const HomeScreen := preload("res://scripts/home_screen.gd")
@@ -15,20 +15,12 @@ func _ready() -> void:
 	_capture.call_deferred()
 
 func _capture() -> void:
-	for i in range(40):
-		await get_tree().process_frame
+	# Mid-arrival: heroes dropping in, campaign/corners not yet up (~0.45s).
+	await get_tree().create_timer(0.45).timeout
 	await RenderingServer.frame_post_draw
-	var img := get_viewport().get_texture().get_image()
-	img.save_png(DIR + "home_shot.png")
-	var vp := img.get_size()
-	var s := 64
-	_crop(img, Rect2i(0, 0, s, s), "tl")
-	_crop(img, Rect2i(vp.x - s, 0, s, s), "tr")
-	_crop(img, Rect2i(0, vp.y - s, s, s), "bl")
-	_crop(img, Rect2i(vp.x - s, vp.y - s, s, s), "br")
+	get_viewport().get_texture().get_image().save_png(DIR + "home_mid.png")
+	# Settled: full composition at rest (off-axis heroes).
+	await get_tree().create_timer(1.0).timeout
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(DIR + "home_settled.png")
 	get_tree().quit()
-
-func _crop(img: Image, r: Rect2i, tag: String) -> void:
-	var c := img.get_region(r)
-	c.resize(r.size.x * 8, r.size.y * 8, Image.INTERPOLATE_NEAREST)
-	c.save_png(DIR + "home_corner_%s.png" % tag)

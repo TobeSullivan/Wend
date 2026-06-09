@@ -12,6 +12,7 @@ const StarRatingScript := preload("res://scripts/star_rating.gd")
 const MapGen := preload("res://scripts/map_generator.gd")
 const MapResourceScript := preload("res://resources/map_resource.gd")
 const LeaderboardService := preload("res://scripts/leaderboard_service.gd")
+const Motion := preload("res://scripts/motion.gd")
 
 # A distinct seed salt per window so Daily/Weekly/Monthly can never collide even
 # if their identity hashes land near each other.
@@ -142,8 +143,29 @@ func _show_window(window_type: int) -> void:
 
 	for child in _list_box.get_children():
 		child.queue_free()
+	var cards: Array = []
 	for map in _windows[window_type]:
-		_list_box.add_child(await _map_card(map))
+		var c := await _map_card(map)
+		_list_box.add_child(c)
+		cards.append(c)
+	_cascade_cards(cards)
+
+# JUICE (meta_menu_mock): the scale cards cascade in, staggered, on load + each tab switch.
+# Scale + fade (not position) so the VBoxContainer can't stomp them. Armed transparent first.
+func _cascade_cards(cards: Array) -> void:
+	for c in cards:
+		c.modulate.a = 0.0
+	_do_cascade_cards.call_deferred(cards)
+
+func _do_cascade_cards(cards: Array) -> void:
+	for i in cards.size():
+		var c: Control = cards[i]
+		if not is_instance_valid(c):
+			continue
+		c.pivot_offset = c.size * 0.5
+		var d := Motion.stagger_delay(i, cards.size(), 0.07)
+		Motion.arrive_property(c, "scale", Vector2.ONE * 0.94, Vector2.ONE, Motion.M, d)
+		Motion.fade_in(c, Motion.S, d)
 
 func _map_card(map) -> Control:
 	var tier: int = map.scale_tier

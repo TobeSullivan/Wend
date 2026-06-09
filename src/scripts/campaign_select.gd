@@ -6,6 +6,7 @@ extends Control
 
 const UiStyle := preload("res://scripts/ui_style.gd")
 const StarRatingScript := preload("res://scripts/star_rating.gd")
+const Motion := preload("res://scripts/motion.gd")
 
 # Real lesson content per mission (reinforces "this is the tutorial"). Index 1-based.
 # The five-mission curriculum ramps from zero (design/CAMPAIGN.md).
@@ -57,8 +58,26 @@ func _build_grid() -> void:
 	grid.add_theme_constant_override("v_separation", 16)
 	center.add_child(grid)
 
+	var cards: Array = []
 	for i in range(1, SceneManager.CAMPAIGN_MISSION_COUNT + 1):
-		grid.add_child(_mission_card(i))
+		var c := _mission_card(i)
+		grid.add_child(c)
+		cards.append(c)
+	# JUICE (meta_menu_mock): the mission cards cascade in, staggered, on load. Scale + fade so
+	# the GridContainer can't stomp them; armed transparent before the first frame.
+	for c in cards:
+		c.modulate.a = 0.0
+	_cascade_cards.call_deferred(cards)
+
+func _cascade_cards(cards: Array) -> void:
+	for i in cards.size():
+		var c: Control = cards[i]
+		if not is_instance_valid(c):
+			continue
+		c.pivot_offset = c.size * 0.5
+		var d := Motion.stagger_delay(i, cards.size(), 0.07)
+		Motion.arrive_property(c, "scale", Vector2.ONE * 0.94, Vector2.ONE, Motion.M, d)
+		Motion.fade_in(c, Motion.S, d)
 
 func _mission_card(index: int) -> Control:
 	var authored: bool = SceneManager.has_campaign_mission(index)
