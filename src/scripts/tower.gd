@@ -9,6 +9,7 @@ const SPRITE_SCALE := 0.12  # fits a 48px tile
 const LOADED_TEX := preload("res://assets/towers/arrow_box_loaded.png")
 const UNLOADED_TEX := preload("res://assets/towers/arrow_box_unloaded.png")
 const ProjectileScript := preload("res://scripts/projectile.gd")
+const Motion := preload("res://scripts/motion.gd")
 
 # DESIGN color map: damage=red, range=green, attack_speed=blue,
 # crit_chance=yellow, crit_damage=orange, multishot=purple.
@@ -147,6 +148,12 @@ func upgrade(stat: String) -> void:
 	tiers[stat] += 1
 	total_invested += GameConstants.UPGRADE_COST_BASE[stat] * tiers[stat]
 	_update_modulate()
+	# JUICE (design/JUICE.md "Tower color deepen on upgrade"): the colour ramp is the existing,
+	# locked identity (unchanged, instant). The only juice is an emphasis-pop at the instant it
+	# deepens, so a silent state change lands as a felt beat. Scoped to a real in-tree sprite so
+	# the headless re-sim replay (which also calls upgrade()) doesn't spawn pointless tweens.
+	if sprite != null and sprite.is_inside_tree():
+		Motion.pop(sprite, 1.22)
 	if stat == "range":
 		_refresh_range_circle()
 	# Record for the re-sim contract (no-op unless recording). board is the BoardState;

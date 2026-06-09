@@ -3,27 +3,27 @@ class_name TutorialCallout
 
 # Tutorial beat presentation (design/CAMPAIGN.md "Tutorial-beat system"). Two forms:
 #  • toast — a non-blocking card near the bottom-center (or leaning toward an anchor
-#    region), auto-dismissed after a few seconds or on click. Does NOT pause the game.
+#    region), dismissed only when the player taps it — no auto-timeout (tutorial tips wait
+#    for the player; polish_punchlist "dismissable-only"). Does NOT pause the game.
 #  • blocking modal — a dimmed backdrop + centered card + "Got it" button that pauses the
 #    tree until acknowledged (single-player pauses; only M1's opener uses this).
 # No literal pointer-arrows yet — `anchor` only nudges the toast's screen position.
 
 const UiStyle := preload("res://scripts/ui_style.gd")
 
-const TOAST_SECONDS := 6.0
 const CARD_MAX_W := 520.0
 
 signal acknowledged   # emitted when a blocking beat is dismissed (director chains the next)
 
 var _toast: Control = null
-var _toast_timer: SceneTreeTimer = null
 var _modal: Control = null
 
 func _ready() -> void:
 	layer = 50  # above the in-match HUD
 	process_mode = Node.PROCESS_MODE_ALWAYS  # button must work while the tree is paused
 
-# Non-blocking callout. `anchor` nudges position; replaces any current toast.
+# Non-blocking callout. `anchor` nudges position; replaces any current toast. Stays until the
+# player taps it — no auto-timeout (polish_punchlist "dismissable-only").
 func show_toast(text: String, anchor: String = "") -> void:
 	_dismiss_toast()
 	var p := _panel_with_text(text)
@@ -31,8 +31,6 @@ func show_toast(text: String, anchor: String = "") -> void:
 	add_child(p)
 	_toast = p
 	p.gui_input.connect(_on_toast_input)
-	_toast_timer = get_tree().create_timer(TOAST_SECONDS)
-	_toast_timer.timeout.connect(_dismiss_toast)
 
 # Blocking modal: dim backdrop + card + "Got it". Pauses the tree; resumes + emits
 # `acknowledged` on click. Caller must be single-player (pause-safe) — campaign always is.
@@ -87,9 +85,6 @@ func _on_toast_input(e: InputEvent) -> void:
 		_dismiss_toast()
 
 func _dismiss_toast() -> void:
-	if _toast_timer != null and _toast_timer.timeout.is_connected(_dismiss_toast):
-		_toast_timer.timeout.disconnect(_dismiss_toast)
-	_toast_timer = null
 	if _toast != null and is_instance_valid(_toast):
 		_toast.queue_free()
 	_toast = null
@@ -102,7 +97,11 @@ func _panel_with_text(text: String) -> PanelContainer:
 	var m := MarginContainer.new()
 	_pad(m, 18)
 	p.add_child(m)
-	m.add_child(_make_label(text))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	m.add_child(v)
+	v.add_child(_make_label(text))
+	v.add_child(_make_hint("Tap to dismiss"))
 	return p
 
 func _make_label(text: String) -> Label:
@@ -112,6 +111,14 @@ func _make_label(text: String) -> Label:
 	l.custom_minimum_size = Vector2(CARD_MAX_W, 0)
 	l.add_theme_font_size_override("font_size", 17)
 	l.add_theme_color_override("font_color", Color.WHITE)
+	return l
+
+func _make_hint(text: String) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", 12)
+	l.add_theme_color_override("font_color", Color(1, 1, 1, 0.45))
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	return l
 
 func _pad(m: MarginContainer, n: int) -> void:

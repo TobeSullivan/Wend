@@ -11,6 +11,7 @@ const UiStyle := preload("res://scripts/ui_style.gd")
 const StarRatingScript := preload("res://scripts/star_rating.gd")
 const LeaderboardService := preload("res://scripts/leaderboard_service.gd")
 const RankedLadder := preload("res://scripts/ranked_ladder.gd")
+const Motion := preload("res://scripts/motion.gd")
 
 var round_manager  # RoundManager (local board) — untyped to avoid class-name cycle
 # Trials (PVE) leaderboard context: {window:int, tier:int, group:String}. Set by map_loader
@@ -41,11 +42,13 @@ var _hero_big: Label
 var _hero_sub: Label
 var _tiles_row: HBoxContainer
 var _vscore_val: Label
+var _score_block: VBoxContainer   # DAMAGE key + value, faded/ticked as one unit in the choreo
 var _vbuttons: HBoxContainer
+var _victory_damage := 0          # cached for the score tick
 
 const STAR_FOR_MEDAL := {"gold": 3, "silver": 2, "bronze": 1, "none": 0}
 const MEDAL_RESULT := {
-	"gold": "Three stars!", "silver": "Two stars", "bronze": "One star", "none": "No stars — try again",
+	"gold": "Three stars!", "silver": "Two stars", "bronze": "One star", "none": "No stars yet",
 }
 const MEDAL_RESULT_COLOR := {
 	"gold":   Color(1.0, 0.85, 0.2),
@@ -192,6 +195,7 @@ func _build_victory() -> void:
 
 	# Score block.
 	var sblk := VBoxContainer.new()
+	_score_block = sblk
 	sblk.alignment = BoxContainer.ALIGNMENT_CENTER
 	sblk.add_theme_constant_override("separation", 2)
 	var skey := _make_label(13, UiStyle.LABEL_COL)
@@ -217,6 +221,7 @@ func _build_victory() -> void:
 func _star_tile(earned: bool) -> Control:
 	var size := 78.0
 	var tile := PanelContainer.new()
+	tile.set_meta("earned", earned)  # the choreo pops earned tiles on land
 	tile.custom_minimum_size = Vector2(size, size)
 	var bg: Color = UiStyle.PILL_GOLD if earned else UiStyle.CHIP_BG
 	var border: Color = UiStyle.PILL_GOLD_BORDER if earned else UiStyle.CHIP_BORDER
@@ -265,7 +270,7 @@ func _show_pvp_final(coord) -> void:
 	var placement: int = coord.placement_of(round_manager)
 	var won := placement == 1
 	_title_label.text = "Victory!" if won else "Match Over"
-	_result_label.text = "1st — Last Standing" if won else "%s of %d" % [_ordinal(placement), coord.boards.size()]
+	_result_label.text = "1st · Last Standing" if won else "%s of %d" % [_ordinal(placement), coord.boards.size()]
 	_result_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2) if won else Color.WHITE)
 	_detail_label.text = "Kills: %d" % round_manager.total_kills
 	_stars_row.visible = false
@@ -347,7 +352,7 @@ func _populate_ranked(result: Dictionary, coord) -> void:
 
 	var to_next := _make_label(12, UiStyle.LABEL_COL)
 	to_next.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	to_next.text = "Masters — uncapped" if bool(result["is_masters"]) else "%d LP to %s" % [int(result["to_next"]), String(result["next_tier"])]
+	to_next.text = "Masters · uncapped" if bool(result["is_masters"]) else "%d LP to %s" % [int(result["to_next"]), String(result["next_tier"])]
 	_lb_vbox.add_child(to_next)
 
 	# --- FINAL ORDER (1..N), reusing the arena row style; your row highlighted, OUT for eliminated.
@@ -482,6 +487,7 @@ func _show_campaign_victory() -> void:
 	for i in range(3):
 		_tiles_row.add_child(_star_tile(i < stars))
 
+	_victory_damage = damage
 	_vscore_val.text = _commas(damage)
 
 	for c in _vbuttons.get_children():
@@ -491,10 +497,76 @@ func _show_campaign_victory() -> void:
 	_vbuttons.add_child(_vbutton("Trials", _on_goto_trials, false))
 	_vbuttons.add_child(_vbutton("Ranked", _on_goto_ranked, false))
 
-	_scrim.visible = true
+	# Arm-before-reveal (JUICE): set every element's pre-entrance alpha to 0 BEFORE the surface
+	# is shown, so the staged choreo never flashes its end frame. Position/scale are armed in the
+	# deferred play step (they need the post-layout rect for pivots + slide targets).
+	_scrim.visible = true  # self-sufficient (normally _on_match_ended already set it)
+	_scrim.modulate.a = 0.0
+	_hero.modulate.a = 0.0
+	for s in _tiles_row.get_children():
+		s.modulate.a = 0.0
+	_score_block.modulate.a = 0.0
+	for b in _vbuttons.get_children():
+		b.modulate.a = 0.0
+
 	_panel.visible = false
 	_victory.visible = true
 	_apply_hero_tilt.call_deferred()
+	_play_victory_choreo.call_deferred()
+
+# Staged victory choreography (design/JUICE.md + victory_screen_mock.html): dim → hero drops in
+# (earns L) → stars cascade low→high, each earned tile pops on land → DAMAGE fades + ticks + pops
+# → buttons settle in. Runs deferred so the composition has laid out (pivots + slide targets are
+# real). The board behind stays static and dimmed — juice lives in the frame. All delays route
+# through Motion.dur() so reduced-motion compresses the whole sequence from one place.
+func _play_victory_choreo() -> void:
+	if _victory == null or not _victory.visible:
+		return
+	# 1 — dim the board.
+	Motion.fade_in(_scrim, Motion.M)
+	# 2 — hero drops from above on the arrive curve (the one earned L). Tilt is already applied.
+	Motion.slide_in(_hero, Vector2(0, -150.0), Motion.L, Motion.dur(0.18))
+	# 3 — stars cascade low→high; each earned tile pops as it lands (set-piece stagger).
+	var stars := _tiles_row.get_children()
+	for i in stars.size():
+		var s: Control = stars[i]
+		s.pivot_offset = s.size * 0.5
+		var d := Motion.dur(0.56 + i * Motion.STAGGER_SETPIECE)
+		Motion.arrive_property(s, "scale", Vector2.ONE * 0.55, Vector2.ONE, Motion.M, d)
+		Motion.fade_in(s, Motion.S, d)
+		if bool(s.get_meta("earned", false)):
+			_pop_after(s, d + Motion.dur(Motion.M) * 0.8)
+	# 4 — DAMAGE block fades in, the number ticks up, then pops.
+	Motion.fade_in(_score_block, Motion.M, Motion.dur(1.08))
+	var st := create_tween()
+	st.tween_interval(Motion.dur(1.08))
+	st.tween_callback(_tick_score.bind(_victory_damage, Motion.dur(0.62)))
+	# 5 — buttons settle in last, axis-aligned (precision targets stay square).
+	var btns := _vbuttons.get_children()
+	for i in btns.size():
+		var b: Control = btns[i]
+		b.pivot_offset = b.size * 0.5
+		var d := Motion.dur(1.48 + i * 0.07)
+		Motion.arrive_property(b, "scale", Vector2.ONE * 0.9, Vector2.ONE, Motion.S, d)
+		Motion.fade_in(b, Motion.S, d)
+
+# Count the DAMAGE value 0 → target on an ease-out curve, then emphasis-pop the final number.
+func _tick_score(target: int, duration: float) -> void:
+	if _vscore_val == null:
+		return
+	var t := create_tween()
+	t.tween_method(
+		func(p: float): _vscore_val.text = _commas(int(round((1.0 - pow(1.0 - p, 3.0)) * target))),
+		0.0, 1.0, maxf(duration, 0.01))
+	t.tween_callback(func():
+		_vscore_val.text = _commas(target)
+		Motion.pop(_vscore_val))
+
+# Emphasis-pop a node after `delay` seconds (used for star tiles landing).
+func _pop_after(node: CanvasItem, delay: float) -> void:
+	var t := create_tween()
+	t.tween_interval(delay)
+	t.tween_callback(Motion.pop.bind(node))
 
 # Tilt the hero around its centre once it has a real size (break-the-grid: ~3.5° on heroes).
 func _apply_hero_tilt() -> void:
@@ -596,7 +668,7 @@ func _populate_placement(damage: int) -> void:
 	if rank > 0:
 		placed.text = "You placed #%d %s" % [rank, data.get("window_word", "")]
 	else:
-		placed.text = "Score posted — be the first on this board"
+		placed.text = "Score posted! Be the first on this board"
 	placed.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_lb_vbox.add_child(placed)
 

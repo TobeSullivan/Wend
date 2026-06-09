@@ -1,9 +1,15 @@
 [gd_resource type="FontVariation" load_steps=2 format=3]
 
+; Fredoka is a variable font whose DEFAULT instance is Light (300) — text renders thin
+; unless the weight axis is set. CRITICAL: variation_opentype keys must be the INTEGER
+; OpenType tag, NOT the string "wght" (a string key silently does nothing — that was the
+; "still too thin" bug). 2003265652 = 0x77676874 = 'wght'. 700 = Bold, the canonical UI
+; weight (design/VISUAL_SYSTEM.md "Typography"). Distributed app-wide via assets/ui/app_theme.tres.
+
 [ext_resource type="FontFile" uid="uid://lrwqhoduakhm" path="res://assets/fonts/fredoka.ttf" id="1"]
 
 [resource]
 base_font = ExtResource("1")
 variation_opentype = {
-"wght": 600.0
+2003265652: 700.0
 }

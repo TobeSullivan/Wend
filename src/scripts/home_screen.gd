@@ -73,7 +73,7 @@ func _build_center() -> void:
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	center.add_child(vbox)
 
-	var title := _label("MAZE BATTLE TD", 48, Color.WHITE)
+	var title := _label("WEND", 48, Color.WHITE)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
 

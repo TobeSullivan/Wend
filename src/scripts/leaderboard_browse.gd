@@ -205,7 +205,7 @@ func _render_trials() -> void:
 	var data: Dictionary = await LeaderboardService.trials_board(_window, _tier, _group)
 	var entries: Array = data.get("entries", [])
 	if entries.is_empty():
-		_list_box.add_child(_empty_state("No scores on this board yet.", "Be the first — post a run."))
+		_list_box.add_child(_empty_state("No scores on this board yet.", "Be the first to post a run."))
 		return
 	_render_score_rows(entries)
 
@@ -228,7 +228,7 @@ func _render_campaign() -> void:
 	var entries: Array = data.get("entries", [])
 	if entries.is_empty():
 		_list_box.add_child(_empty_state("No times on this mission's board yet.",
-			"Campaign boards are all-time — set the pace."))
+			"Campaign boards are all-time. Set the pace."))
 		return
 	_render_score_rows(entries)
 

@@ -16,6 +16,7 @@ class_name Rail
 const UiLayout := preload("res://scripts/ui_layout.gd")
 const UiStyle := preload("res://scripts/ui_style.gd")
 const GhostLadderScript := preload("res://scripts/ghost_ladder.gd")
+const Motion := preload("res://scripts/motion.gd")
 
 const FF_MULTS := [1.0, 2.0, 3.0]
 const GOLD_VAL := Color("e7d39a")
@@ -55,6 +56,8 @@ var _build_button: Button
 var _menu_button: Button
 var _leaderboard_button: Button
 
+var _status_box: PanelContainer    # the three rail boxes, captured for the arrival cascade
+var _score_box: PanelContainer
 var _buttons_box: PanelContainer   # for tower_slot_rect()
 var _ff_index: int = 0
 var _towers_count: int = 0
@@ -92,6 +95,30 @@ func _ready() -> void:
 	_sync_ff_to_engine()
 	_refresh()
 
+	# JUICE (design/JUICE.md "Spatial grammar" + inmatch_hud_mock): the rail belongs to the
+	# right edge, so its three boxes arrive from the right, staggered, on match start. Arm them
+	# transparent now (before the first frame draws) so the cascade never flashes its end frame;
+	# the slide itself runs deferred, once the boxes have laid out (real slide targets).
+	for b in [_status_box, _score_box, _buttons_box]:
+		if b != null:
+			b.modulate.a = 0.0
+	_play_rail_arrival.call_deferred()
+
+func _play_rail_arrival() -> void:
+	# Scale + fade, staggered top→bottom. The boxes live in a VBoxContainer that re-sorts as the
+	# status text refreshes (the build timer ticks), which STOMPS any animated position — so the
+	# arrival rides scale + modulate (render transforms the container never touches) rather than a
+	# literal slide. Pivot at each box's centre so it grows in place.
+	var boxes := [_status_box, _score_box, _buttons_box]
+	for i in boxes.size():
+		var b: Control = boxes[i]
+		if b == null:
+			continue
+		b.pivot_offset = b.size * 0.5
+		var d := Motion.dur(0.20 + i * 0.09)
+		Motion.arrive_property(b, "scale", Vector2.ONE * 0.9, Vector2.ONE, Motion.M, d)
+		Motion.fade_in(b, Motion.S, d)
+
 # --- layout ----------------------------------------------------------------
 
 func _build_ui() -> void:
@@ -124,8 +151,10 @@ func _build_ui() -> void:
 	vb.alignment = BoxContainer.ALIGNMENT_BEGIN
 	margin.add_child(vb)
 
-	vb.add_child(_build_status_box())
-	vb.add_child(_build_score_box())
+	_status_box = _build_status_box()
+	vb.add_child(_status_box)
+	_score_box = _build_score_box()
+	vb.add_child(_score_box)
 	_buttons_box = _build_buttons_box()
 	vb.add_child(_buttons_box)
 

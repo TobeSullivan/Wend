@@ -95,19 +95,23 @@ static func arrive_ease(x: float) -> float:
 # the end frame never flashes) and the arrive curve.
 # ============================================================================
 
-# Emphasis pop: scale a node 1.0 -> `to` -> 1.0 over S. Pivots at the node's centre so it
-# grows in place. Call after layout (on the value change) so size is settled.
+# Emphasis pop: scale a node base -> base*`to` -> base over S, returning to wherever it
+# started. Pivots at the node's centre so it grows in place. The base is the node's CURRENT
+# scale (captured), so this works on nodes that aren't unit-scaled — e.g. a tower sprite at
+# 0.12 (Sprite2D scales about its centre). Call after layout / on the value change.
 static func pop(node: CanvasItem, to := POP_SCALE, duration := S) -> Tween:
+	var base: Vector2 = node.scale
+	if base.is_zero_approx():
+		base = Vector2.ONE
 	if node is Control:
 		node.pivot_offset = node.size * 0.5
-	node.scale = Vector2.ONE
 	var t := node.create_tween()
 	if reduced:
 		# Still register the beat, just smaller and snappier.
 		to = 1.0 + (to - 1.0) * 0.5
 	t.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	t.tween_property(node, "scale", Vector2.ONE * to, dur(duration) * 0.45)
-	t.tween_property(node, "scale", Vector2.ONE, dur(duration) * 0.55)
+	t.tween_property(node, "scale", base * to, dur(duration) * 0.45)
+	t.tween_property(node, "scale", base, dur(duration) * 0.55)
 	return t
 
 # Fade a node in (alpha 0 -> 1). Arms alpha to 0 before animating.
@@ -152,11 +156,12 @@ static func slide_in(node: Control, from_offset: Vector2, duration := M, delay :
 	var t := node.create_tween()
 	if delay > 0.0:
 		t.tween_interval(delay)
-	t.set_parallel(true)
+	# Move runs sequentially AFTER the interval; alpha runs in parallel WITH the move. (A prior
+	# version set_parallel before the move, which made the move run alongside the interval and
+	# silently ignore `delay` — staggered slides all started at once.)
 	t.tween_method(
 		func(p: float): node.position = start.lerp(target, arrive_ease(p)),
 		0.0, 1.0, dur(duration))
-	t.chain()  # alpha after the (possible) interval, parallel to the move
 	t.set_parallel(true)
 	settle(t)
 	t.tween_property(node, "modulate:a", 1.0, dur(duration) * 0.62)

@@ -42,6 +42,9 @@ func _ready() -> void:
 	# path is confirmed in the human playtest instead (see STATE.md handoff).
 	ok = await _smoke_director(2) and ok
 
+	# ---- PASS 3: build-guide deviation (polish follow-up #1) ----
+	ok = _verify_build_guide() and ok
+
 	if ok:
 		print("RESULT ✅ CAMPAIGN VERIFY OK (", MISSION_COUNT, " missions: resource + maze + director)")
 	else:
@@ -147,6 +150,54 @@ func _smoke_director(idx: int) -> bool:
 	print("SMOKE ", ("✅" if found else "❌"), " director+callout built for mission ", idx)
 	host.queue_free()
 	return found
+
+# The build-guide outline: a tower built ON a suggested cell clears just that cell (the outline
+# persists); a tower built OFF the suggested set retires the whole outline (CAMPAIGN.md "Build
+# guidance"). Unit-tested against a stub controller so maze legality can't muddy the result.
+func _verify_build_guide() -> bool:
+	var ok := true
+	var host := Node2D.new()
+	add_child(host)
+	var guide = load("res://scripts/build_guide.gd").new()
+	var stub := _GuideStub.new()
+	guide.build_controller = stub
+	host.add_child(guide)
+
+	var cells := [Vector2i(2, 2), Vector2i(3, 2), Vector2i(4, 2)]
+	guide.set_prompts(cells)
+	if not guide.has_prompts():
+		print("GUIDE ❌ prompts not set"); ok = false
+
+	# Build ON a suggested cell → that cell clears, the outline persists.
+	stub.add_tower(Vector2i(2, 2))
+	guide.refresh()
+	if not guide.has_prompts():
+		print("GUIDE ❌ outline vanished after an on-suggestion build"); ok = false
+
+	# Build OFF the suggested set → the whole outline retires.
+	stub.add_tower(Vector2i(10, 9))
+	guide.refresh()
+	if guide.has_prompts():
+		print("GUIDE ❌ outline survived an off-suggestion build"); ok = false
+
+	print("GUIDE ", ("✅" if ok else "❌"), " on-suggestion build keeps outline; deviation clears it")
+	host.queue_free()
+	return ok
+
+class _GuideStub:
+	var towers: Array = []
+	func _tower_at_cell(cell):
+		for t in towers:
+			if t.grid_cell == cell:
+				return t
+		return null
+	func add_tower(cell) -> void:
+		var t := _StubTower.new()
+		t.grid_cell = cell
+		towers.append(t)
+
+class _StubTower:
+	var grid_cell: Vector2i
 
 func _wait(seconds: float) -> void:
 	await get_tree().create_timer(seconds).timeout

@@ -108,7 +108,7 @@ All five menu screens were designed against the system (reference mockups produc
 ### PVE select
 - Daily / Weekly / Monthly tab bar (active tab lit).
 - Five Scale 1–5 map cards, **text-forward stats** (Rounds / Supply / Zones / Mobs /
-  Checkpoints) + best score with a gold star (em-dash if unplayed).
+  Checkpoints) + best score with a gold star ("No score yet" if unplayed).
 
 ### Pause (overlay over a dimmed board)
 - Single-player variant: **Your score** + the three **star objectives** (1★/2★/3★ with the

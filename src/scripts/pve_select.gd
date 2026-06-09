@@ -76,7 +76,7 @@ func _build_background() -> void:
 	UiStyle.menu_backdrop(self)
 
 func _build_header() -> void:
-	_title = _label("Trials — Daily", 36, Color.WHITE)
+	_title = _label("Daily Trials", 36, Color.WHITE)
 	_title.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	_title.offset_left = 40
 	_title.offset_top = 28
@@ -135,7 +135,7 @@ func _build_list_container() -> void:
 func _show_window(window_type: int) -> void:
 	_current = window_type
 	var meta: Dictionary = _window_meta(window_type)
-	_title.text = "Trials — %s" % meta.label
+	_title.text = "%s Trials" % meta.label
 	_subtitle.text = meta.sub
 	for wt in _tab_buttons:
 		_tab_buttons[wt].button_pressed = (wt == window_type)
@@ -177,7 +177,7 @@ func _map_card(map) -> Control:
 	info.add_child(_label("Rounds %d   ·   Supply %d   ·   Checkpoints %d   ·   Zones %d   ·   Mobs %d" % [
 		map.round_count, map.supply_cap, map.checkpoint_cells.size(), map.bonus_zones.size(), map.mob_count], 14, UiStyle.LABEL_COL))
 
-	# Best score with a gold star (em-dash + no star if unplayed).
+	# Best score with a gold star ("no score yet" + no star if unplayed).
 	var best_row := HBoxContainer.new()
 	best_row.add_theme_constant_override("separation", 6)
 	if best > 0:
@@ -185,11 +185,11 @@ func _map_card(map) -> Control:
 		star.configure(1, 1, 16.0)
 		star.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		best_row.add_child(star)
-	best_row.add_child(_label("Best: %d" % best if best > 0 else "Best: —", 14, Color(1.0, 0.9, 0.5)))
+	best_row.add_child(_label("Best: %d" % best if best > 0 else "No score yet", 14, Color(1.0, 0.9, 0.5)))
 	info.add_child(best_row)
 
 	# Inline live rank — both informs and is the tap target into the board for this scale +
-	# window (notes/leaderboard_ui_spec.md Surface 4). Em-dash text when unplayed.
+	# window (notes/leaderboard_ui_spec.md Surface 4). "unplayed" text when there's no rank.
 	if rank > 0:
 		var rank_btn := Button.new()
 		rank_btn.text = "#%d  ›" % rank

@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="Maze Battle TD"
+config/name="Wend"
 config/description="2D top-down maze TD inspired by Random TD (SC2). Damage-milking, one tower type, one mob type."
 run/main_scene="res://scenes/boot.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")

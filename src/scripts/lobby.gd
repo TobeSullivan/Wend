@@ -179,10 +179,10 @@ func _on_phase(phase, info) -> void:
 			_status.text = "Searching…"
 			_show(_queue_box)
 		QueueControllerScript.Phase.LOBBY:
-			_status.text = "Match found — forming lobby"
+			_status.text = "Match found, forming lobby"
 			_show(_lobby_box)
 		QueueControllerScript.Phase.CONNECTING:
-			_status.text = "Launching — connecting to match server…"
+			_status.text = "Launching, connecting to match server…"
 		QueueControllerScript.Phase.IN_MATCH:
 			_status.text = "Starting match…"
 		QueueControllerScript.Phase.ERROR:
@@ -208,9 +208,9 @@ func _on_lobby_update(info: Dictionary) -> void:
 	if count < floorp:
 		_vote_hint.text = "Need %d to launch early (or keep filling to %d)" % [floorp, maxp]
 	elif count >= maxp:
-		_vote_hint.text = "Full — launching…"
+		_vote_hint.text = "Full, launching…"
 	elif you_voted:
-		_vote_hint.text = "You voted — waiting for everyone present"
+		_vote_hint.text = "You voted, waiting for everyone present"
 	else:
 		_vote_hint.text = "Everyone present must vote to launch now"
 
