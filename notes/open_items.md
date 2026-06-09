@@ -8,6 +8,16 @@ Status key: **RESOLVED** · **NEAR** · **REC-PENDING** · **DIRECTION-SET** · 
 
 ---
 
+## Resolved 2026-06-09 (design — lobby surface, screen-by-screen)
+Closed the open item `pvp_lobby.md` carried ("full screen-by-screen layout"). Mock:
+`notes/mockups/lobby_mock.html` (four states, WEND identity, fictional names).
+- **Four states designed:** Ranked searching · Ranked forming lobby (X/8 + auto-at-8 + vote box + flair rows) · player card (tap a row → full flair) · Trials co-op party (host: Invite → Steam overlay + Start run, no vote).
+- **Flair render-home LOCKED = both:** compact frame ring + title on the row; full card (banner + frame + title + tier/LP/rank + season) on tap.
+- **Friends invited via the Steam overlay — room codes are DEAD.** "Invite" is the only label (Steam implied); empty party slots are obvious add-a-player buttons. All co-op-with-friends is **Steam-gated** (Trials party > 1 untestable until Steam clears — consistent, not a hole). Bots stay scoped to unranked offline practice only.
+- **GO/launch beat** reuses the existing `scene_manager` cross-scene wipe; **non-host Trials view** = same screen, "Start run" → "Waiting for host" (no separate mocks).
+- **IP item CLOSED:** confirmed vs AMazing TD's live Steam page — only the genre overlaps (unprotectable mechanics), no shared name/art/code/layouts. The "confirm clearance" line under Untouched is resolved.
+- **Not a CC blocker:** `lobby.gd` is still dev scaffolding; building the shipped lobby UI against this mock is a future, non-blocking, Steam-gated-for-the-live-test CC task.
+
 ## Resolved 2026-06-08 (design — closed-beta mechanics)
 Full plan in `notes/beta_design_brief.md` (rewritten; itch.io framing dead). Five locks:
 - **Build = all three modes** (Campaign / Trials / Ranked), everything unlocked. One build, one cohort, all three reads at once.
@@ -84,7 +94,7 @@ Full plan in `notes/beta_design_brief.md` (rewritten; itch.io framing dead). Fiv
 ## Untouched — never actually discussed
 - **Onboarding for non-SC2 players** — the five-mission campaign rework (`design/CAMPAIGN.md`) now carries the core teaching. Beyond campaign, in-product onboarding is a *launch* concern; for the closed beta, brief testers personally.
 - **Community hub** — Discord/subreddit. See `notes/gtm.md`.
-- **IP/legal** — Random TD "spiritual successor" framing; confirm clearance.
+- **IP/legal — RESOLVED 2026-06-09.** Random TD "spiritual successor" framing is clear: game mechanics aren't copyrightable, the SC2 host map is gone, and a check of AMazing TD's live Steam page confirms zero shared expression (name/art/code/layouts) — only the genre overlaps. No clearance issue.
 - **Localization** — defer (English-first niche revival).
 
 ## Parked — deferred, additive (not now)
@@ -106,6 +116,7 @@ Full plan in `notes/beta_design_brief.md` (rewritten; itch.io framing dead). Fiv
 - **CC — beta `LOBBY_FLOOR = 2` (from beta mechanics, 2026-06-08):** set the lobby floor to 2 in `index.js` for the beta (vote path unchanged), with a **documented revert to 4 at launch**. Must not ship to launch at 2.
 
 ## Drift / audit
+- **Room codes are DEAD (2026-06-09)** — superseded by Steam-overlay invites (`pvp_lobby.md`). The old "Private (codes + bots, unranked)" path's CODE half is gone; bots survive only as unranked offline practice. Sweep any remaining 4-digit-code references at next audit.
 - **40×22 → 25×14 grid figure** — DESIGN_MODES campaign section now flags it; sweep for other stale 40×22 / mission-count references across docs at next audit.
 - **`notes/beta_design_brief.md` stale framing — RESOLVED 2026-06-08.** Rewritten from scratch with the locked closed-beta mechanics; the itch.io / "Steam not for a 2-friend beta" framing is gone.
 

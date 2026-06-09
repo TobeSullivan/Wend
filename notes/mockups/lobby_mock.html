@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wend — Lobby surface (4 states)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css">
+<style>
+  :root{
+    --panel:#323d2c; --panel-b:#1a2012;
+    --chip:#39402c;  --chip-b:#23170d;
+    --card:#2a3322;  --card-b:#161c0f;
+    --gold:#b38e2c;  --gold-b:#5e4710;
+    --green:#5fbe38; --green-b:#2c5a18;
+    --terra:#b04a2a; --terra-b:#5e2310;
+    --ink:#ffffff;   --sage:#b9c7a4; --dim:#7d8a64;
+    --studio:#0f130c;
+    --t-s:160ms; --t-m:260ms;
+    --arrive:cubic-bezier(.34,1.32,.5,1);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#070a05;color:var(--ink);
+    font-family:'Fredoka','Baloo 2','Quicksand',system-ui,sans-serif;font-weight:600;
+    -webkit-font-smoothing:antialiased;padding:26px 16px 60px}
+  h1{font-weight:600;font-size:18px;color:var(--sage);text-align:center;margin:0 0 4px}
+  .sub{text-align:center;color:var(--dim);font-weight:500;font-size:12px;margin:0 0 28px}
+  .gallery{display:flex;flex-wrap:wrap;gap:26px;justify-content:center;align-items:flex-start}
+  .state{width:340px;max-width:94vw}
+  .label{font-size:12px;color:var(--sage);font-weight:500;margin:0 0 9px;text-align:center}
+  .label b{color:var(--ink);font-weight:600}
+  .panel{background:var(--studio);border-radius:14px;padding:14px 12px;border:2px solid var(--panel-b)}
+
+  .box{background:var(--panel);border:2px solid var(--panel-b);border-bottom-width:4px;border-radius:12px;box-shadow:0 6px 16px rgba(0,0,0,.45)}
+  .tag{display:inline-block;transform:rotate(-3deg);border:2px solid;border-bottom-width:4px;border-radius:9px;padding:4px 11px;font-size:15px;font-weight:600}
+  .row{display:flex;align-items:center;gap:10px;background:var(--card);border:2px solid var(--card-b);border-bottom-width:3px;border-radius:11px;padding:7px 9px;margin-bottom:7px;
+    opacity:0;transform:scale(.92);animation:pin .3s var(--arrive) forwards}
+  @keyframes pin{to{opacity:1;transform:scale(1)}}
+  .av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex:0 0 auto}
+  .nm{font-size:14px;font-weight:600;line-height:1.05}
+  .ti2{font-size:11px;color:var(--sage);font-weight:500}
+  .pip{width:20px;height:20px;border-radius:5px;border:2px solid var(--gold-b)}
+  .pill{font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:7px;border:2px solid;border-bottom-width:3px}
+  .lp{font-size:11px;color:var(--sage);margin-top:3px}
+  .btn{font-family:inherit;font-weight:600;border-radius:11px;border:2px solid;border-bottom-width:4px;cursor:pointer;color:var(--ink)}
+  .btn:active{transform:translateY(2px);border-bottom-width:2px}
+  .cap{font-size:10.5px;color:var(--dim);font-weight:500}
+  .ucap{font-size:11px;color:var(--sage);font-weight:500;text-transform:uppercase;letter-spacing:.06em}
+
+  .ring{width:78px;height:78px;border-radius:50%;border:4px solid var(--card);border-top-color:var(--gold);margin:0 auto;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .bar{height:6px;background:var(--panel-b);border-radius:4px;overflow:hidden}
+  .bar span{display:block;height:100%;background:var(--gold);animation:gr 2.4s ease-in-out infinite alternate}
+  @keyframes gr{from{width:32%}to{width:78%}}
+
+  .slot{display:flex;align-items:center;gap:10px;background:var(--card);border:2px solid var(--card-b);border-bottom-width:3px;border-radius:11px;padding:8px 10px;margin-bottom:8px}
+  .inv{display:flex;align-items:center;gap:10px;width:100%;background:var(--chip);border:2px solid #6e7a52;border-bottom-width:3px;border-radius:11px;padding:8px 10px;margin-bottom:8px;color:var(--ink);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer}
+  .inv:hover{border-color:var(--gold);background:#434c33}
+  .inv:active{transform:translateY(2px);border-bottom-width:2px}
+  .invav{width:34px;height:34px;border-radius:50%;flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:var(--card);border:2px dashed var(--gold);color:var(--gold)}
+</style>
+</head>
+<body>
+
+<h1>Wend &middot; Lobby surface</h1>
+<p class="sub">Four states. Ranked is solo-queue + vote; Trials is host-driven + Steam invite. Names are fictional.</p>
+
+<div class="gallery">
+
+  <!-- 1. RANKED SEARCHING -->
+  <div class="state">
+    <p class="label"><b>1 &middot; Ranked</b> &mdash; searching</p>
+    <div class="panel">
+      <div style="display:flex;align-items:center;gap:9px;margin:2px 4px 18px">
+        <span class="tag" style="background:var(--gold);border-color:var(--gold-b);color:#3a2c08">RANKED</span>
+        <span style="font-size:12px;color:var(--sage);font-weight:500">Finding a match</span>
+      </div>
+      <div style="text-align:center;margin:14px 0 18px">
+        <div class="ring"></div>
+        <div style="font-size:13px;color:var(--sage);font-weight:500;margin-top:14px">Searching &middot; <span style="color:var(--ink)">~30s</span></div>
+      </div>
+      <div style="background:var(--card);border:2px solid var(--card-b);border-bottom-width:3px;border-radius:11px;padding:9px 11px;margin-bottom:14px">
+        <div class="ucap" style="margin-bottom:6px">Tier band</div>
+        <div class="bar"><span style="width:55%"></span></div>
+        <div style="font-size:11px;color:var(--sage);font-weight:500;margin-top:6px">Same tier &rarr; <span style="color:var(--ink)">widening to any</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;background:var(--panel);border:2px solid var(--panel-b);border-bottom-width:4px;border-radius:12px;padding:9px 11px;margin-bottom:16px;box-shadow:0 6px 16px rgba(0,0,0,.4)">
+        <div class="av" style="background:var(--green);color:#173404;box-shadow:0 0 0 2px var(--gold)">YOU</div>
+        <div style="flex:1"><div class="nm">You</div><div class="ti2">Maze Architect</div></div>
+        <div style="text-align:right"><span class="pill" style="background:var(--gold);border-color:var(--gold-b);color:#3a2c08">GOLD II</span><div class="lp">62 LP</div></div>
+      </div>
+      <div style="text-align:center">
+        <button class="btn" style="background:var(--terra);border-color:var(--terra-b);font-size:13px;padding:9px 22px"><i class="ti ti-x"></i> Cancel search</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. RANKED FORMING LOBBY -->
+  <div class="state">
+    <p class="label"><b>2 &middot; Ranked</b> &mdash; forming lobby</p>
+    <div class="panel">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:2px 4px 12px">
+        <div style="display:flex;align-items:center;gap:9px">
+          <span class="tag" style="background:var(--gold);border-color:var(--gold-b);color:#3a2c08">RANKED</span>
+          <span style="font-size:12px;color:var(--sage);font-weight:500">Forming lobby</span>
+        </div>
+        <span style="font-size:11px;color:var(--sage)"><i class="ti ti-clock"></i> 0:21</span>
+      </div>
+
+      <div class="box" style="padding:13px;margin-bottom:13px;text-align:center">
+        <div style="font-size:32px;font-weight:600;line-height:1"><span style="color:var(--gold)">5</span><span style="color:var(--sage);font-size:22px"> / 8</span></div>
+        <div style="display:flex;gap:6px;justify-content:center;margin:9px 0 7px">
+          <span class="pip" style="background:var(--gold)"></span><span class="pip" style="background:var(--gold)"></span><span class="pip" style="background:var(--gold)"></span><span class="pip" style="background:var(--gold)"></span><span class="pip" style="background:var(--gold)"></span><span class="pip" style="background:var(--panel-b)"></span><span class="pip" style="background:var(--panel-b)"></span><span class="pip" style="background:var(--panel-b)"></span>
+        </div>
+        <div style="font-size:11px;color:var(--sage);font-weight:500">Filling &middot; auto-launches at 8</div>
+      </div>
+
+      <div class="ucap" style="margin:0 4px 8px">In this lobby <span style="color:var(--dim)">&middot; tap for card</span></div>
+
+      <div class="row" style="border-color:var(--green-b);border-bottom-color:var(--green-b);animation-delay:0s">
+        <div class="av" style="background:var(--green);color:#173404;box-shadow:0 0 0 2px var(--gold)">YOU</div>
+        <div style="flex:1"><div class="nm">You</div><div class="ti2">Maze Architect</div></div>
+        <div style="text-align:right"><span class="pill" style="background:var(--gold);border-color:var(--gold-b);color:#3a2c08">GOLD II</span><div class="lp">62 LP</div></div>
+      </div>
+      <div class="row" style="animation-delay:.06s">
+        <div class="av" style="background:var(--chip);color:var(--ink);box-shadow:0 0 0 2px var(--terra)">PY</div>
+        <div style="flex:1"><div class="nm">pyrelace</div><div class="ti2">Knot Survivor</div></div>
+        <div style="text-align:right"><span class="pill" style="background:#3a2740;border-color:#1f1226;color:#d8b4e8">MASTER</span><div class="lp">412 LP</div></div>
+      </div>
+      <div class="row" style="animation-delay:.12s">
+        <div class="av" style="background:var(--chip);color:var(--ink);box-shadow:0 0 0 2px var(--green)">CO</div>
+        <div style="flex:1"><div class="nm">coil_</div><div class="ti2">First Blood</div></div>
+        <div style="text-align:right"><span class="pill" style="background:var(--chip);border-color:var(--chip-b);color:var(--sage)">SILVER I</span><div class="lp">28 LP</div></div>
+      </div>
+      <div class="row" style="animation-delay:.18s">
+        <div class="av" style="background:var(--chip);color:var(--ink);box-shadow:0 0 0 2px var(--chip)">VX</div>
+        <div style="flex:1"><div class="nm">vexweave</div><div class="ti2">Weave Runner</div></div>
+        <div style="text-align:right"><span class="pill" style="background:var(--terra-b);border-color:#3a1408;color:#e8a989">BRONZE</span><div class="lp">71 LP</div></div>
+      </div>
+      <div class="row" style="animation-delay:.24s">
+        <div class="av" style="background:var(--chip);color:var(--ink);box-shadow:0 0 0 2px var(--gold)">SN</div>
+        <div style="flex:1"><div class="nm">snarlmother</div><div class="ti2">Hot Streak</div></div>
+        <div style="text-align:right"><span class="pill" style="background:#1f3a4a;border-color:#10222c;color:#8fd4e8">DIAMOND</span><div class="lp">5 LP</div></div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px;border:2px dashed #2e3826;border-radius:11px;padding:8px 9px;margin-bottom:7px;opacity:.7">
+        <div class="av" style="background:var(--panel-b);color:var(--grass,#5e6c3c)"><i class="ti ti-loader-2"></i></div>
+        <div style="font-size:12.5px;color:var(--dim);font-weight:500">Finding player&hellip;</div>
+      </div>
+      <div style="display:flex;gap:7px">
+        <div style="flex:1;height:30px;border:2px dashed #2e3826;border-radius:10px;opacity:.5"></div>
+        <div style="flex:1;height:30px;border:2px dashed #2e3826;border-radius:10px;opacity:.5"></div>
+      </div>
+
+      <div class="box" style="padding:11px 12px;margin:13px 0 10px;display:flex;align-items:center;gap:11px">
+        <button class="btn" style="background:var(--gold);border-color:var(--gold-b);color:#3a2c08;font-size:15px;padding:9px 16px;flex:0 0 auto"><i class="ti ti-player-play"></i> Launch now</button>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600">2 <span style="color:var(--sage);font-weight:500">/ 5 voted</span></div>
+          <div style="font-size:10.5px;color:var(--sage);font-weight:500;margin-top:1px">Everyone present must agree</div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:0 2px">
+        <button class="btn" style="background:var(--chip);border-color:var(--chip-b);font-size:12.5px;padding:7px 14px"><i class="ti ti-arrow-left"></i> Leave</button>
+        <span class="cap">searching: any tier &middot; wide</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. PLAYER CARD (tap target) -->
+  <div class="state">
+    <p class="label"><b>3 &middot; Player card</b> &mdash; tap a row</p>
+    <div class="panel" style="display:flex;align-items:center;justify-content:center;min-height:340px;background:rgba(8,11,6,.62)">
+      <div style="width:280px;background:var(--panel);border:2px solid var(--panel-b);border-bottom-width:4px;border-radius:14px;box-shadow:0 10px 28px rgba(0,0,0,.55);overflow:hidden;position:relative">
+        <button aria-label="Close" style="position:absolute;top:8px;right:8px;z-index:3;font-family:inherit;width:26px;height:26px;border-radius:8px;background:rgba(15,19,12,.5);border:2px solid var(--panel-b);color:var(--ink);cursor:pointer"><i class="ti ti-x"></i></button>
+        <div style="height:74px;background:var(--terra-b);background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.05) 0 12px,transparent 12px 24px);border-bottom:2px solid var(--card-b)"></div>
+        <div style="padding:0 16px 16px;margin-top:-30px;position:relative">
+          <div style="width:62px;height:62px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;box-shadow:0 0 0 3px var(--gold),0 0 0 5px var(--card-b)">PY</div>
+          <div style="margin-top:9px">
+            <div style="font-size:20px;font-weight:600;line-height:1">pyrelace</div>
+            <div style="font-size:13px;color:var(--sage);font-weight:500;margin-top:2px">Knot Survivor</div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:13px">
+            <div style="flex:1;background:var(--card);border:2px solid var(--card-b);border-bottom-width:3px;border-radius:10px;padding:8px 6px;text-align:center"><div class="ucap" style="font-size:10px">Tier</div><div style="font-size:13px;font-weight:600;color:#d8b4e8;margin-top:2px">Master</div></div>
+            <div style="flex:1;background:var(--card);border:2px solid var(--card-b);border-bottom-width:3px;border-radius:10px;padding:8px 6px;text-align:center"><div class="ucap" style="font-size:10px">LP</div><div style="font-size:13px;font-weight:600;margin-top:2px">412</div></div>
+            <div style="flex:1;background:var(--card);border:2px solid var(--card-b);border-bottom-width:3px;border-radius:10px;padding:8px 6px;text-align:center"><div class="ucap" style="font-size:10px">Rank</div><div style="font-size:13px;font-weight:600;color:var(--gold);margin-top:2px">#7</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px;margin-top:11px;background:var(--card);border:2px solid var(--card-b);border-radius:10px;padding:7px 10px">
+            <i class="ti ti-award" style="font-size:15px;color:var(--gold)"></i>
+            <span style="font-size:11.5px;color:var(--sage);font-weight:500">Season 1 &middot; Tier 22 of 30</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. TRIALS CO-OP -->
+  <div class="state">
+    <p class="label"><b>4 &middot; Trials</b> &mdash; co-op party (host)</p>
+    <div class="panel">
+      <div style="display:flex;align-items:center;gap:9px;margin:2px 4px 14px">
+        <span class="tag" style="background:var(--green);border-color:var(--green-b);color:#143006">TRIALS</span>
+        <span style="font-size:12px;color:var(--sage);font-weight:500">Co-op party</span>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:9px;background:var(--panel);border:2px solid var(--panel-b);border-bottom-width:4px;border-radius:12px;padding:9px 12px;margin-bottom:14px;box-shadow:0 6px 16px rgba(0,0,0,.4)">
+        <i class="ti ti-calendar" style="font-size:17px;color:var(--gold)"></i>
+        <div style="flex:1"><div style="font-size:13px;font-weight:600">Weekly &middot; Tangle</div><div style="font-size:11px;color:var(--sage);font-weight:500">Map 3 of 5 &middot; resets in 4d</div></div>
+        <span style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:8px;background:var(--chip);border:2px solid var(--chip-b);color:var(--sage)">DUO BOARD</span>
+      </div>
+
+      <div class="ucap" style="margin:0 4px 8px">Party <span style="color:var(--dim)">&middot; 2 / 4</span></div>
+
+      <div class="slot" style="border-color:var(--gold-b);border-bottom-color:var(--gold-b)">
+        <div class="av" style="background:var(--green);color:#173404;box-shadow:0 0 0 2px var(--gold)">YOU</div>
+        <div style="flex:1"><div style="font-size:14px;font-weight:600">You</div><div style="font-size:11px;color:var(--sage);font-weight:500">Maze Architect</div></div>
+        <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:7px;background:var(--gold);border:2px solid var(--gold-b);color:#3a2c08">HOST</span>
+      </div>
+      <div class="slot">
+        <div class="av" style="background:var(--chip);color:var(--ink);box-shadow:0 0 0 2px var(--green)">VX</div>
+        <div style="flex:1"><div style="font-size:14px;font-weight:600">vexweave</div><div style="font-size:11px;color:var(--sage);font-weight:500">First Blood</div></div>
+        <i class="ti ti-check" style="font-size:18px;color:var(--green)"></i>
+      </div>
+
+      <button class="inv"><span class="invav"><i class="ti ti-plus" style="font-size:18px"></i></span> Invite</button>
+      <button class="inv"><span class="invav"><i class="ti ti-plus" style="font-size:18px"></i></span> Invite</button>
+
+      <div style="font-size:10.5px;color:var(--dim);font-weight:500;text-align:center;margin:6px 4px 14px">Scores combine to the Duo board</div>
+
+      <div style="display:flex;align-items:center;gap:10px;margin:0 2px">
+        <button class="btn" style="background:var(--chip);border-color:var(--chip-b);font-size:12.5px;padding:9px 14px"><i class="ti ti-arrow-left"></i> Leave</button>
+        <button class="btn" style="flex:1;background:var(--gold);border-color:var(--gold-b);color:#3a2c08;font-size:16px;padding:10px"><i class="ti ti-player-play"></i> Start run</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!--
+NOTES (design intent, not rendered):
+- Ranked: solo-queue, no codes/host. Searching -> forming lobby (X/8) -> launch.
+  Vote-to-launch live at floor (4 at launch, 2 for the beta); auto-launch at 8;
+  abstain = no; no timeout. Mixed tiers in one lobby are intentional
+  (speed-beats-quality, safe because LP is MMR-anchored).
+- Rows carry compact flair (frame ring + title). Tapping a row opens the full
+  player card (banner + frame + title + tier/LP/rank + season).
+- Trials co-op: invite-only, HOST launches unilaterally (no vote, no matchmaker).
+  "Invite" pops the Steam overlay (mechanic implied by the action, not the label).
+  Board-size tag (Solo/Duo/Trio/Quad) shows which leaderboard the combined score posts to.
+- GO/launch handoff reuses the existing scene_manager cross-scene wipe.
+- Non-host Trials view = this screen with "Start run" replaced by "Waiting for host".
+- Trials co-op (party > 1) is Steam-gated, same as all multiplayer.
+-->
+</body>
+</html>
