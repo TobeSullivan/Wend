@@ -167,6 +167,32 @@ static func slide_in(node: Control, from_offset: Vector2, duration := M, delay :
 	t.tween_property(node, "modulate:a", 1.0, dur(duration) * 0.62)
 	return t
 
+# Modal-overlay arrive: a dimmed backdrop eases in while the card scale-arrives. The shared
+# grammar for pause / settings / any centred modal (JUICE "inherit the grammar"). Arms both
+# transparent in-place first (no end-frame flash). Caller shows the nodes before calling.
+static func overlay_in(dim: CanvasItem, panel: Control, panel_dur := M) -> void:
+	dim.modulate.a = 0.0
+	fade_in(dim, M)
+	panel.pivot_offset = panel.size * 0.5
+	arrive_property(panel, "scale", Vector2.ONE * 0.92, Vector2.ONE, panel_dur)
+	fade_in(panel, S)
+
+# Modal-overlay leave: the card scales down + fades on the leave curve, the dim fades, then the
+# transforms reset and `on_hidden` runs (the caller hides the nodes there). Quicker than it
+# arrived (leave always is).
+static func overlay_out(dim: CanvasItem, panel: Control, on_hidden: Callable) -> void:
+	fade_out(dim, S)
+	var t := panel.create_tween()
+	t.set_parallel(true)
+	leave(t)
+	t.tween_property(panel, "scale", Vector2.ONE * 0.96, dur(S))
+	t.tween_property(panel, "modulate:a", 0.0, dur(S))
+	t.chain().tween_callback(func():
+		panel.scale = Vector2.ONE
+		panel.modulate.a = 1.0
+		dim.modulate.a = 1.0
+		on_hidden.call())
+
 # Cascade a sibling set with stagger (JUICE "Stagger"). `per_item.call(item, index, delay)`
 # does the per-item animation (typically a slide_in/fade_in given that delay); this only
 # computes the spacing. The total visible cascade is capped at STAGGER_CAP by compressing

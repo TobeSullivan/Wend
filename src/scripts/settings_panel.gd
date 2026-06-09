@@ -8,10 +8,14 @@ class_name SettingsPanel
 # single Esc arbiter per context and no input race.
 
 const UiStyle := preload("res://scripts/ui_style.gd")
+const Motion := preload("res://scripts/motion.gd")
 
 signal closed
 
 var _root: Control
+var _dim_rect: ColorRect      # overlay backdrop, faded by the arrive/leave grammar
+var _card: PanelContainer     # the settings card, scale-arrives in / leaves out
+var _is_open := false         # logical open state (stays false through the leave animation)
 var _master: HSlider
 var _music: HSlider
 var _sfx: HSlider
@@ -30,16 +34,22 @@ func _ready() -> void:
 	_root.visible = false
 
 func is_open() -> bool:
-	return _root.visible
+	return _is_open
 
 func open() -> void:
 	_refresh_from_settings()
+	_is_open = true
 	_root.visible = true
+	Motion.overlay_in(_dim_rect, _card)  # JUICE: dim fades in, card scale-arrives
 
 func close() -> void:
+	if not _is_open:
+		return  # guard a double-close during the leave animation
+	_is_open = false
 	SaveData.save()
-	_root.visible = false
 	closed.emit()
+	# JUICE: card leaves + dim fades, then the whole overlay hides (in on_hidden).
+	Motion.overlay_out(_dim_rect, _card, func(): _root.visible = false)
 
 func _build_ui() -> void:
 	_root = Control.new()
@@ -47,12 +57,14 @@ func _build_ui() -> void:
 	add_child(_root)
 
 	var dim := ColorRect.new()
+	_dim_rect = dim
 	dim.color = Color(0, 0, 0, 0.6)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	_root.add_child(dim)
 
 	var panel := PanelContainer.new()
+	_card = panel
 	panel.custom_minimum_size = Vector2(460, 0)
 	# Centre + grow both so it stays centred as it sizes to its content (PRESET_CENTER
 	# froze the offsets from the pre-content size — same fix as the pause menu).

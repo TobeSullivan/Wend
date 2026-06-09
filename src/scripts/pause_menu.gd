@@ -13,6 +13,7 @@ class_name PauseMenu
 
 const MapResourceScript := preload("res://resources/map_resource.gd")
 const SettingsPanelScript := preload("res://scripts/settings_panel.gd")
+const Motion := preload("res://scripts/motion.gd")
 const UiStyle := preload("res://scripts/ui_style.gd")
 const UiLayout := preload("res://scripts/ui_layout.gd")
 const StarRatingScript := preload("res://scripts/star_rating.gd")
@@ -158,16 +159,22 @@ func _open_menu() -> void:
 	_refresh_objectives()  # reflect the score as of this open (live in group PVE)
 	_dim.visible = true
 	_menu_panel.visible = true
+	# JUICE: dim fades in, panel scale-arrives. Runs under the single-player pause via ALWAYS.
+	Motion.overlay_in(_dim, _menu_panel)
 	if not is_multiplayer:
 		get_tree().paused = true
 
 func _resume() -> void:
 	_open = false
 	_close_confirm()
-	_dim.visible = false
-	_menu_panel.visible = false
 	if not is_multiplayer:
 		get_tree().paused = false
+	# JUICE: panel leaves + dim fades, then both hide (in the on_hidden callback).
+	var dim := _dim
+	var panel := _menu_panel
+	Motion.overlay_out(dim, panel, func():
+		dim.visible = false
+		panel.visible = false)
 
 # Public entry for the on-screen Pause button (mobile has no Esc key). Opens the
 # menu, closes the topmost overlay if one is up, or resumes if already paused.
