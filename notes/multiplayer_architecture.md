@@ -1,3 +1,11 @@
+**STATUS (2026-06-10):** This is the 2026-06-02 topology analysis. The staged Steam-relay-beta
+rollout described in §1 (verdict column) and §5 (steps 3→4) was superseded by the
+no-disposable-intermediates decision: **dedicated-authoritative + Nakama deployed directly for
+the beta** (Hetzner CPX31, Hillsboro, live). The analysis and rejected-alternative trail are
+preserved; the sequencing is historical record, not current plan. Current ops state in `STATE.md`.
+
+---
+
 # Multiplayer architecture, cost & sales projections
 
 Captured 2026-06-02 (Claude Code research session). This is the reference for the
@@ -45,8 +53,8 @@ dedicated server" is the *same code* with a different `MultiplayerPeer` undernea
 | Topology | What it is | Pros | Cons | Verdict |
 |---|---|---|---|---|
 | P2P host-authoritative | One client runs the coordinator; others thin. Steam-overlay invites (no room codes). | No servers, ~free, fastest to a friends test | Host = the match (leaves → dies); host can cheat; **consoles forbid raw P2P** | Analyzed, not taken |
-| Relay-assisted host-auth | Same, packets via a relay that hides IPs + punches NAT (e.g. Steam relay) | NAT "just works", no exposed IPs | Relay is usually platform-specific (Steam = PC/Mac only) | ✅ Best beta path |
-| Dedicated authoritative | Headless Godot (`--headless`) runs the coordinator; clients thin | No host-migration, cheat-resistant, console-legal, crossplay-ready | You run/monitor servers (cheap here) | ✅ Launch answer |
+| Relay-assisted host-auth | Same, packets via a relay that hides IPs + punches NAT (e.g. Steam relay) | NAT "just works", no exposed IPs | Relay is usually platform-specific (Steam = PC/Mac only) | Analyzed; skipped (no disposable intermediates) |
+| Dedicated authoritative | Headless Godot (`--headless`) runs the coordinator; clients thin | No host-migration, cheat-resistant, console-legal, crossplay-ready | You run/monitor servers (cheap here) | ✅ Deployed (beta + launch) |
 
 ### Layer 2 — Meta backend (accounts, matchmaking, leaderboards, LP, seasons)
 

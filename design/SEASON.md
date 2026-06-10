@@ -1,21 +1,20 @@
 # SEASON — the season track (reward content layer)
 
-Locked 2026-06-09. Builds on `notes/season_pass.md` (the soft 8wk / 30-tier framework + numbers,
-unchanged as dials) and resolves its open "daily-quest" and "PVP reward mapping" items.
-XP source: `notes/task_system.md`. Cosmetic model + rules: `design/COSMETICS.md`.
+Locked 2026-06-09. Numbers locked 2026-06-10.
+XP source: `notes/task_system.md`. Point economy: `notes/season_pass.md`.
+Cosmetic model + rules: `design/COSMETICS.md`.
 
 ---
 
 ## What the track is
 
-A **free, earned-only** cosmetic ladder. ~30 tiers, milestones at **10 / 20 / 30**. One row, no
+A **free, earned-only** cosmetic ladder. 30 tiers, milestones at **10 / 20 / 30**. One row, no
 premium track, no pricing shown (the absence of a buy button says "free" — don't label it).
 
-- **XP is earned from tasks, not from playing.** See `notes/task_system.md`. Match-completion is
-  NOT a point source (this replaces the old `season_pass.md` "complete a match: 50").
-- **The track carries common + rare only.** **Prestige never appears on the track** — Ranked
+- **XP is earned from tasks, not from playing.** See `notes/task_system.md`.
+- **The track carries common + rare only.** Prestige never appears on the track — Ranked
   placement rewards (Title + Frame + Rank Sticker) are Ranked-exclusive (`design/COSMETICS.md`).
-- Numbers (8wk, 30 tiers, the point curve in `season_pass.md`) stay as soft dials.
+- **Numbers locked:** 8wk / 30 tiers / 30,000 pts / 120-600-2,400 payout chain. See `notes/season_pass.md`.
 
 ---
 
@@ -30,30 +29,53 @@ renewable slots carry the volume; scarce slots are the milestones.
 - **Milestones (10/20/30): tower skins** — the scarce hero asset. The **crystal trio is the three
   escalating milestone towers**: fire → ice → dark, across seasons 1–3.
 
-### S1 worked layout (type per tier; the exact item is content)
-1 title · 2 mob · 3 zone · 4 FX · 5 frame · 6 mob · 7 title · 8 board biome · 9 FX ·
-**10 → Fire-crystal tower** (first glowy unlock — clear step up from the plain arrow box) ·
-11 mob · 12 zone · 13 title · 14 FX · 15 banner · 16 mob · 17 board biome · 18 FX · 19 title ·
-**20 → Ice-crystal tower + matching ice FX** (themed loadout) ·
-21 mob · 22 zone · 23 frame · 24 FX · 25 title · 26 novelty biome (toy-brick / rainbow) ·
-27 mob · 28 sticker shape · 29 FX · **30 → Dark-crystal tower** (season's signature top reward).
+---
 
-~22 of 30 tiers are mob/FX/title/zone/sticker — the renewable pools — because that's what we can
-sustain season over season.
+## S1 tier map
+
+| # | Type | Item | Source |
+|---|---|---|---|
+| 1 | Title | "Recruit" | free |
+| 2 | Mob | Monster Maker recolor (green) | FREE+ |
+| 3 | Zone | recolor: teal | runtime tint, free |
+| 4 | FX | projectile recolor: gold | Game projectiles FREE+ |
+| 5 | Frame | wood frame | Wood GUI, owned |
+| 6 | Mob | animated fish | owned |
+| 7 | Title | "Pathfinder" | free |
+| 8 | Board | Forest biome | Top down forest FREE+ |
+| 9 | FX | impact recolor: blue | Game projectiles FREE+ |
+| **10** | **Tower** | **Fire crystal** + rotating fireball FX | tower owned; FX FREE+/$0.45 |
+| 11 | Mob | Monster Maker recolor (purple) | FREE+ |
+| 12 | Zone | recolor: magenta | free |
+| 13 | Title | "Maze Runner" | free |
+| 14 | FX | flaming fireball trail | FREE+ |
+| 15 | Banner | Mint Choco panel | FREE+ |
+| 16 | Mob | starfish | owned |
+| 17 | Board | Beach biome | Tiki beach, owned |
+| 18 | FX | smoke ring impact | $1.25 (buy list T1) |
+| 19 | Title | "Overclocked" | free |
+| **20** | **Tower** | **Ice crystal** + ice spell FX | tower owned; FX $8.95 (buy list T2) |
+| 21 | Mob | Monster Maker recolor (cyan) | FREE+ |
+| 22 | Zone | recolor: amber | free |
+| 23 | Frame | Parchment frame | FREE+ |
+| 24 | FX | lightning ball | $0.75 (buy list T1) |
+| 25 | Title | "Gauntlet Veteran" | free |
+| 26 | Board | Toy-brick (novelty) | $2.95 (buy list T1) |
+| 27 | Mob | hammerhead shark | owned |
+| 28 | Sticker shape | speech-bubble outline | owned |
+| 29 | FX | explosion recolor | owned |
+| **30** | **Tower** | **Dark crystal** + toxic/dark FX | tower owned; FX $8.95 (buy list T2) |
+
+**S1 forced spend: ~$23** (two themed milestone FX packs + novelty biome + a couple cheap FX).
+All already on `notes/asset_buy_list.md`. Milestone towers cost $0 (all owned).
+
+Note on tier 28: the track grants the sticker *shape*. The populated rank sticker (auto-text +
+tier tint) is still Ranked-exclusive per `design/COSMETICS.md` — no prestige leak.
 
 ---
 
 ## Sustainability
 
-The finite slots are the limiter: ~8 authored tower skins total → **one tower milestone per
-season** (crystal trio covers S1–S3; budget new tower-art purchases for S4+). Everything abundant
-renews for free, so seasons stay cheap to fill after the towers.
+~8 authored tower skins total → one tower milestone per season (crystal trio covers S1–S3;
+budget new tower-art purchases for S4+). Everything abundant renews free.
 
----
-
-## Open forks (not locked — decide before build)
-
-- **Score task:** cumulative across the window vs best single run. (Lean: cumulative.)
-- **Active task count:** all 5 shapes at all 3 cadences at once (= 15 active) vs a rotating
-  subset. (Lean: all 15; uniformity is the point.)
-- Exact point values once the above settle (`season_pass.md`).

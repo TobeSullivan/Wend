@@ -14,8 +14,6 @@ Status key: **OPEN** · **BLOCKED-DATA** · **PARKED** (additive, not now) · **
 - **When it clears:** create the Wend App ID → create the Playtest app **confidential/friends-only** (Playtest App ID + Standard Release keys + Playtest Playable + Store Visibility Hidden; hand keys directly to testers). Public Coming Soon page is gated on the beta art read, not now.
 
 ## Cosmetics — open forks (not blocking)
-- **Score task:** cumulative across the window vs best single run.
-- **Active task count:** all 15 (5 shapes × 3 cadences) at once vs a rotating subset.
 - **Confirm** the free Background Creator pack actually yields path tiles before relying on it for the board slot.
 
 ## Deploy / ops (CC)
@@ -47,5 +45,5 @@ Status key: **OPEN** · **BLOCKED-DATA** · **PARKED** (additive, not now) · **
 - **Match reconstruction after coordinator crash** — model is re-simmable, but crash currently voids with no LP instead.
 
 ## Drift / audit
-- **Open call for Tobe:** `notes/multiplayer_architecture.md` is an older topology-analysis doc whose verdict column still marks P2P host-auth as "✅ Best beta path." That contradicts the deployed reality (dedicated-authoritative is live and used for the beta per "no disposable intermediates"). The codes→Steam-invite cells were corrected in the 2026-06-09 audit, but the verdict column's recorded *conclusions* were left as-is — decide whether to rewrite them or keep the doc as a historical analysis.
-- (Resolved in the 2026-06-09 audit, no longer tracked: the 4-digit room-code sweep, the 40×22 / 25×14 grid-figure sweep, the 10-mission references, the "Maze Battle TD" title, the stale in-match-HUD subsection in DESIGN_MODES.)
+- (Resolved 2026-06-10: `multiplayer_architecture.md` verdict column fixed — banner added, Steam-relay → skipped, Dedicated → deployed.)
+- (Resolved 2026-06-09: 4-digit room-code sweep, grid-figure sweep, 10-mission refs, title, stale HUD subsection.)

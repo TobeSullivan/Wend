@@ -1,6 +1,7 @@
 # TASK SYSTEM — season XP source
 
-Locked 2026-06-09. The sole source of season XP (see `design/SEASON.md`). Replaces the old
+Locked 2026-06-09. Forks closed 2026-06-10.
+The sole source of season XP (see `design/SEASON.md`). Replaces the old
 `season_pass.md` "complete a match" point source — **you earn XP from tasks, not from playing.**
 
 ---
@@ -14,7 +15,7 @@ predictable to play:
 2. **Build inside X zones**
 3. **Get X kills**
 4. **Play X games**
-5. **Reach X score**
+5. **Reach X score** — cumulative across the window (not best single run)
 
 Progress counts in **Trials OR Ranked** — neither mode is starved, no FOMO.
 
@@ -22,20 +23,21 @@ Progress counts in **Trials OR Ranked** — neither mode is starved, no FOMO.
 
 ## Three cadences (scale the threshold + the payout)
 
-Same shapes, bigger numbers + bigger reward as the window lengthens:
+All 15 tasks (5 shapes × 3 cadences) are active simultaneously. Uniformity is the point —
+no rotating subset, no clutter question.
 
-- **Daily** — small (e.g. ~5-scale), small payout.
-- **Weekly** — medium (e.g. ~25-scale).
-- **Monthly** — large (e.g. ~100-scale).
+Payout chain: **×5 daily→weekly, ×4 weekly→monthly.**
+
+| Cadence | Payout per task | All 5 | Over season |
+|---|---|---|---|
+| Daily | 120 | 600/day | 33,600 |
+| Weekly | 600 | 3,000/wk | 24,000 |
+| Monthly | 2,400 | 12,000/window | 24,000 |
 
 This **caps daily gain** (healthier than rewarding raw grind) and gives a steady, legible bar
-fill. The 8wk / 30-tier point budget (`season_pass.md`) is the dial these feed.
+fill. Full economy in `notes/season_pass.md`.
 
 ---
 
-## Open forks
-
-- **Score task:** cumulative across the window vs best single run. (Lean: cumulative.)
-- **Active count:** all 5 shapes at all 3 cadences simultaneously (= 15 active tasks) vs a
-  rotating subset to reduce clutter. (Lean: all 15 — uniformity is the whole point.)
-- Exact thresholds + point values (tune with `season_pass.md`).
+## Open
+- Absolute thresholds (the X integers) — playtest-gated, tune with star thresholds.
