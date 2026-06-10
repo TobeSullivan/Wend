@@ -15,7 +15,10 @@ S1 implementation, remaining phases:
    NEW trail hook** (not yet built — a fading streak behind the projectile). Some need art not yet
    sourced (smoke ring / explosion / lightning). `fx_gold_bolt` stays a tinted arrow (by design).
 2. **Frames/banners (⑥)** — author from the owned Wood-UI kit (single-hue outline art).
-- **Parked/flagged:** zone tint in-match (clashes with type-color legibility — design call);
+- **Parked/flagged:** **FX Collection icons** show flat tint swatches, not representative art —
+  do as ONE pass once all `fx_*` are wired (gated on the art existing); clean impl = `_item_art`
+  pulls a frame from `ProjectileFX.config_for(id)` so each FX self-illustrates (icon shares the
+  in-match source). zone tint in-match (clashes with type-color legibility — design call);
   mob recolors (no-tint-painted-sprite rule conflict); aquatic-mob perspective check; Beach
   T17 **BLOCKED** on Tiki art upload. Full detail: `notes/open_items.md` "S1 cosmetic sourcing".
 
