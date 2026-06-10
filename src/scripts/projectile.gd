@@ -19,6 +19,8 @@ var fx_id: String = ""
 var sprite: Node2D       # visual: a Sprite2D (arrow) or AnimatedSprite2D (body FX)
 var _face_travel := true # arrow points along travel; a round body FX (fireball) does not
 var _face_offset := PI   # rotation added to the travel angle (arrow art faces west)
+var _trail: Dictionary = {}  # trail-hook cfg (empty = no trail); drops fading puffs in flight
+var _trail_accum := 0.0  # px travelled since the last trail puff
 
 func _ready() -> void:
 	var cfg := ProjectileFXScript.config_for(fx_id)
@@ -28,6 +30,7 @@ func _ready() -> void:
 		var anim := ProjectileFXScript.make_body(body)
 		_face_travel = bool(body.get("rotates", false))
 		_face_offset = float(body.get("face_offset", 0.0))
+		_trail = cfg.get("trail", {})   # only body-FX (non-crit) shots leave a trail
 		sprite = anim
 		add_child(anim)
 	else:
@@ -74,4 +77,10 @@ func sim_step(delta: float) -> bool:
 			ProjectileFXScript.spawn_impact(get_parent(), target.position, fx_id)
 		return true
 	position += to_target.normalized() * step
+	# Trail hook: drop a fading puff every `spacing` px of travel (render-only, local FX).
+	if not _trail.is_empty():
+		_trail_accum += step
+		if _trail_accum >= float(_trail["spacing"]):
+			_trail_accum = 0.0
+			ProjectileFXScript.spawn_trail_puff(get_parent(), position, _trail)
 	return false

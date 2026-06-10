@@ -56,6 +56,15 @@ static func config_for(id: String) -> Dictionary:
 				"body":   {"key": "fx_ice_spell:body",   "frames": _ICE_SHARD,   "fps": 18.0, "px": 12.0, "rotates": true, "face_offset": PI},
 				"impact": {"key": "fx_ice_spell:impact", "frames": _ICE_EXPLODE, "fps": 34.0, "px": 26.0, "alpha": 0.5},
 			}
+		"fx_fire_trail":
+			# Fireball body + a TRAIL: a faint puff dropped every `spacing` px of travel that
+			# fades over `life`. Deliberately subtle (a trail is the noisiest FX type) — tune
+			# spacing/alpha/life here. Keeps the on-kill impact for consistency.
+			return {
+				"body":   {"key": "fx_fire_trail:body",   "frames": _FIREBALL, "fps": 14.0, "px": 28.0, "rotates": false},
+				"trail":  {"frame": _FIREBALL[2], "spacing": 26.0, "life": 0.26, "px": 14.0, "alpha": 0.3},
+				"impact": {"key": "fx_fire_trail:impact", "frames": _FIREBALL, "fps": 36.0, "px": 24.0, "alpha": 0.5},
+			}
 		_:
 			return {}
 
@@ -109,3 +118,23 @@ static func spawn_impact(parent: Node2D, pos: Vector2, id: String) -> void:
 	a.animation_finished.connect(a.queue_free)
 	parent.add_child(a)
 	a.play("default")
+
+# Drop one fading trail puff at `pos` under `parent` (the board container). Render-only;
+# fades alpha→0 and shrinks over `life`, then frees. Called as the projectile travels.
+static func spawn_trail_puff(parent: Node2D, pos: Vector2, cfg: Dictionary) -> void:
+	var tex: Texture2D = cfg["frame"]
+	var s := Sprite2D.new()
+	s.texture = tex
+	var sc: float = float(cfg["px"]) / tex.get_size().y
+	s.scale = Vector2(sc, sc)
+	s.position = pos
+	s.modulate = Color(1.0, 1.0, 1.0, float(cfg.get("alpha", 0.35)))
+	s.z_index = 4   # under the body + impact, so the live projectile reads on top
+	parent.add_child(s)
+	var life: float = float(cfg.get("life", 0.25))
+	var tw := s.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(s, "modulate:a", 0.0, life)
+	tw.tween_property(s, "scale", s.scale * 0.5, life)
+	tw.set_parallel(false)
+	tw.tween_callback(s.queue_free)

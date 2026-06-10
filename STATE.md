@@ -8,12 +8,13 @@ what's left is wiring the remaining `fx_*` art and frames/banners.
 
 ## ⏭ NEXT UP (start here next chat)
 S1 implementation, remaining phases:
-1. **Remaining FX art (②)** — hook system + **fireball + ice** shipped (`projectile_fx.gd`); impact
-   is **on-kill-only + subtle** (small/translucent — playtest-tuned). Each remaining catalog `fx_*`
-   just needs its art mapped in `ProjectileFX.config_for`: impact-only for `fx_blue_impact`/
-   `fx_smoke_ring`/`fx_explosion`; `fx_lightning` body; `fx_dark` recolor. **`fx_fire_trail` needs a
-   NEW trail hook** (not yet built — a fading streak behind the projectile). Some need art not yet
-   sourced (smoke ring / explosion / lightning). `fx_gold_bolt` stays a tinted arrow (by design).
+1. **Remaining FX art (②)** — hook system (**body / impact / trail** all built) + **fireball + ice +
+   fire-trail** shipped (`projectile_fx.gd`); impact is on-kill + subtle, trail is subtle/opt-in
+   (both playtest-tunable). Each remaining catalog `fx_*` just needs art mapped in
+   `ProjectileFX.config_for`: impact-only for `fx_blue_impact`/`fx_smoke_ring`/`fx_explosion`;
+   `fx_lightning` body; `fx_dark` recolor (could reuse fireball/ice frames + a dark modulate — needs
+   a body `modulate` field added). Smoke-ring / explosion / lightning need art sourced.
+   `fx_gold_bolt` stays a tinted arrow (by design). Then the deferred **FX-icon pass** (parked).
 2. **Frames/banners (⑥)** — author from the owned Wood-UI kit (single-hue outline art).
 - **Parked/flagged:** **FX Collection icons** show flat tint swatches, not representative art —
   do as ONE pass once all `fx_*` are wired (gated on the art existing); clean impl = `_item_art`

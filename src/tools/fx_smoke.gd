@@ -61,7 +61,24 @@ func _ready() -> void:
 	print("config has body+impact: ", config.has("body") and config.has("impact"))
 	print("unwired id returns empty: ", unwired_empty)
 
+	# Trail hook: a fx_fire_trail projectile dropping a puff after travelling past `spacing`.
+	var tgt2 := FakeMob.new()
+	tgt2.position = Vector2(500, 0)   # far, so a partial step moves without hitting
+	board.add_child(tgt2)
+	var pt = ProjScript.new()
+	pt.target = tgt2
+	pt.damage = 10.0
+	pt.fx_id = "fx_fire_trail"
+	pt.position = Vector2.ZERO
+	board.add_child(pt)
+	await get_tree().process_frame
+	var tb := board.get_child_count()
+	pt.sim_step(0.05)   # 900*0.05 = 45px > spacing(26) → one puff, no hit
+	var trail_ok: bool = (board.get_child_count() - tb) == 1
+	print("trail puff dropped in flight: ", trail_ok)
+
 	var pass_all: bool = body_ok and target.hits == 1 and done and (after - before == 1) \
-		and crit_is_arrow and config.has("body") and config.has("impact") and unwired_empty
+		and crit_is_arrow and config.has("body") and config.has("impact") and unwired_empty \
+		and trail_ok
 	print("RESULT ", "✅ FX SMOKE OK" if pass_all else "❌ FX SMOKE FAILED")
 	get_tree().quit()
