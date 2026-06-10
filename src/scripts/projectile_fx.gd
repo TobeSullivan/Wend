@@ -33,7 +33,7 @@ static func config_for(id: String) -> Dictionary:
 		"fx_fireball":
 			return {
 				"body":   {"key": "fx_fireball:body",   "frames": _FIREBALL, "fps": 14.0, "px": 28.0, "rotates": false},
-				"impact": {"key": "fx_fireball:impact", "frames": _FIREBALL, "fps": 30.0, "px": 44.0},
+				"impact": {"key": "fx_fireball:impact", "frames": _FIREBALL, "fps": 36.0, "px": 24.0, "alpha": 0.5},
 			}
 		_:
 			return {}
@@ -83,6 +83,7 @@ static func spawn_impact(parent: Node2D, pos: Vector2, id: String) -> void:
 	var fh: float = imp["frames"][0].get_size().y
 	var s: float = float(imp["px"]) / fh
 	a.scale = Vector2(s, s)
+	a.modulate = Color(1.0, 1.0, 1.0, float(imp.get("alpha", 1.0)))   # translucent = less busy
 	a.z_index = 5
 	a.animation_finished.connect(a.queue_free)
 	parent.add_child(a)
