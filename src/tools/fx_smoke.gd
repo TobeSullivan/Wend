@@ -12,6 +12,7 @@ const ProjFXScript := preload("res://scripts/projectile_fx.gd")
 
 class FakeMob extends Node2D:
 	var alive := true
+	var hp := 1.0   # < projectile damage, so the hit registers as a KILL (impact fires)
 	var hits := 0
 	func take_hit(_d, _c, _s) -> void:
 		hits += 1

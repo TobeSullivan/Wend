@@ -33,7 +33,7 @@ static func config_for(id: String) -> Dictionary:
 		"fx_fireball":
 			return {
 				"body":   {"key": "fx_fireball:body",   "frames": _FIREBALL, "fps": 14.0, "px": 28.0, "rotates": false},
-				"impact": {"key": "fx_fireball:impact", "frames": _FIREBALL, "fps": 28.0, "px": 52.0},
+				"impact": {"key": "fx_fireball:impact", "frames": _FIREBALL, "fps": 30.0, "px": 44.0},
 			}
 		_:
 			return {}

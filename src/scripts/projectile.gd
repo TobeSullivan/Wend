@@ -59,11 +59,16 @@ func sim_step(delta: float) -> bool:
 		sprite.rotation = to_target.angle() + PI
 
 	if step >= dist:
+		var killed := false
 		if target.has_method("take_hit"):
+			# This hit kills iff it drops hp<=0 (the mob then respawns in place). Capture
+			# BEFORE take_hit, since the kill resets hp to max.
+			killed = damage >= target.hp
 			target.take_hit(damage, is_crit, source_tower)
-		# Impact burst at the hit point (render-only, local FX; no-op without an impact
-		# hook). Crits skip it so the crit tell stays clean.
-		if not is_crit and fx_id != "":
+		# Impact burst — ON KILL ONLY, not every hit: per-hit bursts stack on a mob that
+		# many towers are pounding and occlude it (noise gate). Crits skip FX so the crit
+		# tell stays clean. Render-only, local; no-op without an impact hook.
+		if killed and not is_crit and fx_id != "":
 			ProjectileFXScript.spawn_impact(get_parent(), target.position, fx_id)
 		return true
 	position += to_target.normalized() * step
