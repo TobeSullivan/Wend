@@ -39,5 +39,14 @@ fill. Full economy in `notes/season_pass.md`.
 
 ---
 
+## Runtime
+Built 2026-06-10 (`src/scripts/task_catalog.gd` = `TaskCatalog`). Schema + pure roll/accumulate/
+award logic live there; `SaveData.tasks()` holds the raw blob (catalog-agnostic). Window keys reuse
+`LeaderboardService.window_date` so resets land on the Trials daily/weekly/monthly boundaries.
+`SceneManager._record_match_tasks()` feeds it at the Trials + Ranked match-end paths only (campaign +
+casual excluded); stats read client-side off the local board, never into the match record. Points flow
+to `SaveData.add_season_points()` → the track. Verified by `src/tools/task_catalog_test.tscn` (green).
+
 ## Open
-- Absolute thresholds (the X integers) — playtest-gated, tune with star thresholds.
+- Absolute thresholds (the X integers) — playtest-gated, tune with star thresholds. Stand-ins live in
+  `TaskCatalog.THRESHOLDS`; structure + payouts are locked, only the integers move.

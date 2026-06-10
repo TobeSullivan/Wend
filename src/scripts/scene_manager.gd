@@ -271,6 +271,8 @@ func report_match_result(advisory_damage: int) -> void:
 		SaveData.record_pve_score(pending_map.window_date, pending_map.scale_tier, damage)
 		_post_online("trials", LeaderboardService.trials_board_id(
 			pending_map.window_type, pending_map.scale_tier, "solo"), damage)
+		# Season tasks count Trials (not campaign). Score = the authoritative re-sim damage.
+		_record_match_tasks(_local_board(), damage)
 
 # Networked Ranked result: write the player's new authoritative LADDER VALUE (tier_base + LP)
 # to the season board via the submit_score RPC (op "set"; boards reject direct client writes).
@@ -279,6 +281,45 @@ func report_match_result(advisory_damage: int) -> void:
 # here. The match record blob still rides along for the later re-sim worker. No-op offline.
 func report_ranked_result(value_after: int) -> void:
 	_post_online("ranked", "ranked_s%d" % SaveData.ranked_season(), value_after)
+	# Season tasks count Ranked (not casual PVP — which never reaches here). No authoritative
+	# re-sim score in PVP, so the score shape uses the local board's damage tally.
+	var b = _local_board()
+	if b != null:
+		_record_match_tasks(b, b.total_damage_dealt)
+
+# The local player's BoardState (board 0) for the just-ended match, or null if the
+# coordinator is gone. Used only to read end-of-match task stats.
+func _local_board():
+	if active_coordinator != null and is_instance_valid(active_coordinator) \
+			and not active_coordinator.boards.is_empty():
+		return active_coordinator.boards[0]
+	return null
+
+# Feed one completed Trials/Ranked match into the season-task counters (notes/task_system.md).
+# All reads are client-side and read-only — task stats NEVER enter the match record (cardinal
+# rule 2). `score` is supplied by the caller (authoritative damage for Trials, the live tally
+# for Ranked). Towers/zones/kills come off the local board.
+func _record_match_tasks(board, score: int) -> void:
+	if board == null or not is_instance_valid(board):
+		return
+	var towers := 0
+	var zones := 0
+	if board.build_controller != null and is_instance_valid(board.build_controller):
+		towers = board.build_controller.towers.size()
+		zones = _zones_occupied(board)
+	TaskCatalog.record_match({
+		"towers": towers, "zones": zones, "kills": board.total_kills, "score": score,
+	})
+
+# Distinct bonus zones the player built at least one tower inside ("build inside X zones").
+func _zones_occupied(board) -> int:
+	var count := 0
+	for zone in board.bonus_zones:
+		for tower in board.build_controller.towers:
+			if zone.touches_tower_cell(tower.grid_cell):
+				count += 1
+				break
+	return count
 
 # Post the authoritative score to the online board when a Nakama backend is active. Offline
 # (LocalBackend) this is a no-op — boards are write-gated to the submit_score RPC. The match record

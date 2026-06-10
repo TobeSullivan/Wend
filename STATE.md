@@ -1,5 +1,5 @@
 # State — Wend
-Last updated: 2026-06-09 (CC session; design state as of 2026-06-10)
+Last updated: 2026-06-10 (CC session — task-system runtime)
 
 ## Read order
 `claude-rules.md` → `RULES.md` → this file → `notes/open_items.md` (open backlog) →
@@ -11,7 +11,19 @@ Season-pass design fully locked (2026-06-10): point economy, payout chain, S1 ti
 system forks. MP arch doc drift resolved. Build queue clear. Hard gate remains Steam identity
 verification → App ID → Playtest app.
 
-## Last session (2026-06-09, CC — beta-mode switch + Collection & Season screens)
+## Last session (2026-06-10, CC — task-system runtime)
+Built the season XP source (`notes/task_system.md`), the one fully-unblocked item left: tasks are
+the ONLY way to earn season points → the 30-tier track. New `TaskCatalog` (`src/scripts/task_catalog.gd`)
+owns the schema (5 shapes × 3 cadences = 15 tasks, payouts 120/600/2,400) + pure roll/accumulate/award
+logic; `SaveData.tasks()` holds the raw blob (catalog-agnostic, like the cosmetics store). Window keys
+reuse `LeaderboardService.window_date` so resets match the Trials daily/weekly/monthly boundaries.
+`SceneManager._record_match_tasks()` feeds it at the **Trials + Ranked** match-end paths only (campaign +
+casual excluded); stats read client-side off the local board (`boards[0]`), never into the match record
+(cardinal rule 2). Points → `SaveData.add_season_points()`, lighting the Season screen up live. Thresholds
+are playtest-gated stand-ins (`TaskCatalog.THRESHOLDS`); structure + payouts locked. `task_catalog_test.tscn`
+green (24 checks); cosmetics_test still green. Post-match Season nudge + a task panel now unblocked (open_items).
+
+## Prior session (2026-06-09, CC — beta-mode switch + Collection & Season screens)
 **Part 1 (beta switch):** `BETA = true` in `index.js` (ranked_s0, `trials_beta_*` ids,
 `LOBBY_FLOOR 2`) with mirrored client flags (`LeaderboardService.BETA`,
 `SaveData.BUILD_SEASON = 0`); season-0 support through save reconcile, browse, season list,
@@ -28,7 +40,7 @@ green (catalog invariants incl. no-prestige-on-track, track math, save round-tri
 screens build); shots: `collection_shot.png` / `season_shot.png`. XP stays 0 until the
 task-system runtime lands (now in open_items).
 
-## Prior session (2026-06-10, design — season-pass numbers + MP arch drift)
+## Design lock this builds on (2026-06-10, design — season-pass numbers + MP arch drift)
 Locked the season-pass economy: 30 tiers × 1,000 pts, 8wk, payout chain 120/600/2,400
 (×5 daily→weekly, ×4 weekly→monthly). Ceiling ~81,600 vs 30,000 track (~37% capture).
 Trials placement bonus: 100/250/500. Task forks closed: score = cumulative, all 15 active.
@@ -41,19 +53,24 @@ S1 tier map locked (30-row item table, ~$23 forced spend, all milestone towers $
    (confidential/friends-only; hidden page, manual keys). Confirm entity type at registration.
 2. **Human 2-client E2E (Steam-gated):** two real clients Find Match → matchmake → lobby →
    vote → full networked match across networks. First real exercise of the ranked loop.
-3. **CC, carried:** deploy the beta module to the box (scp + restart nakama); task-system
-   runtime (the Season screen's XP source); apply equipped skins in the real match; import
-   S1 track art; catapult PNG export; board-sticker render layer. See `notes/open_items.md`.
+3. **CC, carried:** deploy the beta module to the box (scp + restart nakama); apply equipped
+   skins in the real match; import S1 track art; catapult PNG export; board-sticker render
+   layer; post-match Season nudge + task panel (now unblocked by the task runtime). See
+   `notes/open_items.md`.
 4. **Design (own session):** finalize season-pass absolute threshold integers once playtest
    data exists. `notes/season_pass.md` open section tracks this.
 
 ## Recently touched files
-- **This session (CC, beta switch):** `deploy/nakama/data/modules/index.js`,
+- **This session (CC, task-system runtime):** `src/scripts/task_catalog.gd` (NEW),
+  `src/scripts/save_data.gd` (`tasks()` accessor), `src/scripts/scene_manager.gd`
+  (`_record_match_tasks`/`_local_board`/`_zones_occupied` + Trials/Ranked end hooks),
+  `src/tools/task_catalog_test.*` (NEW); `notes/task_system.md` (Runtime section).
+- **Prior session (CC, beta switch):** `deploy/nakama/data/modules/index.js`,
   `src/scripts/leaderboard_service.gd`, `src/scripts/save_data.gd`,
   `src/scripts/leaderboard_browse.gd`, `src/scripts/nakama_backend.gd`,
   `src/tools/rescale_campaign.gd` (historical), `src/tools/leaderboard_test.gd`,
   `src/tools/ranked_lp_test.gd`, `src/tools/nakama_backend_test.gd`
-- **This session (CC, cosmetics screens):** `src/scripts/cosmetics_catalog.gd` (NEW),
+- **Prior session (CC, cosmetics screens):** `src/scripts/cosmetics_catalog.gd` (NEW),
   `src/scripts/collection.gd` + `src/scenes/collection.tscn` (NEW), `src/scripts/season.gd`
   + `src/scenes/season.tscn` (NEW), `src/scripts/save_data.gd` (cosmetics store),
   `src/scripts/home_screen.gd` (live strip + Collection button), `src/scripts/scene_manager.gd`

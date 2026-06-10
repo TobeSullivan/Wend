@@ -181,6 +181,17 @@ func claim_season_tier(tier: int) -> void:
 		c["claimed_tiers"].append(tier)
 		save()
 
+# === Season tasks (notes/task_system.md) ===
+# The XP source that feeds season_points above. This stays catalog-agnostic: we only
+# guarantee a Dictionary exists under data["tasks"] and hand back the live reference —
+# the schema (windows / progress / completed) and all the roll/award logic live in
+# TaskCatalog, so this autoload never preloads a class_name script.
+
+func tasks() -> Dictionary:
+	if typeof(data.get("tasks")) != TYPE_DICTIONARY:
+		data["tasks"] = {}
+	return data["tasks"]
+
 # === Settings ===
 
 func _ensure_setting_defaults() -> void:
