@@ -2,10 +2,36 @@
 Last updated: 2026-06-10
 
 ## Current focus
-S1 cosmetic + season-pass asset sourcing — **audit complete this session.** Sourcing locked at
-$29.35 (Suburbia $19.95 + ice/fireball milestone FX $9.40). Implementation handed to CC.
+S1 cosmetic implementation (CC). Boards, ranked rename, and apply-skins-in-match are **done**;
+what's left is design-gated content art (FX behavior, obstacle prop set, frames/banners).
 
-## Last session (2026-06-10, design)
+## ⏭ NEXT UP (start here next chat)
+S1 implementation, remaining phases — each needs an aesthetic call (mark them, then build):
+1. **Bespoke FX (②)** — fireball (T10/14) + ice (T20) frames are extracted in `art/` (zips).
+   **Decision:** how the animated FX plays vs the cardinal rule "FX match the default
+   silhouette + duration" — replace the arrow projectile sprite with the animation, or overlay
+   an impact burst? Then wire owned-bench FX (smoke ring/lightning/explosion) + dark recolor.
+3. **Suburbia obstacle library (③)** — determinism gate already cleared. Footprint-tag the
+   Suburbia props (`art/Topdownsuburbiamegapack…`: trees/bushes/fences/house-parts) into
+   `obstacle_props.gd`, scoped to the Suburbia board. **Decision:** which props + footprints.
+4. **Frames/banners (⑥)** — author from the owned Wood-UI kit (single-hue outline art).
+- **Parked/flagged:** zone tint in-match (clashes with type-color legibility — design call);
+  mob recolors (no-tint-painted-sprite rule conflict); aquatic-mob perspective check; Beach
+  T17 **BLOCKED** on Tiki art upload. Full detail: `notes/open_items.md` "S1 cosmetic sourcing".
+
+## Last session (2026-06-10, CC — S1 implementation)
+Three phases shipped (commits `03b9aae` → `5c563b0`, pushed):
+- **Boards:** Suburbia red-brick (T26, retag from toy-brick) + Forest baked pine recolor (T8);
+  obstacle determinism gate **verified cleared** (whole map incl. obstacles derives from one
+  shared host seed; resim rebuilds from `record[seed]`). Beach still blocked.
+- **Ranked rename:** Stone/Bronze/Silver/Gold/Masters — pure positional relabel, ladder math
+  unchanged; all 4 ranked test suites + 5 docs updated; promoted to `decisions.md`.
+- **Apply skins in match (⑤ complete for art-in-hand):** board biome + tower body + projectile
+  tint, **local board only** (opponents default; nothing routes through the match record).
+  Shared resolver `CosmeticsCatalog.texture_for/tint_for`. Verified in real M1 matches via the
+  reusable `match_shot.tscn` harness; sim_harness round-trip + determinism green.
+
+## Prior session (2026-06-10, design)
 Audited the full S1 asset list section by section against top-down + the *real* board model:
 - **Board architecture corrected:** the path is a procedural Line2D (`road_renderer.gd`); the ground
   is a swappable tiling texture (`map_loader.gd`). Boards need **no matched path tiles** — any
@@ -22,26 +48,20 @@ Audited the full S1 asset list section by section against top-down + the *real* 
   owned Wood-UI).
 - Aquatic mobs (fish/starfish/hammerhead, T6/16/27) confirmed **owned**; perspective check pending.
 
-## Next step
-1. **CC, S1 implementation** (see `notes/open_items.md` "S1 cosmetic sourcing"). **Done 2026-06-10:**
-   Suburbia ground (red-brick) + retag T26; Forest (baked pine recolor); obstacle determinism gate
-   CLEARED. **Remaining:** footprint-tag Suburbia props + build the obstacle library; bespoke FX
-   (fireball/ice) + owned-bench FX; mob recolors off undead; aquatic-mob render check; apply equipped
-   skins in the real match. **Beach BLOCKED** — Tiki art not uploaded.
-2. **CC, ranked rename — DONE 2026-06-10.** Stone/Bronze/Silver/Gold/Masters across
-   `leaderboard_service`/`cosmetics_catalog`/`leaderboard_browse` + all tests + docs; promoted to
-   `decisions.md`. (`ghost_ladder.md` correctly excluded — its Bronze/Silver/Gold are star medals.)
-3. **Steam (blocked on verification):** clears → create Wend App ID → create Playtest app
-   (confidential/friends-only; hidden page, manual keys). Confirm entity type at registration.
-4. **Design (own session):** finalize season-pass absolute threshold integers once playtest data
-   exists (`notes/season_pass.md`).
+## Other open threads (not the immediate next step — see NEXT UP above)
+- **Steam (blocked on verification):** clears → create Wend App ID → create Playtest app
+  (confidential/friends-only; hidden page, manual keys). Confirm entity type at registration.
+- **Design (own session):** finalize season-pass absolute threshold integers once playtest data
+  exists (`notes/season_pass.md`).
 
-## Recently touched files
-- `design/SEASON.md` — Source column re-priced to full freight; Suburbia swap; spend → $19.95
-- `notes/board_obstacle_model.md` — NEW; path/ground architecture + obstacle seeding contract
-- `notes/asset_buy_list.md` — rewritten to the post-audit reality
-- `notes/open_items.md` — S1 sourcing CC handoff + ranked rename merged in
-- (CC, prior) `cosmetics_catalog.gd`, collection/season screens, task-system runtime
+## Recently touched files (this CC session)
+- `src/scripts/cosmetics_catalog.gd` — `board_suburbia`/`board_forest` art; prestige rename (Stone↔Platinum); `texture_for`/`tint_for` resolvers
+- `src/scripts/map_loader.gd` — equipped board/tower/proj applied for `is_local`; `collection.gd` — DRY resolver
+- `src/scripts/{tower,build_controller,projectile}.gd` — tower body skin + projectile tint plumbing
+- `src/scripts/leaderboard_service.gd` / `leaderboard_browse.gd` — ranked band rename
+- `src/assets/maps/{suburbia,forest}_tile.png` (NEW) · `src/tools/match_shot.*` (NEW reusable in-match shot harness)
+- tests updated green: `leaderboard` · `ranked_lp` · `nakama_backend` · `cosmetics` · `sim_harness`
+- docs: `notes/{open_items,decisions,pvp_ladder,leaderboard_schema,leaderboard_ui_spec,multiplayer_architecture}.md`, `design/DESIGN_MODES.md`
 
 ## Open questions / blocked on
 - **Steam:** identity verification pending (2–7 biz days from 2026-06-07). Confirm entity type.
