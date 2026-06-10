@@ -31,6 +31,9 @@ var board  # BoardState (round_manager) — for board-scoped zone lookup. Untype
 # Equipped cosmetics (LOCAL board only; set by build_controller before _ready). Render-only,
 # never routed through the match record. null/WHITE = the default arrow body / projectile.
 var skin_tex: Texture2D = null
+# The default arrow box has a directional barrel that aims at its target; skinned bodies
+# (the crystals) are radial and stay put. Set in _ready from whether a skin is equipped.
+var _body_rotates := true
 var proj_tint: Color = Color.WHITE
 var fx_id: String = ""   # equipped "proj" FX id (local board only; render-only)
 var sprite: Sprite2D
@@ -69,6 +72,7 @@ func _ready() -> void:
 		sprite.texture = skin_tex
 		var fit := SPRITE_SCALE * float(LOADED_TEX.get_width()) / float(maxi(1, skin_tex.get_width()))
 		sprite.scale = Vector2(fit, fit)
+		_body_rotates = false   # crystals are radial — don't aim-rotate the body
 	else:
 		sprite.texture = LOADED_TEX
 		sprite.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
@@ -106,8 +110,9 @@ func sim_step(delta: float, rng: RandomNumberGenerator) -> void:
 
 	if targets.size() > 0:
 		_current_target = targets[0]
-		var to_target := _current_target.position - position
-		sprite.rotation = to_target.angle() + PI / 2.0
+		if _body_rotates:
+			var to_target := _current_target.position - position
+			sprite.rotation = to_target.angle() + PI / 2.0
 	else:
 		_current_target = null
 
