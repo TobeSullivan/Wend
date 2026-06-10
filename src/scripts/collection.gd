@@ -566,11 +566,7 @@ class PreviewBoard extends Control:
 		queue_redraw()
 
 	func _tex_or(item_id: String, fallback: String) -> Texture2D:
-		var it := Catalog.item(String(item_id))
-		var art := String(it.get("art", ""))
-		if art != "" and ResourceLoader.exists(art):
-			return load(art)
-		return load(fallback)
+		return Catalog.texture_for(String(item_id), fallback)  # shared resolver (also used in-match)
 
 	func _compute_path() -> void:
 		var blocked := {}

@@ -214,7 +214,14 @@ static func _board_offset(index: int, grid_size: Vector2i, local_index: int = 0)
 
 # Builds one board's full sim subtree under `container` and returns its BoardState.
 static func _build_board(container: Node2D, map, coordinator, is_local: bool, use_bots: bool = true):
-	_setup_background(container, map.grid_size)
+	# Equipped board biome — LOCAL board only. Opponent boards keep the default ground:
+	# their cosmetics aren't known here and must never ride the match record (cardinal rule 2).
+	# Render-only read; never enters the sim/record, so determinism is untouched.
+	var board_tex: Texture2D = GRASS_TEX
+	if is_local:
+		board_tex = CosmeticsCatalog.texture_for(
+			SaveData.equipped_cosmetic("board"), "res://assets/maps/summer_grass_tile.png")
+	_setup_background(container, map.grid_size, board_tex)
 
 	# Live dirt-road renderer for the mob path (replaces the old dashed overlay). Add
 	# THEN configure (configure needs _ready done). Above grass, below towers/mobs.
@@ -345,7 +352,7 @@ static func _build_ghost_ladder(map):
 # playfield is unmistakable and nothing buildable can sit under the UI. A faint cell grid
 # marks the buildable cells; it covers exactly the board.
 const BOARD_BORDER := 6  # world px of grass-edge frame around the board
-static func _setup_background(parent: Node2D, grid_size: Vector2i) -> void:
+static func _setup_background(parent: Node2D, grid_size: Vector2i, board_tex: Texture2D = GRASS_TEX) -> void:
 	var tile := GridScript.TILE_SIZE
 	var board := Vector2(grid_size.x * tile, grid_size.y * tile)
 
@@ -361,7 +368,7 @@ static func _setup_background(parent: Node2D, grid_size: Vector2i) -> void:
 	# Bright grass fill, exactly board-sized (tiled). Brighter than the old full-bleed
 	# value so the board reads as a lit arena against the dark surround.
 	var grass := TextureRect.new()
-	grass.texture = GRASS_TEX
+	grass.texture = board_tex
 	grass.stretch_mode = TextureRect.STRETCH_TILE
 	grass.size = board
 	grass.position = Vector2.ZERO

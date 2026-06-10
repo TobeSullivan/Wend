@@ -169,6 +169,19 @@ static func item(id: String) -> Dictionary:
 			return it
 	return {}
 
+# Render-layer resolvers (the single mapping equip-id → texture/tint, shared by the Collection
+# preview and the live match so the two never diverge). An item with no imported art falls back
+# to the slot default's art — never a runtime tint of a painted body sprite (COSMETICS rule).
+static func texture_for(id: String, fallback_path: String) -> Texture2D:
+	var art := String(item(id).get("art", ""))
+	if art != "" and ResourceLoader.exists(art):
+		return load(art)
+	return load(fallback_path)
+
+# For tint-driven slots (zone, projectile/FX recolors) the item's `tint` IS its definition.
+static func tint_for(id: String, default_color: Color) -> Color:
+	return item(id).get("tint", default_color)
+
 static func slot_items(slot: String) -> Array:
 	var out: Array = []
 	for it in ITEMS:
