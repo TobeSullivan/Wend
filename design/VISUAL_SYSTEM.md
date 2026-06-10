@@ -1,6 +1,6 @@
-# Visual System — Maze Battle TD
+# Visual System — Wend
 
-Last updated: 2026-06-04
+Last updated: 2026-06-09
 Repo path: `design/VISUAL_SYSTEM.md`
 
 This is the canonical look. The in-match HUD already implements it; everything else
@@ -100,9 +100,8 @@ All five menu screens were designed against the system (reference mockups produc
 - Settings gear top-right; **Quit** bottom-left. Real icons per the table.
 
 ### Campaign select
-- 5×2 grid of 10 mission cards, **all unlocked** (no gating — curve is guidance).
-- Each card: mission number + **lesson label** (Intro, Mazing, Checkpoints, Zones, Slow,
-  Crit, Multishot, Supply, Economy, Capstone) + **star tier** in the corner (0–3).
+- Single row of 5 mission cards, **all unlocked** (no gating — curve is guidance).
+- Each card: mission number + **name** (First Contact, The Long Way, Switchbacks, Hot Spots, The Gauntlet) + **star tier** in the corner (0–3).
 - Lesson labels are real content (fills the cards, reinforces "tutorial").
 
 ### PVE select

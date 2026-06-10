@@ -29,7 +29,7 @@ Five missions. Static hand-authored maps. No randomization.
 
 No expansion unless players demand it after launch. Do not get lost building campaign content.
 
-Each mission has a per-mission leaderboard (total damage dealt). Bronze/Silver/Gold thresholds exist to give players a concrete target and feed season pass milestones. Gold should be achievable by a reasonably engaged player — the leaderboard is where real competition lives, not the threshold.
+Each mission has a per-mission leaderboard (total damage dealt). 1/2/3-star thresholds exist to give players a concrete target and feed season pass milestones. The 3-star tier should be achievable by a reasonably engaged player — the leaderboard is where real competition lives, not the threshold.
 
 ### Mission curriculum
 
@@ -37,7 +37,7 @@ Each mission has a per-mission leaderboard (total damage dealt). Bronze/Silver/G
 
 Philosophy (reworked 2026-06-06, replacing the 2026-05-31 lock): complexity **ramps from zero**, one concept per mission. The old curriculum was inverted — mission 1 exposed everything at once (3 CP, 4 zones, 100 supply) and mission 2 *stripped back* to basics, so a first-timer's literal first match was the most complex one in the early game. The five-mission arc fixes that: M1 dead-simple (the core twist + place a tower + a basic guided maze), M2 introduces checkpoints (2), M3 extends them (3), M4 isolates bonus zones (back to 1 CP so zones are the only new thing), M5 integrates everything in a contained, non-random "almost a real match." Crit and multishot are taught through the upgrade stats and the M5 integration map, not dedicated missions (there are no crit/multishot bonus zones — only DAMAGE/ATTACK_SPEED/RANGE/SLOW exist).
 
-> **Stale figure flag:** earlier campaign text cited a uniform 40×22 board. STATE.md locks the board at **25×14**. The curriculum's tuning integers (supply/rounds/mobs) are uncalibrated regardless and wait on playtest data + the 25×14 retune; only the *shape* of the ramp is locked. `CAMPAIGN.md` is authored against 25×14.
+> **Board size:** the board is locked at **25×16** (universal; derived once at the 1080p reference with a 280px right rail, scale-and-center elsewhere). The curriculum's tuning integers (supply/rounds/mobs) are uncalibrated regardless and wait on playtest data + the 25×16 retune; only the *shape* of the ramp is locked. `CAMPAIGN.md` is authored against 25×16. (Historical: earlier text cited 40×22, then 25×14 — both dead.)
 
 > **Old mission files deprecated:** the previous ten `.tres` files in `levels/campaign/` (`First Contact` through `The Gauntlet`) are superseded by the five-mission arc. CC decides what to cut or repurpose against the repo; the design now describes five.
 
@@ -249,7 +249,7 @@ Values that apply universally across all maps and modes live in a `GameConstants
 
 - Grid dimensions, entry/exit/checkpoint cells, obstacles, zones
 - Supply cap, round count, mob count
-- Bronze/Silver/Gold thresholds (Campaign and PVE only)
+- 1/2/3-star thresholds (Campaign and PVE only) — the `*_threshold` fields below are the star cutoffs
 
 ### Repo file structure
 
@@ -263,7 +263,7 @@ src/
   campaign/
     mission_01.tres
     mission_02.tres
-    ...                      # up to mission_10.tres
+    ...                      # five missions, up to mission_05.tres
 
   scripts/
     map_generator.gd         # Produces MapResource from seed + scale tier + mode
@@ -326,7 +326,7 @@ Click PVP → queue immediately. Shows estimated wait time. Nothing to configure
 
 ### Navigation from Campaign
 
-Click Campaign → mission list showing missions 1–5 with best medal per mission. All missions unlocked from the start — difficulty curve is guidance, not a gate. Click any mission → straight in.
+Click Campaign → mission list showing missions 1–5 with best star rating per mission. All missions unlocked from the start — difficulty curve is guidance, not a gate. Click any mission → straight in.
 
 ### Return to home screen
 
@@ -336,15 +336,11 @@ Win modal "Return Home", pause menu "Quit to Menu", and post-match screens all l
 
 ## In-match UI frame (added 2026-06-01)
 
-The board no longer fills the whole screen. The play area is **fit by a game camera into a reserved play rect**, with fixed UI zones around it so HUD chrome can never overlap placeable tiles (the old full-screen board made every panel overlap the play area). Layout:
+## In-match UI frame
 
-- **Top bar** (full width): round / phase / build timer on the left; gold / score / kills (+ lives in PVP) on the right.
-- **Right rail** (always present): action cluster (Build toggle, Start Round, Speed) and a **docked tower inspector** — selecting a tower shows its six upgrade stats here instead of a panel floating over the board. When nothing is selected it shows the map objectives (Bronze/Silver/Gold + score) in Campaign/PVE, else a controls hint.
-- **Left dock** (PVP only): the arena minimap.
-- **Play rect**: the remaining centre; the board is camera-fit and centred there. Tradeoff: the board renders smaller than full-screen (~82% solo/PVE, ~71% PVP) but is fully visible and never occluded.
-- Modals (pause, settings, win, match-end) are centred overlays.
+**Authoritative layout lives in `design/INMATCH_HUD.md`** (locked 2026-06-07, implemented). Summary: a single reserved **right rail** (Status / Score-or-Standing / Buttons), a **maximized 25×16 board** centred in the remainder, and tower info that docks in the rail's lower gap (with an over-board overlay fallback on short windows). The score box shows the map's 1/2/3-star thresholds + score in Campaign/Trials, or the standing in Ranked. Clicks outside the board rect are ignored.
 
-Geometry lives in one place (`ui_layout.gd`) shared by the camera, the bars/dock, and the board click gate (clicks outside the play rect are ignored by the board). Implemented by `game_view.gd` (camera, all modes), `hud.gd` (top bar), `action_rail.gd` (rail + inspector), `minimap_panel.gd` (dock), styled via `ui_style.gd`.
+(Superseded: the 2026-06-01 three-zone layout — top bar + left-dock minimap + camera-fit play rect, files `hud.gd`/`action_rail.gd`/`minimap_panel.gd` — is gone. See INMATCH_HUD.md.)
 
 ## Pause menu
 

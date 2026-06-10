@@ -44,7 +44,7 @@ dedicated server" is the *same code* with a different `MultiplayerPeer` undernea
 
 | Topology | What it is | Pros | Cons | Verdict |
 |---|---|---|---|---|
-| P2P host-authoritative | One client runs the coordinator; others thin. Join codes/invites. | No servers, ~free, fastest to a friends test | Host = the match (leaves → dies); host can cheat; **consoles forbid raw P2P** | ✅ Beta |
+| P2P host-authoritative | One client runs the coordinator; others thin. Steam-overlay invites (no room codes). | No servers, ~free, fastest to a friends test | Host = the match (leaves → dies); host can cheat; **consoles forbid raw P2P** | Analyzed, not taken |
 | Relay-assisted host-auth | Same, packets via a relay that hides IPs + punches NAT (e.g. Steam relay) | NAT "just works", no exposed IPs | Relay is usually platform-specific (Steam = PC/Mac only) | ✅ Best beta path |
 | Dedicated authoritative | Headless Godot (`--headless`) runs the coordinator; clients thin | No host-migration, cheat-resistant, console-legal, crossplay-ready | You run/monitor servers (cheap here) | ✅ Launch answer |
 
@@ -85,7 +85,7 @@ foundation.
 
 | Players | What works | What actually gets hard |
 |---|---|---|
-| ~10 (beta) | Host-auth + Steam relay or join codes. No backend. | Nothing. |
+| ~10 (beta) | Dedicated authoritative (deployed) + Steam-overlay invites. Nakama meta. | Nothing. |
 | ~100 | + accounts + persistent leaderboards/LP + a queue (small Nakama, one box). | **Thin queues** — finding 8 similar-rank players online at once. Small pop is the *harder* matchmaking case. |
 | 1,000–10,000 | Dedicated authoritative coordinators + managed/clustered backend. | Anti-cheat, crossplay identity, ops/monitoring. **Not compute** — matches stay cheap. |
 

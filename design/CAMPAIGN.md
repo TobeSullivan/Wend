@@ -26,7 +26,7 @@ Purpose is tutorial only. A player should be through all five in well under an h
 | 4 | Bonus zones | 1 | a few | off | Back to 1 CP so **zones are the only new variable**. Introduce the four zone types. |
 | 5 | Integration — "almost a real match" | 2–3 | several | off | Everything together, **contained and non-random** (hand-authored, not a generated map). Bridge into Trials Scale 5. Crit/multishot surface here via upgrades. |
 
-**Tuning integers (supply/rounds/mobs/zone mix) are deliberately omitted** — they're uncalibrated and blocked on (a) the 25×14 board retune and (b) real playtest scores. The *shape* of the ramp is what's locked here; CC/we fill the integers when data exists. Board is **25×14** (per STATE.md), not the 40×22 the old doc cited.
+**Tuning integers (supply/rounds/mobs/zone mix) are deliberately omitted** — they're uncalibrated and blocked on (a) the 25×16 board retune and (b) real playtest scores. The *shape* of the ramp is what's locked here; CC/we fill the integers when data exists. Board is **25×16** (universal, derived off 1080p), not the 40×22 or 25×14 the old docs cited.
 
 **Crit and multishot get no dedicated mission.** They're taught through the upgrade stats (tooltips) and earned by playing the M5 integration map. There are no crit/multishot bonus zones — only DAMAGE / ATTACK_SPEED / RANGE / SLOW exist.
 
@@ -141,7 +141,7 @@ Real lines, not placeholders. Tone: plain, confident, a little blunt — matches
 - Five missions, ramp from zero. Old ten `.tres` files in `levels/campaign/` are **deprecated** — cut or repurpose against the repo as you see fit; design now describes five.
 - Tutorial-beat data is a **schema reopen**: pick a runtime shape (sidecar resource vs map-resource field), only the five campaign maps carry it. Design intent is in this file.
 - Ghost outline is programmatic overlay, **no new art**.
-- Tuning integers and B/S/G thresholds are uncalibrated → wait on the 25×14 retune + playtest. Don't invent final numbers; stub gentle values for M1 so the tutorial is winnable.
+- Tuning integers and star thresholds are uncalibrated → wait on the 25×16 retune + playtest. Don't invent final numbers; stub gentle values for M1 so the tutorial is winnable.
 
 ### Implemented (CC, 2026-06-08)
 - **Path correction:** the maps live in **`src/campaign/`** (not `levels/campaign/`). `mission_06–10.tres` deleted; `CAMPAIGN_MISSION_COUNT`/`CAMPAIGN_MISSIONS`/`campaign_select.LESSONS` trimmed to 5.
