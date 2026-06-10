@@ -8,18 +8,18 @@ what's left is wiring the remaining `fx_*` art and frames/banners.
 
 ## ⏭ NEXT UP (start here next chat)
 S1 implementation, remaining phases:
-1. **Remaining FX art (②)** — the hook system + fireball (body anim + impact burst) shipped this
-   session (`projectile_fx.gd`); each catalog `fx_*` now just needs its art mapped to a hook in
-   `ProjectileFX.config_for`: *ice* (T20) body + shatter — `ice_projectiles` + `ice_explode` already
-   in the `2dice…` zip; impact-only for `fx_blue_impact`/`fx_smoke_ring`/`fx_explosion`; trail hook
-   for `fx_fire_trail`; `fx_dark` recolor. **Then noise-tune at scale** (the impact burst is the
-   noise risk — eyeball a busy multi-tower board live, dial back to on-kill-only if mush). SFX ok.
+1. **Remaining FX art (②)** — hook system + **fireball + ice** shipped (`projectile_fx.gd`); impact
+   is **on-kill-only + subtle** (small/translucent — playtest-tuned). Each remaining catalog `fx_*`
+   just needs its art mapped in `ProjectileFX.config_for`: impact-only for `fx_blue_impact`/
+   `fx_smoke_ring`/`fx_explosion`; `fx_lightning` body; `fx_dark` recolor. **`fx_fire_trail` needs a
+   NEW trail hook** (not yet built — a fading streak behind the projectile). Some need art not yet
+   sourced (smoke ring / explosion / lightning). `fx_gold_bolt` stays a tinted arrow (by design).
 2. **Frames/banners (⑥)** — author from the owned Wood-UI kit (single-hue outline art).
 - **Parked/flagged:** zone tint in-match (clashes with type-color legibility — design call);
   mob recolors (no-tint-painted-sprite rule conflict); aquatic-mob perspective check; Beach
   T17 **BLOCKED** on Tiki art upload. Full detail: `notes/open_items.md` "S1 cosmetic sourcing".
 
-## Last session (2026-06-10, CC — S1 obstacles + FX fireball)
+## Last session (2026-06-10, CC — S1 obstacles + FX fireball/ice)
 - **Suburbia obstacle library (③) shipped.** Decoupled obstacle ART from the seed: the generator
   now bakes only the blocking footprint (empty `prop_id`); art is resolved LOCALLY per equipped
   board by `ObstacleProps.art_for(board, footprint, cell_key)`. `obstacle_props.gd` reorganised into
@@ -34,9 +34,12 @@ S1 implementation, remaining phases:
   determinism is untouched). `fx_fireball` = animated fireball body (replaces the arrow, sized to its
   ~28px footprint, same speed) + a short impact burst on hit; crits keep the gold arrow tell (no FX).
   Threaded `fx_id` map_loader→build_controller→tower→projectile alongside `proj_tint`. 6 fireball
-  frames in `src/assets/fx/fireball/`. Verified: `fx_smoke` regression test green, sim_harness all-5
-  green (dmg 67903 unchanged — FX render-only), cosmetics green. **Not yet seen live in motion** —
-  user will eyeball the fireball + impact at scale (noise gate). Other `fx_*` still tint-only.
+  frames in `src/assets/fx/fireball/`. **Ice (`fx_ice_spell`) wired too**: directional shard body
+  (faces travel via per-art `face_offset`) + subtle on-kill shatter; frames in `src/assets/fx/ice/`.
+  Impact tuned to **on-kill-only + small + translucent** after playtest (per-hit bursts occluded the
+  mob). Skinned tower bodies no longer aim-rotate (crystals are radial). Dev: **F10** (global,
+  debug-only) unlocks all cosmetics for testing. Verified: `fx_smoke` + sim_harness (67903) +
+  cosmetics green. Other `fx_*` still tint-only arrows.
 
 ## Prior session (2026-06-10, CC — S1 implementation)
 Three phases shipped (commits `03b9aae` → `5c563b0`, pushed):

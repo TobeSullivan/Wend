@@ -16,10 +16,24 @@ class_name ProjectileFX
 # arrow tell and get NO body/impact FX, so the crit read never depends on a cosmetic.
 
 const FB := "res://assets/fx/fireball/"
+const ICE := "res://assets/fx/ice/"
 
 const _FIREBALL := [
 	preload(FB + "fireball_01.png"), preload(FB + "fireball_02.png"), preload(FB + "fireball_03.png"),
 	preload(FB + "fireball_04.png"), preload(FB + "fireball_05.png"), preload(FB + "fireball_06.png"),
+]
+
+const _ICE_SHARD := [
+	preload(ICE + "shard_01.png"), preload(ICE + "shard_02.png"), preload(ICE + "shard_03.png"),
+	preload(ICE + "shard_04.png"), preload(ICE + "shard_05.png"), preload(ICE + "shard_06.png"),
+	preload(ICE + "shard_07.png"),
+]
+
+const _ICE_EXPLODE := [
+	preload(ICE + "explode_01.png"), preload(ICE + "explode_02.png"), preload(ICE + "explode_03.png"),
+	preload(ICE + "explode_04.png"), preload(ICE + "explode_05.png"), preload(ICE + "explode_06.png"),
+	preload(ICE + "explode_07.png"), preload(ICE + "explode_08.png"), preload(ICE + "explode_09.png"),
+	preload(ICE + "explode_10.png"), preload(ICE + "explode_11.png"), preload(ICE + "explode_12.png"),
 ]
 
 # Cache of built SpriteFrames keyed "<id>:<hook>[:once]", so many projectiles share one
@@ -34,6 +48,13 @@ static func config_for(id: String) -> Dictionary:
 			return {
 				"body":   {"key": "fx_fireball:body",   "frames": _FIREBALL, "fps": 14.0, "px": 28.0, "rotates": false},
 				"impact": {"key": "fx_fireball:impact", "frames": _FIREBALL, "fps": 36.0, "px": 24.0, "alpha": 0.5},
+			}
+		"fx_ice_spell":
+			# The shard is directional (tip leads), so it faces travel like the arrow (+PI).
+			# Impact = ice shatter, kept subtle/translucent + on-kill like the fireball.
+			return {
+				"body":   {"key": "fx_ice_spell:body",   "frames": _ICE_SHARD,   "fps": 18.0, "px": 12.0, "rotates": true, "face_offset": PI},
+				"impact": {"key": "fx_ice_spell:impact", "frames": _ICE_EXPLODE, "fps": 34.0, "px": 26.0, "alpha": 0.5},
 			}
 		_:
 			return {}

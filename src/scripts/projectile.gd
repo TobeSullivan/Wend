@@ -17,7 +17,8 @@ var tint: Color = Color.WHITE
 var fx_id: String = ""
 
 var sprite: Node2D       # visual: a Sprite2D (arrow) or AnimatedSprite2D (body FX)
-var _face_travel := true # arrow points along travel; a body FX (fireball) does not rotate
+var _face_travel := true # arrow points along travel; a round body FX (fireball) does not
+var _face_offset := PI   # rotation added to the travel angle (arrow art faces west)
 
 func _ready() -> void:
 	var cfg := ProjectileFXScript.config_for(fx_id)
@@ -26,6 +27,7 @@ func _ready() -> void:
 		var body: Dictionary = cfg["body"]
 		var anim := ProjectileFXScript.make_body(body)
 		_face_travel = bool(body.get("rotates", false))
+		_face_offset = float(body.get("face_offset", 0.0))
 		sprite = anim
 		add_child(anim)
 	else:
@@ -53,10 +55,10 @@ func sim_step(delta: float) -> bool:
 	var dist: float = to_target.length()
 	var step := SPEED * delta
 
-	# Arrow native facing is west (head points -X); add PI so head leads. A body FX
-	# (round fireball) reads fine undirected, so it skips rotation.
+	# Directional projectiles (arrow, ice shard) point along travel via a per-art offset;
+	# a round body FX (fireball) reads fine undirected, so it skips rotation.
 	if _face_travel:
-		sprite.rotation = to_target.angle() + PI
+		sprite.rotation = to_target.angle() + _face_offset
 
 	if step >= dist:
 		var killed := false
