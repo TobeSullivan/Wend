@@ -2,23 +2,24 @@
 Last updated: 2026-06-10
 
 ## Current focus
-S1 cosmetic implementation (CC). Boards, ranked rename, apply-skins-in-match, and the
-**Suburbia obstacle library** are **done**; what's left is FX behavior + frames/banners.
+S1 cosmetic implementation (CC). Boards, ranked rename, apply-skins-in-match, the
+**Suburbia obstacle library**, and the **FX hook system + flagship fireball** are **done**;
+what's left is wiring the remaining `fx_*` art and frames/banners.
 
 ## ⏭ NEXT UP (start here next chat)
 S1 implementation, remaining phases:
-1. **Bespoke FX (②)** — **direction LOCKED this session** (`decisions.md` Cosmetics): FX is a set
-   of HOOK points. *Body* hook = the projectile sprite IS the fireball/bolt (same path/speed/size
-   as the arrow); *impact* hook = detonation/burst on hit (**noise-gated** — small/short, eyeball
-   at scale via `match_shot`, dial back to on-kill-only if busy); *trail* hook. Fireball (T10/14) +
-   ice (T20) frames extracted in `art/` (zips). **Build:** wire the hook system, map each catalog
-   `fx_*` to its hook(s), then owned-bench FX (smoke ring/lightning/explosion) + dark recolor. SFX ok.
+1. **Remaining FX art (②)** — the hook system + fireball (body anim + impact burst) shipped this
+   session (`projectile_fx.gd`); each catalog `fx_*` now just needs its art mapped to a hook in
+   `ProjectileFX.config_for`: *ice* (T20) body + shatter — `ice_projectiles` + `ice_explode` already
+   in the `2dice…` zip; impact-only for `fx_blue_impact`/`fx_smoke_ring`/`fx_explosion`; trail hook
+   for `fx_fire_trail`; `fx_dark` recolor. **Then noise-tune at scale** (the impact burst is the
+   noise risk — eyeball a busy multi-tower board live, dial back to on-kill-only if mush). SFX ok.
 2. **Frames/banners (⑥)** — author from the owned Wood-UI kit (single-hue outline art).
 - **Parked/flagged:** zone tint in-match (clashes with type-color legibility — design call);
   mob recolors (no-tint-painted-sprite rule conflict); aquatic-mob perspective check; Beach
   T17 **BLOCKED** on Tiki art upload. Full detail: `notes/open_items.md` "S1 cosmetic sourcing".
 
-## Last session (2026-06-10, CC — S1 obstacles + FX direction)
+## Last session (2026-06-10, CC — S1 obstacles + FX fireball)
 - **Suburbia obstacle library (③) shipped.** Decoupled obstacle ART from the seed: the generator
   now bakes only the blocking footprint (empty `prop_id`); art is resolved LOCALLY per equipped
   board by `ObstacleProps.art_for(board, footprint, cell_key)`. `obstacle_props.gd` reorganised into
@@ -28,7 +29,14 @@ S1 implementation, remaining phases:
   (dmg shifted 54985→67903 as the seed-777 layout changed; live==resim holds), cosmetics green, and
   the Suburbia board renders bushes/chairs (was grey rubble) in a real M1 shot. **Render-unverified:**
   slide (1×2) + pond (2×2) only spawn on generated maps — footprints exercised by sim_harness, not yet seen.
-- **FX direction LOCKED** (see NEXT UP ② + `decisions.md`): hook-based (body/impact/trail), impact noise-gated.
+- **FX hook system + flagship fireball (②) shipped.** `projectile_fx.gd` resolves the equipped "proj"
+  id to body/impact hooks (LOCAL board only, render-only — opponents/resim get the plain arrow, so
+  determinism is untouched). `fx_fireball` = animated fireball body (replaces the arrow, sized to its
+  ~28px footprint, same speed) + a short impact burst on hit; crits keep the gold arrow tell (no FX).
+  Threaded `fx_id` map_loader→build_controller→tower→projectile alongside `proj_tint`. 6 fireball
+  frames in `src/assets/fx/fireball/`. Verified: `fx_smoke` regression test green, sim_harness all-5
+  green (dmg 67903 unchanged — FX render-only), cosmetics green. **Not yet seen live in motion** —
+  user will eyeball the fireball + impact at scale (noise gate). Other `fx_*` still tint-only.
 
 ## Prior session (2026-06-10, CC — S1 implementation)
 Three phases shipped (commits `03b9aae` → `5c563b0`, pushed):

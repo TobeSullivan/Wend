@@ -32,6 +32,7 @@ var board  # BoardState (round_manager) — for board-scoped zone lookup. Untype
 # never routed through the match record. null/WHITE = the default arrow body / projectile.
 var skin_tex: Texture2D = null
 var proj_tint: Color = Color.WHITE
+var fx_id: String = ""   # equipped "proj" FX id (local board only; render-only)
 var sprite: Sprite2D
 var cooldown: float = 0.0
 var _current_target: Node2D = null
@@ -211,6 +212,7 @@ func _fire_at(target: Node2D, rng: RandomNumberGenerator) -> void:
 	p.source_tower = self
 	p.position = position
 	p.tint = proj_tint
+	p.fx_id = fx_id
 	get_parent().add_child(p)
 	# Track on this board so BoardState.sim_step advances it on the fixed tick
 	# (projectiles no longer self-_process). board is the BoardState (round_manager).

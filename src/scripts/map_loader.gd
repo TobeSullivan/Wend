@@ -220,6 +220,7 @@ static func _build_board(container: Node2D, map, coordinator, is_local: bool, us
 	var board_tex: Texture2D = GRASS_TEX
 	var tower_skin: Texture2D = null
 	var proj_tint := Color.WHITE
+	var fx_id := ""      # equipped "proj" FX id (local only; drives body/impact projectile FX)
 	var board_id := ""   # drives board-scoped obstacle art (local only; "" => default pool)
 	if is_local:
 		board_id = SaveData.equipped_cosmetic("board")
@@ -229,6 +230,7 @@ static func _build_board(container: Node2D, map, coordinator, is_local: bool, us
 		if tw != "" and tw != "tower_arrow":  # non-default body → skin it
 			tower_skin = CosmeticsCatalog.texture_for(tw, "res://assets/towers/arrow_box_loaded.png")
 		proj_tint = CosmeticsCatalog.tint_for(SaveData.equipped_cosmetic("proj"), Color.WHITE)
+		fx_id = SaveData.equipped_cosmetic("proj")   # body/impact FX (local only; render-only)
 	_setup_background(container, map.grid_size, board_tex)
 
 	# Live dirt-road renderer for the mob path (replaces the old dashed overlay). Add
@@ -253,6 +255,7 @@ static func _build_board(container: Node2D, map, coordinator, is_local: bool, us
 	ctrl.interactive = is_local
 	ctrl.tower_skin_tex = tower_skin  # set before add_child so ctrl._ready skins the ghost
 	ctrl.proj_tint = proj_tint
+	ctrl.fx_id = fx_id
 	ctrl.mobs_array = mobs
 	ctrl.entry_cell = map.entry_cell
 	ctrl.exit_cell = map.exit_cell

@@ -57,6 +57,7 @@ var blocked: Dictionary = {}  # Vector2i -> true
 # null/WHITE = defaults). Render-only — applied to placed towers + their projectiles + the ghost.
 var tower_skin_tex: Texture2D = null
 var proj_tint: Color = Color.WHITE
+var fx_id: String = ""   # equipped "proj" FX id (local board only; render-only)
 
 var _ghost: Sprite2D
 var _ghost_range: Line2D
@@ -448,6 +449,7 @@ func _place_tower(cell: Vector2i) -> void:
 	tower.total_invested = GameConstants.TOWER_COST
 	tower.skin_tex = tower_skin_tex  # equipped cosmetics (local board only; render-only)
 	tower.proj_tint = proj_tint
+	tower.fx_id = fx_id
 	get_parent().add_child(tower)
 	towers.append(tower)
 	blocked[cell] = true
