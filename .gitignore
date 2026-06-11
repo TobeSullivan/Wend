@@ -30,3 +30,4 @@ mbtd_probe*
 
 # Dedicated-server build output (exported per-machine; rebuilt via deploy/README.md)
 deploy/build/
+collection_shot.png

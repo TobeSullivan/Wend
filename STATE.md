@@ -2,9 +2,9 @@
 Last updated: 2026-06-10
 
 ## Current focus
-S1 cosmetic implementation (CC). Boards, ranked rename, apply-skins-in-match, the
-**Suburbia obstacle library**, and the **full FX track** (all 8 wired with real art) are **done**;
-what's left is an FX playtest-tuning pass, the FX-icon pass, and frames/banners.
+S1 cosmetic implementation (CC) — **all phases now implemented**: boards, ranked rename,
+apply-skins-in-match, Suburbia obstacles, full FX track (8, real art), and **frames/banners**
+(wood-kit 9-patch, tinted per item). What's left is **judgment/tuning passes**, not new features.
 
 ## ⏭ NEXT UP (start here next chat)
 S1 implementation, remaining phases:
@@ -17,7 +17,12 @@ S1 implementation, remaining phases:
    from `ProjectileFX.icon_frame`). **Remaining FX work is judgment-only — a single playtest tuning
    pass:** sizes/alpha/facing per FX (arcane-bolt & lightning `face_offset` are guesses; lightning/
    dark recolor look; smoke-ring/explosion burst size). Not a per-item loop — review all at once.
-2. **Frames/banners (⑥)** — author from the owned Wood-UI kit (single-hue outline art).
+2. **Frames/banners (⑥) — first pass shipped.** Wood-UI kit as `StyleBoxTexture` 9-patch, recoloured
+   per item (one frame shape `frame_panel.png` behind the avatar, one banner shape `banner_plank.png`
+   as the card bg; `_wood_box` in `collection.gd`). All catalog frame/banner tints drive it incl.
+   prestige (tinted wood, not true metal — flag if that's not acceptable). **Tuning open:** avatar
+   frame reads small + the banner plank is a large empty expanse (card is wide); prestige metal look;
+   maybe a `panel_headboards` arched banner instead of a plank. Verify via `collection_shot.tscn`.
 - **Parked/flagged:** zone tint in-match (clashes with type-color legibility — design call);
   mob recolors (no-tint-painted-sprite rule conflict); aquatic-mob perspective check; Beach
   T17 **BLOCKED** on Tiki art upload. Full detail: `notes/open_items.md` "S1 cosmetic sourcing".

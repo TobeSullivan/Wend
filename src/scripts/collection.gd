@@ -15,6 +15,10 @@ const UiStyle := preload("res://scripts/ui_style.gd")
 const Motion := preload("res://scripts/motion.gd")
 const Catalog := preload("res://scripts/cosmetics_catalog.gd")
 const ProjFX := preload("res://scripts/projectile_fx.gd")
+# Wood-UI kit, recoloured per item (single-hue): one frame shape + one banner shape, the
+# equipped item's tint applied as modulate. design/COSMETICS.md "frames/banners = build material".
+const FRAME_TEX := preload("res://assets/ui/frame_panel.png")
+const BANNER_TEX := preload("res://assets/ui/banner_plank.png")
 
 var _active_slot := "tower"
 var _equipped := {}          # slot -> item id (save merged over catalog defaults)
@@ -394,12 +398,28 @@ func dev_refresh() -> void:
 
 # --- Profile card (identity is read-only from the platform; flair is the equip) ---
 
+# A 9-patch wood panel recoloured by `tint` (single-hue frames/banners). `m` = the
+# texture's border margin (9-slice corners), `pad` = inner content padding for children.
+func _wood_box(tex: Texture2D, tint: Color, mx: int, my: int, pad: int) -> StyleBoxTexture:
+	var sb := StyleBoxTexture.new()
+	sb.texture = tex
+	sb.texture_margin_left = mx
+	sb.texture_margin_right = mx
+	sb.texture_margin_top = my
+	sb.texture_margin_bottom = my
+	sb.content_margin_left = pad
+	sb.content_margin_right = pad
+	sb.content_margin_top = pad
+	sb.content_margin_bottom = pad
+	sb.modulate_color = tint
+	return sb
+
 func _refresh_profile() -> void:
 	for c in _profile_box.get_children():
 		c.queue_free()
 	var banner := Catalog.item(_equipped.get("banner", "banner_olive"))
 	var bg: Color = banner.get("tint", UiStyle.PILL_BG)
-	_profile_box.add_theme_stylebox_override("panel", UiStyle.flat_box(bg, 14, bg.darkened(0.55), 2))
+	_profile_box.add_theme_stylebox_override("panel", _wood_box(BANNER_TEX, bg, 90, 34, 16))
 
 	var pm := MarginContainer.new()
 	for side in ["margin_left", "margin_right"]:
@@ -420,7 +440,7 @@ func _refresh_profile() -> void:
 	var av := PanelContainer.new()
 	av.custom_minimum_size = Vector2(104, 104)
 	av.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	av.add_theme_stylebox_override("panel", UiStyle.flat_box(Color("4a5a32"), 16, fcol, 4))
+	av.add_theme_stylebox_override("panel", _wood_box(FRAME_TEX, fcol, 36, 36, 10))
 	var name_text := _player_name()
 	var ini := _label(name_text.substr(0, 1).to_upper(), 38, Color("dfe6cf"))
 	ini.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
