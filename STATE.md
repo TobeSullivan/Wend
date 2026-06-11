@@ -13,15 +13,12 @@ S1 implementation, remaining phases:
    blue-impact (T9), smoke-ring (T18), explosion (T29). gold-bolt (T4) = tinted arrow by design.
    Art from the fireball/ice packs + **towers.zip** (cannon explode + smoke-ring sheet, tesla
    electric, magic projectiles). Hooks: body / impact (animated OR single-frame burst) / trail
-   (built, currently unused). **Remaining FX work is judgment-only:** (a) a **playtest tuning pass** —
-   sizes/alpha/facing per FX (e.g. arcane-bolt & lightning `face_offset` are guesses; lightning/dark
-   recolor look); (b) the **FX-icon pass** (now UNBLOCKED — every FX has art; `_item_art` can pull a
-   frame from `ProjectileFX.config_for(id)`). Both are end-of-batch review, not per-item loops.
+   (built, currently unused). FX **Collection icons self-illustrate** now (`_item_art` pulls a frame
+   from `ProjectileFX.icon_frame`). **Remaining FX work is judgment-only — a single playtest tuning
+   pass:** sizes/alpha/facing per FX (arcane-bolt & lightning `face_offset` are guesses; lightning/
+   dark recolor look; smoke-ring/explosion burst size). Not a per-item loop — review all at once.
 2. **Frames/banners (⑥)** — author from the owned Wood-UI kit (single-hue outline art).
-- **Parked/flagged:** **FX Collection icons** show flat tint swatches, not representative art —
-  do as ONE pass once all `fx_*` are wired (gated on the art existing); clean impl = `_item_art`
-  pulls a frame from `ProjectileFX.config_for(id)` so each FX self-illustrates (icon shares the
-  in-match source). zone tint in-match (clashes with type-color legibility — design call);
+- **Parked/flagged:** zone tint in-match (clashes with type-color legibility — design call);
   mob recolors (no-tint-painted-sprite rule conflict); aquatic-mob perspective check; Beach
   T17 **BLOCKED** on Tiki art upload. Full detail: `notes/open_items.md` "S1 cosmetic sourcing".
 
