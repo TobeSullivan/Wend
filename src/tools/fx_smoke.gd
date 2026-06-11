@@ -61,24 +61,20 @@ func _ready() -> void:
 	print("config has body+impact: ", config.has("body") and config.has("impact"))
 	print("unwired id returns empty: ", unwired_empty)
 
-	# Trail hook: a fx_fire_trail projectile dropping a puff after travelling past `spacing`.
-	var tgt2 := FakeMob.new()
-	tgt2.position = Vector2(500, 0)   # far, so a partial step moves without hitting
-	board.add_child(tgt2)
-	var pt = ProjScript.new()
-	pt.target = tgt2
-	pt.damage = 10.0
-	pt.fx_id = "fx_fire_trail"
-	pt.position = Vector2.ZERO
-	board.add_child(pt)
-	await get_tree().process_frame
+	# Trail hook (general capability — not currently bound to a shipped FX): one puff = one node.
+	var fb_frame = config["body"]["frames"][0]
 	var tb := board.get_child_count()
-	pt.sim_step(0.05)   # 900*0.05 = 45px > spacing(26) → one puff, no hit
+	ProjFXScript.spawn_trail_puff(board, Vector2(10, 10), {"frame": fb_frame, "px": 14.0, "alpha": 0.3, "life": 0.2})
 	var trail_ok: bool = (board.get_child_count() - tb) == 1
-	print("trail puff dropped in flight: ", trail_ok)
+	print("trail puff spawns a node: ", trail_ok)
+
+	# Arcane bolt (T14 replacement) — directional single-frame body, no impact/trail.
+	var arc := ProjFXScript.config_for("fx_arcane_bolt")
+	var arcane_ok: bool = arc.has("body") and not arc.has("trail") and bool(arc["body"]["rotates"])
+	print("arcane bolt is directional body-only: ", arcane_ok)
 
 	var pass_all: bool = body_ok and target.hits == 1 and done and (after - before == 1) \
 		and crit_is_arrow and config.has("body") and config.has("impact") and unwired_empty \
-		and trail_ok
+		and trail_ok and arcane_ok
 	print("RESULT ", "✅ FX SMOKE OK" if pass_all else "❌ FX SMOKE FAILED")
 	get_tree().quit()

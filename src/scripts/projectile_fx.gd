@@ -17,6 +17,9 @@ class_name ProjectileFX
 
 const FB := "res://assets/fx/fireball/"
 const ICE := "res://assets/fx/ice/"
+const ARC := "res://assets/fx/arcane/"
+
+const _ARCANE_BOLT := [preload(ARC + "bolt.png")]   # single static frame
 
 const _FIREBALL := [
 	preload(FB + "fireball_01.png"), preload(FB + "fireball_02.png"), preload(FB + "fireball_03.png"),
@@ -56,14 +59,12 @@ static func config_for(id: String) -> Dictionary:
 				"body":   {"key": "fx_ice_spell:body",   "frames": _ICE_SHARD,   "fps": 18.0, "px": 12.0, "rotates": true, "face_offset": PI},
 				"impact": {"key": "fx_ice_spell:impact", "frames": _ICE_EXPLODE, "fps": 34.0, "px": 26.0, "alpha": 0.5},
 			}
-		"fx_fire_trail":
-			# Fireball body + a TRAIL: a faint puff dropped every `spacing` px of travel that
-			# fades over `life`. Deliberately subtle (a trail is the noisiest FX type) — tune
-			# spacing/alpha/life here. Keeps the on-kill impact for consistency.
+		"fx_arcane_bolt":
+			# The crystal towers' own magic projectile (towers.zip): a glowing energy bolt,
+			# directional (tip leads). A distinct silhouette from the round fireball + the ice
+			# shard. Single-frame (static), body-only.
 			return {
-				"body":   {"key": "fx_fire_trail:body",   "frames": _FIREBALL, "fps": 14.0, "px": 28.0, "rotates": false},
-				"trail":  {"frame": _FIREBALL[2], "spacing": 26.0, "life": 0.26, "px": 14.0, "alpha": 0.3},
-				"impact": {"key": "fx_fire_trail:impact", "frames": _FIREBALL, "fps": 36.0, "px": 24.0, "alpha": 0.5},
+				"body": {"key": "fx_arcane_bolt:body", "frames": _ARCANE_BOLT, "fps": 1.0, "px": 24.0, "rotates": true, "face_offset": PI / 2.0},
 			}
 		_:
 			return {}

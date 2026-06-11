@@ -9,12 +9,16 @@ what's left is wiring the remaining `fx_*` art and frames/banners.
 ## ⏭ NEXT UP (start here next chat)
 S1 implementation, remaining phases:
 1. **Remaining FX art (②)** — hook system (**body / impact / trail** all built) + **fireball + ice +
-   fire-trail** shipped (`projectile_fx.gd`); impact is on-kill + subtle, trail is subtle/opt-in
-   (both playtest-tunable). Each remaining catalog `fx_*` just needs art mapped in
-   `ProjectileFX.config_for`: impact-only for `fx_blue_impact`/`fx_smoke_ring`/`fx_explosion`;
-   `fx_lightning` body; `fx_dark` recolor (could reuse fireball/ice frames + a dark modulate — needs
-   a body `modulate` field added). Smoke-ring / explosion / lightning need art sourced.
-   `fx_gold_bolt` stays a tinted arrow (by design). Then the deferred **FX-icon pass** (parked).
+   arcane-bolt** shipped (`projectile_fx.gd`). `fx_fire_trail` was cut (read identical to fireball)
+   → replaced at **T14 by `fx_arcane_bolt`** (the crystal towers' own magic projectile from
+   towers.zip; directional, `face_offset PI/2` **needs a live direction check** like the ice shard).
+   **BIG: towers.zip has real art for most of the 'placeholder' FX** — `upright_cannons/explode.png`
+   = `fx_explosion` (T29), `upright_cannons/smoke_ring_spritesheet` = `fx_smoke_ring` (T18),
+   `tesla_tower/electric_effect_frames` = `fx_lightning` (T24), `magic_weapons/projectile_01/03` +
+   `radiate_effect` = more bodies (`fx_blue_impact`, `fx_dark`). So the FX track is NOT art-starved —
+   wire these next (impact hook for explosion/smoke-ring; body for lightning/dark). `make_body` may
+   need a `modulate` field for recolors. Trail hook is built but currently unused (available).
+   `fx_gold_bolt` stays a tinted arrow. Then the deferred **FX-icon pass** (parked).
 2. **Frames/banners (⑥)** — author from the owned Wood-UI kit (single-hue outline art).
 - **Parked/flagged:** **FX Collection icons** show flat tint swatches, not representative art —
   do as ONE pass once all `fx_*` are wired (gated on the art existing); clean impl = `_item_art`
