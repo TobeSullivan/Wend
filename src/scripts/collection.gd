@@ -14,6 +14,7 @@ extends Control
 const UiStyle := preload("res://scripts/ui_style.gd")
 const Motion := preload("res://scripts/motion.gd")
 const Catalog := preload("res://scripts/cosmetics_catalog.gd")
+const ProjFX := preload("res://scripts/projectile_fx.gd")
 
 var _active_slot := "tower"
 var _equipped := {}          # slot -> item id (save merged over catalog defaults)
@@ -332,6 +333,15 @@ func _item_art(it: Dictionary, owned: bool, px: int) -> Control:
 		if not owned:
 			t.modulate = Color(1, 1, 1, 0.45)
 		box.add_child(t)
+	elif it["slot"] == "proj" and ProjFX.icon_frame(it["id"]) != null:
+		# FX self-illustrate: show a representative frame (recoloured to match in-match),
+		# silhouetted when locked. Unwired proj ids (gold bolt) fall through to the swatch.
+		var tr := TextureRect.new()
+		tr.texture = ProjFX.icon_frame(it["id"])
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.modulate = Color(0, 0, 0, 0.55) if not owned else ProjFX.icon_modulate(it["id"])
+		box.add_child(tr)
 	elif it.has("tint"):
 		var sw := Control.new()
 		var tint: Color = it["tint"]

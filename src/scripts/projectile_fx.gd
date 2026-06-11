@@ -110,6 +110,29 @@ static func config_for(id: String) -> Dictionary:
 		_:
 			return {}
 
+# A single representative frame for the Collection icon (so each FX self-illustrates):
+# the body's first frame, else a MID impact frame (full ring/burst), else null = no art.
+static func icon_frame(id: String) -> Texture2D:
+	var cfg := config_for(id)
+	if cfg.has("body"):
+		return cfg["body"]["frames"][0]
+	if cfg.has("impact"):
+		var imp: Dictionary = cfg["impact"]
+		if imp.has("frame"):
+			return imp["frame"]
+		if imp.has("frames"):
+			return imp["frames"][imp["frames"].size() / 2]
+	return null
+
+# The FX's own recolour (dark spell / blue impact), so the icon matches the in-match look.
+static func icon_modulate(id: String) -> Color:
+	var cfg := config_for(id)
+	if cfg.has("body") and cfg["body"].has("modulate"):
+		return cfg["body"]["modulate"]
+	if cfg.has("impact") and cfg["impact"].has("modulate"):
+		return cfg["impact"]["modulate"]
+	return Color.WHITE
+
 static func has_body(id: String) -> bool:
 	return config_for(id).has("body")
 
