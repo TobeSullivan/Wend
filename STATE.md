@@ -3,22 +3,20 @@ Last updated: 2026-06-10
 
 ## Current focus
 S1 cosmetic implementation (CC). Boards, ranked rename, apply-skins-in-match, the
-**Suburbia obstacle library**, and the **FX hook system + flagship fireball** are **done**;
-what's left is wiring the remaining `fx_*` art and frames/banners.
+**Suburbia obstacle library**, and the **full FX track** (all 8 wired with real art) are **done**;
+what's left is an FX playtest-tuning pass, the FX-icon pass, and frames/banners.
 
 ## ⏭ NEXT UP (start here next chat)
 S1 implementation, remaining phases:
-1. **Remaining FX art (②)** — hook system (**body / impact / trail** all built) + **fireball + ice +
-   arcane-bolt** shipped (`projectile_fx.gd`). `fx_fire_trail` was cut (read identical to fireball)
-   → replaced at **T14 by `fx_arcane_bolt`** (the crystal towers' own magic projectile from
-   towers.zip; directional, `face_offset PI/2` **needs a live direction check** like the ice shard).
-   **BIG: towers.zip has real art for most of the 'placeholder' FX** — `upright_cannons/explode.png`
-   = `fx_explosion` (T29), `upright_cannons/smoke_ring_spritesheet` = `fx_smoke_ring` (T18),
-   `tesla_tower/electric_effect_frames` = `fx_lightning` (T24), `magic_weapons/projectile_01/03` +
-   `radiate_effect` = more bodies (`fx_blue_impact`, `fx_dark`). So the FX track is NOT art-starved —
-   wire these next (impact hook for explosion/smoke-ring; body for lightning/dark). `make_body` may
-   need a `modulate` field for recolors. Trail hook is built but currently unused (available).
-   `fx_gold_bolt` stays a tinted arrow. Then the deferred **FX-icon pass** (parked).
+1. **FX (②) — ALL 8 wired with real art** (`projectile_fx.gd`). Bodies: fireball (T10), arcane-bolt
+   (T14), ice (T20), lightning (T24), dark (T30, recoloured orb). Impacts (on-kill, subtle):
+   blue-impact (T9), smoke-ring (T18), explosion (T29). gold-bolt (T4) = tinted arrow by design.
+   Art from the fireball/ice packs + **towers.zip** (cannon explode + smoke-ring sheet, tesla
+   electric, magic projectiles). Hooks: body / impact (animated OR single-frame burst) / trail
+   (built, currently unused). **Remaining FX work is judgment-only:** (a) a **playtest tuning pass** —
+   sizes/alpha/facing per FX (e.g. arcane-bolt & lightning `face_offset` are guesses; lightning/dark
+   recolor look); (b) the **FX-icon pass** (now UNBLOCKED — every FX has art; `_item_art` can pull a
+   frame from `ProjectileFX.config_for(id)`). Both are end-of-batch review, not per-item loops.
 2. **Frames/banners (⑥)** — author from the owned Wood-UI kit (single-hue outline art).
 - **Parked/flagged:** **FX Collection icons** show flat tint swatches, not representative art —
   do as ONE pass once all `fx_*` are wired (gated on the art existing); clean impl = `_item_art`

@@ -18,8 +18,24 @@ class_name ProjectileFX
 const FB := "res://assets/fx/fireball/"
 const ICE := "res://assets/fx/ice/"
 const ARC := "res://assets/fx/arcane/"
+const LTN := "res://assets/fx/lightning/"
+const SMK := "res://assets/fx/smoke/"
 
 const _ARCANE_BOLT := [preload(ARC + "bolt.png")]   # single static frame
+const _DARK_ORB := [preload(ARC + "orb.png")]       # single static frame (recoloured dark)
+const _STAR := preload("res://assets/fx/burst/star.png")   # single-frame burst (tint per FX)
+
+const _LIGHTNING := [
+	preload(LTN + "electric_01.png"), preload(LTN + "electric_02.png"),
+	preload(LTN + "electric_03.png"), preload(LTN + "electric_04.png"),
+]
+
+const _SMOKE_RING := [
+	preload(SMK + "ring_01.png"), preload(SMK + "ring_02.png"), preload(SMK + "ring_03.png"),
+	preload(SMK + "ring_04.png"), preload(SMK + "ring_05.png"), preload(SMK + "ring_06.png"),
+	preload(SMK + "ring_07.png"), preload(SMK + "ring_08.png"), preload(SMK + "ring_09.png"),
+	preload(SMK + "ring_10.png"), preload(SMK + "ring_11.png"), preload(SMK + "ring_12.png"),
+]
 
 const _FIREBALL := [
 	preload(FB + "fireball_01.png"), preload(FB + "fireball_02.png"), preload(FB + "fireball_03.png"),
@@ -66,6 +82,31 @@ static func config_for(id: String) -> Dictionary:
 			return {
 				"body": {"key": "fx_arcane_bolt:body", "frames": _ARCANE_BOLT, "fps": 1.0, "px": 24.0, "rotates": true, "face_offset": PI / 2.0},
 			}
+		"fx_lightning":
+			# Electric streak (tesla pack), 4-frame flicker, lies along travel (face_offset 0).
+			return {
+				"body": {"key": "fx_lightning:body", "frames": _LIGHTNING, "fps": 16.0, "px": 14.0, "rotates": true, "face_offset": 0.0},
+			}
+		"fx_dark":
+			# Dark spell = the magic orb recoloured dark-violet (body modulate). Radial.
+			return {
+				"body": {"key": "fx_dark:body", "frames": _DARK_ORB, "fps": 1.0, "px": 24.0, "rotates": false, "modulate": Color("6a3a8a")},
+			}
+		"fx_explosion":
+			# Impact-only starburst (single-frame BURST: scales up + fades). On-kill, native orange.
+			return {
+				"impact": {"frame": _STAR, "px": 34.0, "life": 0.22, "from": 0.3, "to": 1.05, "alpha": 0.7},
+			}
+		"fx_blue_impact":
+			# Same starburst, tinted blue. Impact-only (arrow body stays).
+			return {
+				"impact": {"frame": _STAR, "px": 30.0, "life": 0.20, "from": 0.3, "to": 1.0, "alpha": 0.6, "modulate": Color("4a9fdf")},
+			}
+		"fx_smoke_ring":
+			# Animated 12-frame smoke ring (cannon pack), pale + on-kill. Impact-only.
+			return {
+				"impact": {"key": "fx_smoke_ring:impact", "frames": _SMOKE_RING, "fps": 30.0, "px": 40.0, "alpha": 0.6},
+			}
 		_:
 			return {}
 
@@ -98,6 +139,8 @@ static func make_body(cfg: Dictionary) -> AnimatedSprite2D:
 	var fh: float = cfg["frames"][0].get_size().y
 	var s: float = float(cfg["px"]) / fh
 	a.scale = Vector2(s, s)
+	if cfg.has("modulate"):
+		a.modulate = cfg["modulate"]   # recolour (e.g. dark spell)
 	a.play("default")
 	return a
 
@@ -108,13 +151,35 @@ static func spawn_impact(parent: Node2D, pos: Vector2, id: String) -> void:
 	if not cfg.has("impact"):
 		return
 	var imp: Dictionary = cfg["impact"]
+	var tint: Color = imp.get("modulate", Color.WHITE)
+	var col := Color(tint.r, tint.g, tint.b, float(imp.get("alpha", 1.0)))
+	if imp.has("frame"):
+		# Single-frame BURST: a Sprite2D that scales up + fades, then frees. Used for the
+		# starburst explosion / blue impact (no sprite sheet for those).
+		var tex: Texture2D = imp["frame"]
+		var base: float = float(imp["px"]) / tex.get_size().y
+		var s := Sprite2D.new()
+		s.texture = tex
+		s.scale = Vector2(base, base) * float(imp.get("from", 0.4))
+		s.position = pos
+		s.modulate = col
+		s.z_index = 5
+		parent.add_child(s)
+		var life: float = float(imp.get("life", 0.2))
+		var tw := s.create_tween()
+		tw.set_parallel(true)
+		tw.tween_property(s, "scale", Vector2(base, base) * float(imp.get("to", 1.0)), life)
+		tw.tween_property(s, "modulate:a", 0.0, life)
+		tw.set_parallel(false)
+		tw.tween_callback(s.queue_free)
+		return
+	# Animated one-shot (sprite sheet): smoke ring, ice shatter, fireball burst.
 	var a := AnimatedSprite2D.new()
 	a.sprite_frames = _sprite_frames(imp, false)
 	a.position = pos
 	var fh: float = imp["frames"][0].get_size().y
-	var s: float = float(imp["px"]) / fh
-	a.scale = Vector2(s, s)
-	a.modulate = Color(1.0, 1.0, 1.0, float(imp.get("alpha", 1.0)))   # translucent = less busy
+	a.scale = Vector2(float(imp["px"]) / fh, float(imp["px"]) / fh)
+	a.modulate = col
 	a.z_index = 5
 	a.animation_finished.connect(a.queue_free)
 	parent.add_child(a)

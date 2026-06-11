@@ -89,7 +89,7 @@ const ITEMS := [
 	{"id": "mob_cyan", "slot": "mob", "name": "Cyan recolor", "rarity": "common", "tint": Color("4ac0c0"), "hint": "Season 1 · Tier 21"},
 	{"id": "zone_amber", "slot": "zone", "name": "Amber", "rarity": "common", "tint": Color("d79a52"), "hint": "Season 1 · Tier 22"},
 	{"id": "frame_parchment", "slot": "frame", "name": "Parchment", "rarity": "rare", "tint": Color("d8c89a"), "hint": "Season 1 · Tier 23"},
-	{"id": "fx_lightning", "slot": "proj", "name": "Lightning ball", "rarity": "rare", "tint": Color("ffe98a"), "hint": "Season 1 · Tier 24"},
+	{"id": "fx_lightning", "slot": "proj", "name": "Lightning", "rarity": "rare", "tint": Color("ffe98a"), "hint": "Season 1 · Tier 24"},
 	{"id": "title_gauntlet_vet", "slot": "title", "name": "Gauntlet Veteran", "rarity": "common", "hint": "Season 1 · Tier 25"},
 	{"id": "board_suburbia", "slot": "board", "name": "Suburbia", "rarity": "rare",
 		"art": "res://assets/maps/suburbia_tile.png", "hint": "Season 1 · Tier 26"},

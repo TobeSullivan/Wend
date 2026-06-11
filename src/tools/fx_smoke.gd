@@ -73,8 +73,24 @@ func _ready() -> void:
 	var arcane_ok: bool = arc.has("body") and not arc.has("trail") and bool(arc["body"]["rotates"])
 	print("arcane bolt is directional body-only: ", arcane_ok)
 
+	# Whole-track wiring: each FX resolves to its expected hook(s).
+	var body_fx := ["fx_fireball", "fx_ice_spell", "fx_arcane_bolt", "fx_lightning", "fx_dark"]
+	var impact_fx := ["fx_blue_impact", "fx_smoke_ring", "fx_explosion"]
+	var hooks_ok := true
+	for id in body_fx:
+		if not ProjFXScript.config_for(id).has("body"): hooks_ok = false
+	for id in impact_fx:
+		if not ProjFXScript.config_for(id).has("impact"): hooks_ok = false
+	print("all wired FX resolve their hook: ", hooks_ok)
+
+	# Burst-mode impact (single-frame starburst) spawns a render node too.
+	var eb := board.get_child_count()
+	ProjFXScript.spawn_impact(board, Vector2(20, 20), "fx_explosion")
+	var burst_ok: bool = (board.get_child_count() - eb) == 1
+	print("burst impact spawns a node: ", burst_ok)
+
 	var pass_all: bool = body_ok and target.hits == 1 and done and (after - before == 1) \
 		and crit_is_arrow and config.has("body") and config.has("impact") and unwired_empty \
-		and trail_ok and arcane_ok
+		and trail_ok and arcane_ok and hooks_ok and burst_ok
 	print("RESULT ", "✅ FX SMOKE OK" if pass_all else "❌ FX SMOKE FAILED")
 	get_tree().quit()
