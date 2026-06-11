@@ -7,13 +7,15 @@ extends Control
 # current (YOU ARE HERE) / locked — with the milestone towers big at 10/20/30.
 #
 # No pricing anywhere: the absence of a buy button is what says "free" (SEASON.md — don't
-# label it). XP comes from tasks (notes/task_system.md, runtime not built yet), so points
-# only move when the task system lands; the claim flow is live now and grants into the
-# Collection. Prestige never appears here (Ranked-exclusive).
+# label it). XP comes from TASKS (notes/task_system.md) — the runtime is live (TaskCatalog,
+# awarded at match end in scene_manager), and the Rewards/Tasks toggle here surfaces the 15
+# active tasks + progress. The claim flow grants into the Collection. Prestige never appears
+# here (Ranked-exclusive).
 
 const UiStyle := preload("res://scripts/ui_style.gd")
 const Motion := preload("res://scripts/motion.gd")
 const Catalog := preload("res://scripts/cosmetics_catalog.gd")
+const TaskCatalogScript := preload("res://scripts/task_catalog.gd")  # season XP source
 
 const TIER_W := 236.0
 
@@ -26,11 +28,20 @@ var _next_art: PanelContainer
 var _scroll: ScrollContainer
 var _track: HBoxContainer
 
+# Rewards (track) ↔ Tasks (the XP-earning view) toggle.
+var _prog_strip: PanelContainer
+var _track_wrap: PanelContainer
+var _tasks_box: PanelContainer
+var _seg_rewards: Button
+var _seg_tasks: Button
+var _showing_tasks := false
+
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	UiStyle.menu_backdrop(self)
 	_build()
 	_refresh()
+	_show_tasks(false)   # start on the reward track; sets the segment highlight
 	# Land the view on the action: scroll to the current tier after layout.
 	_center_on_current.call_deferred()
 
@@ -64,6 +75,14 @@ func _build() -> void:
 	ttl.rotation_degrees = -2.0
 	top.add_child(ttl)
 
+	# Segmented toggle: Rewards = the tier track, Tasks = how you earn the points.
+	_seg_rewards = _seg_button("Rewards")
+	_seg_rewards.pressed.connect(func(): _show_tasks(false))
+	top.add_child(_seg_rewards)
+	_seg_tasks = _seg_button("Tasks")
+	_seg_tasks.pressed.connect(func(): _show_tasks(true))
+	top.add_child(_seg_tasks)
+
 	var collection_link := Button.new()
 	collection_link.text = "Collection  →"
 	collection_link.add_theme_font_size_override("font_size", 16)
@@ -87,6 +106,7 @@ func _build() -> void:
 	var prog := PanelContainer.new()
 	UiStyle.apply_card(prog, 14)
 	root.add_child(prog)
+	_prog_strip = prog
 	var pmargin := MarginContainer.new()
 	for side in ["margin_left", "margin_right"]:
 		pmargin.add_theme_constant_override(side, 24)
@@ -145,6 +165,14 @@ func _build() -> void:
 	# all the tier columns and scrolls with them.
 	_track.draw.connect(_draw_rail)
 	_scroll.add_child(_track)
+	_track_wrap = wrap
+
+	# Tasks view (hidden until the toggle selects it) — fills the same slot as the track.
+	_tasks_box = PanelContainer.new()
+	UiStyle.apply_card(_tasks_box)
+	_tasks_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_tasks_box.visible = false
+	root.add_child(_tasks_box)
 
 	var back := Button.new()
 	back.text = "Back"
@@ -165,6 +193,90 @@ func _meta_block(lab: String, val: String) -> VBoxContainer:
 	v.add_child(_label(lab, 13, UiStyle.LABEL_COL))
 	v.add_child(_label(val, 21, Color.WHITE))
 	return v
+
+# --- Tasks view (the XP source: notes/task_system.md) ---------------------------
+
+func _seg_button(text: String) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.add_theme_font_size_override("font_size", 16)
+	UiStyle.style_menu_button(b)
+	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	return b
+
+# Swap between the reward track and the task list (they share the screen's main slot).
+func _show_tasks(on: bool) -> void:
+	_showing_tasks = on
+	_prog_strip.visible = not on
+	_track_wrap.visible = not on
+	_tasks_box.visible = on
+	_seg_rewards.add_theme_color_override("font_color", UiStyle.LABEL_COL if on else UiStyle.PILL_GOLD)
+	_seg_tasks.add_theme_color_override("font_color", UiStyle.PILL_GOLD if on else UiStyle.LABEL_COL)
+	if on:
+		_refresh_tasks()
+
+# Build the 15 active tasks (5 shapes × 3 cadences) grouped into Daily / Weekly / Monthly
+# columns, from the live TaskCatalog state (windows rolled so an expired cadence reads fresh).
+func _refresh_tasks() -> void:
+	for c in _tasks_box.get_children():
+		c.queue_free()
+	var state := SaveData.tasks()
+	TaskCatalogScript.roll_windows(state, TaskCatalogScript.current_keys())
+	var by_cadence := {}
+	for t in TaskCatalogScript.task_list(state):
+		(by_cadence.get_or_add(t["cadence"], []) as Array).append(t)
+
+	var pm := MarginContainer.new()
+	for side in ["margin_left", "margin_right"]:
+		pm.add_theme_constant_override(side, 20)
+	pm.add_theme_constant_override("margin_top", 16)
+	pm.add_theme_constant_override("margin_bottom", 16)
+	_tasks_box.add_child(pm)
+
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 18)
+	pm.add_child(cols)
+	for cad in TaskCatalogScript.CADENCES:
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 10)
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cols.add_child(col)
+		col.add_child(_label("%s   +%s each" % [TaskCatalogScript.CADENCE_LABEL[cad],
+			_fmt(int(TaskCatalogScript.PAYOUTS[cad]))], 18, UiStyle.PILL_GOLD))
+		for t in by_cadence.get(cad, []):
+			col.add_child(_task_card(t))
+
+func _task_card(t: Dictionary) -> Control:
+	var done: bool = t["done"]
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", UiStyle.flat_box(Color("222820"), 10, Color("161c0f"), 2, false))
+	var m := MarginContainer.new()
+	for side in ["margin_left", "margin_right"]:
+		m.add_theme_constant_override(side, 14)
+	m.add_theme_constant_override("margin_top", 9)
+	m.add_theme_constant_override("margin_bottom", 9)
+	card.add_child(m)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	m.add_child(v)
+
+	var row := HBoxContainer.new()
+	v.add_child(row)
+	var nm := _label(TaskCatalogScript.SHAPE_LABEL[t["shape"]], 15, UiStyle.LABEL_COL if done else Color.WHITE)
+	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(nm)
+	if done:
+		row.add_child(_label("✓ +%s" % _fmt(int(t["payout"])), 14, UiStyle.PILL_GOLD))
+	else:
+		row.add_child(_label("%s / %s" % [_fmt(int(t["progress"])), _fmt(int(t["target"]))], 14, UiStyle.LABEL_COL))
+
+	var bar := ProgressBar.new()
+	bar.custom_minimum_size = Vector2(0, 12)
+	bar.max_value = maxi(1, int(t["target"]))
+	bar.value = mini(int(t["progress"]), int(t["target"]))
+	bar.show_percentage = false
+	v.add_child(bar)
+	return card
 
 # --- Refresh / state -----------------------------------------------------------
 

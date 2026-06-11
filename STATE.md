@@ -2,9 +2,9 @@
 Last updated: 2026-06-10
 
 ## Current focus
-S1 cosmetic implementation (CC) — **all phases now implemented**: boards, ranked rename,
-apply-skins-in-match, Suburbia obstacles, full FX track (8, real art), and **frames/banners**
-(wood-kit 9-patch, tinted per item). What's left is **judgment/tuning passes**, not new features.
+S1 cosmetic implementation (CC): boards, ranked rename, apply-skins-in-match, Suburbia obstacles,
+full FX track (8, real art), frames/banners (wood 9-patch tinted), and the **Season Tasks panel**
+(the XP-earn surface) all implemented. Remaining: **post-match nudge** + judgment/tuning passes.
 
 ## ⏭ NEXT UP (start here next chat)
 S1 implementation, remaining phases:
@@ -23,9 +23,14 @@ S1 implementation, remaining phases:
    prestige (tinted wood, not true metal — flag if that's not acceptable). **Tuning open:** avatar
    frame reads small + the banner plank is a large empty expanse (card is wide); prestige metal look;
    maybe a `panel_headboards` arched banner instead of a plank. Verify via `collection_shot.tscn`.
+3. **Post-match Season nudge** — the Tasks panel exists now (Season screen toggle), but the match-end
+   overlay still doesn't surface tasks completed. `TaskCatalog.record_match` returns `{points, completed}`
+   (the chip data); wire a small "+N season XP · Daily: Get kills ✓" chip on the round-end overlay.
 - **Parked/flagged:** zone tint in-match (clashes with type-color legibility — design call);
-  mob recolors (no-tint-painted-sprite rule conflict); aquatic-mob perspective check; Beach
-  T17 **BLOCKED** on Tiki art upload. Full detail: `notes/open_items.md` "S1 cosmetic sourcing".
+  mob recolors (no-tint-painted-sprite rule conflict); aquatic-mob perspective check. **Beach T17
+  STILL BLOCKED:** the uploaded `Tikibeachshopgameassetpack` is **side-view shop art** (walls/shelves/
+  horizon backdrop), NOT a top-down tileable sand ground — unusable for the board (verified the bg +
+  sand_piece). Beach needs a real top-down seamless sand tile. Full detail: `notes/open_items.md`.
 
 ## Last session (2026-06-10, CC — S1 obstacles + FX fireball/ice)
 - **Suburbia obstacle library (③) shipped.** Decoupled obstacle ART from the seed: the generator
