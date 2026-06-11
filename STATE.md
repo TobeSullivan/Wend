@@ -8,7 +8,8 @@ full FX track (8, real art), frames/banners (wood 9-patch tinted), the **Season 
 passes (FX facings/sizes, frames/banners proportions) + Beach (needs a top-down sand tile).
 
 ## ⏭ NEXT UP (start here next chat)
-S1 implementation, remaining phases:
+**S1 is feature-complete — remaining is ONE test + tuning pass** (user runs everything through the
+motions, then hands back a consolidated tweak list). No new features below; these are the dials:
 1. **FX (②) — ALL 8 wired with real art** (`projectile_fx.gd`). Bodies: fireball (T10), arcane-bolt
    (T14), ice (T20), lightning (T24), dark (T30, recoloured orb). Impacts (on-kill, subtle):
    blue-impact (T9), smoke-ring (T18), explosion (T29). gold-bolt (T4) = tinted arrow by design.
@@ -30,7 +31,7 @@ S1 implementation, remaining phases:
   horizon backdrop), NOT a top-down tileable sand ground — unusable for the board (verified the bg +
   sand_piece). Beach needs a real top-down seamless sand tile. Full detail: `notes/open_items.md`.
 
-## Last session (2026-06-10, CC — S1 obstacles + FX fireball/ice)
+## Last session (2026-06-10, CC — S1 feature-complete: obstacles · full FX track · frames/banners · season task UI)
 - **Suburbia obstacle library (③) shipped.** Decoupled obstacle ART from the seed: the generator
   now bakes only the blocking footprint (empty `prop_id`); art is resolved LOCALLY per equipped
   board by `ObstacleProps.art_for(board, footprint, cell_key)`. `obstacle_props.gd` reorganised into
@@ -50,7 +51,22 @@ S1 implementation, remaining phases:
   Impact tuned to **on-kill-only + small + translucent** after playtest (per-hit bursts occluded the
   mob). Skinned tower bodies no longer aim-rotate (crystals are radial). Dev: **F10** (global,
   debug-only) unlocks all cosmetics for testing. Verified: `fx_smoke` + sim_harness (67903) +
-  cosmetics green. Other `fx_*` still tint-only arrows.
+  cosmetics green.
+- **Full FX track wired (②).** All 8 `fx_*` mapped to hooks in `ProjectileFX.config_for`: bodies
+  fireball/arcane-bolt/ice/lightning/dark, impacts blue/smoke-ring/explosion (on-kill, subtle).
+  `fx_fire_trail` cut (read identical to fireball) → T14 = `fx_arcane_bolt` (towers.zip magic bolt).
+  Art from the fireball/ice packs + towers.zip (cannon explode + smoke-ring sheet, tesla electric,
+  magic projectiles). Collection FX icons self-illustrate via `ProjectileFX.icon_frame`. Trail hook
+  built but currently unused. (gold-bolt stays a tinted arrow by design.)
+- **Frames/banners (⑥) first pass.** Wood-UI `StyleBoxTexture` 9-patch, tinted per item (`_wood_box`
+  in `collection.gd`); covers prestige via tint (not true metal — flagged).
+- **Season Tasks panel + post-match nudge.** The XP earn loop was already wired (`scene_manager` →
+  `TaskCatalog.record_match`) but INVISIBLE — added the Season-screen Rewards/Tasks toggle (15 tasks +
+  progress + payouts) and a "+N season XP" end-panel chip (`match_end_panel._show_season_award` from
+  `SceneManager.last_task_award`, Trials + Ranked only).
+- **Beach (T17) confirmed still blocked** — the uploaded Tiki pack is side-view shop art, not a
+  top-down sand ground (verified). Needs a real seamless top-down sand tile.
+- Dev shot harnesses added: `collection_shot` · `season_shot` · `nudge_shot` (alongside `match_shot`).
 
 ## Prior session (2026-06-10, CC — S1 implementation)
 Three phases shipped (commits `03b9aae` → `5c563b0`, pushed):
