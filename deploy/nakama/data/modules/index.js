@@ -233,7 +233,10 @@ function rpcSteamAuth(ctx, logger, nk, payload) {
 
 	var steamId = String(params.steamid);
 	// Ticket is verified above, so trusting this Steam ID is safe. Key the account on it.
-	var auth = nk.authenticateCustom("steam:" + steamId, null, true);   // {userId, username, created}
+	// NOTE: username MUST be `undefined`, not `null`. Nakama's JS authenticateCustom only skips the
+	// username arg when it's undefined; passing null hits getJsString(null) → "expects string" (a 500
+	// that made every Steam login fall back to device auth, showing the auto handle on leaderboards).
+	var auth = nk.authenticateCustom("steam:" + steamId, undefined, true);   // {userId, username, created}
 	// Mirror the Steam persona name into the account display_name (refreshed each login since it
 	// can change). Leaderboards render this (see submit_score). Username stays the stable auto one.
 	var persona = (req.persona && typeof req.persona === "string") ? req.persona.substring(0, 128) : "";
