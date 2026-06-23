@@ -48,7 +48,10 @@ services:
           --socket.server_key "${NAKAMA_SERVER_KEY:?set NAKAMA_SERVER_KEY in .env}" \
           --console.username "${NAKAMA_CONSOLE_USER:?set NAKAMA_CONSOLE_USER in .env}" \
           --console.password "${NAKAMA_CONSOLE_PASSWORD:?set NAKAMA_CONSOLE_PASSWORD in .env}" \
-          --runtime.js_entrypoint "index.js"
+          --runtime.js_entrypoint "index.js" \
+          --runtime.env "STEAM_PUBLISHER_KEY=${STEAM_PUBLISHER_KEY:-}" \
+          --runtime.env "STEAM_APP_ID=${STEAM_APP_ID:-4884650}" \
+          --runtime.env "STEAM_IDENTITY=${STEAM_IDENTITY:-wend-nakama}"
     volumes:
       # Runtime modules load from /nakama/data/modules; index.js (js_entrypoint) lives there.
       - ./data:/nakama/data

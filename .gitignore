@@ -30,6 +30,13 @@ mbtd_probe*
 
 # Dedicated-server build output (exported per-machine; rebuilt via deploy/README.md)
 deploy/build/
+
+# SteamPipe build cache/logs (regenerated each upload)
+deploy/steam/output/
+
+# GodotSteam GDExtension — 94 MB of precompiled binaries; treated as an external dependency
+# (like the Godot export templates). Fetch per deploy/steam/STEAM_SDK.md "Install the addon".
+src/addons/godotsteam/
 collection_shot.png
 season_shot.png
 nudge_shot.png

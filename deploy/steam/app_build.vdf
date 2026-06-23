@@ -1,0 +1,24 @@
+"appbuild"
+{
+	// Wend Playtest app ID (the child app, NOT the parent Wend app 4884610).
+	"appid" "4884650"
+
+	"desc" "Wend Playtest - Windows confidential beta (art-read build)"
+
+	// Where SteamPipe writes its build cache/logs (created on first run).
+	"buildoutput" "C:\dev\Wend\deploy\steam\output\"
+
+	// Root the depot scripts resolve against.
+	"contentroot" "C:\dev\Wend\deploy\build\win\"
+
+	// Branch to auto-set-live after upload. LEAVE EMPTY for the first upload — set the
+	// build live manually in Steamworks (Builds page) so you can eyeball it first.
+	// Later you can put a beta branch name here (e.g. "playtest") to auto-publish.
+	"setlive" ""
+
+	"depots"
+	{
+		// Wend Playtest Content depot (same value as in depot_build.vdf).
+		"4884651" "depot_build.vdf"
+	}
+}

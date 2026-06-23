@@ -1,0 +1,20 @@
+"DepotBuildConfig"
+{
+	// Wend Playtest Content depot (under Wend Playtest app 4884650).
+	"DepotID" "4884651"
+
+	// Root folder whose contents get uploaded (the exported build: Wend.exe + Wend.pck).
+	"ContentRoot" "C:\dev\Wend\deploy\build\win"
+
+	// Map everything under ContentRoot to the depot root, recursively.
+	"FileMapping"
+	{
+		"LocalPath" "*"
+		"DepotPath" "."
+		"recursive" "1"
+	}
+
+	// Never ship debug symbols or stray archives even if they appear in the build dir.
+	"FileExclusion" "*.pdb"
+	"FileExclusion" "*.zip"
+}

@@ -24,6 +24,7 @@ var _host := "127.0.0.1"
 var _port := 7350
 var _scheme := "http"
 var _server_key := ""
+var _http_key := "defaulthttpkey"   # runtime http key for no-session RPC (steam_auth); Nakama default
 var _configured := false
 
 func _ready() -> void:
@@ -39,6 +40,7 @@ func _load_config() -> void:
 	_port = int(cf.get_value("nakama", "port", _port))
 	_scheme = String(cf.get_value("nakama", "scheme", _scheme))
 	_server_key = String(cf.get_value("nakama", "server_key", ""))
+	_http_key = String(cf.get_value("nakama", "http_key", _http_key))
 	if _server_key == "" or _server_key.begins_with("PUT_"):
 		push_warning("NakamaService: server_key not set in %s — backend disabled." % CFG_PATH)
 		return
@@ -72,7 +74,13 @@ func connect_backend() -> bool:
 				if not refreshed.is_exception():
 					session = refreshed
 
-	# 2. Device-auth fallback (creates the account on first run).
+	# 2. Steam identity via the custom steam_auth RPC (Nakama's built-in authenticate_steam can't
+	#    validate modern web-API tickets — it omits the required `identity`). Falls through to
+	#    device auth if Steam is unavailable or the ticket can't be obtained/validated.
+	if session == null and SteamManager.is_available():
+		session = await _authenticate_steam()
+
+	# 3. Device-auth fallback (creates the account on first run; also the non-Steam path).
 	if session == null:
 		var authed: NakamaSession = await client.authenticate_device_async(_device_id())
 		if authed.is_exception():
@@ -105,6 +113,25 @@ func ensure_socket() -> NakamaSocket:
 		push_warning("NakamaService: socket failed to connect to %s:%d" % [_host, _port])
 		socket = null
 	return socket
+
+# Steam login via the server's steam_auth RPC: fetch a web-API ticket, exchange it (using the
+# runtime http_key, since we have no session yet) for a server-minted Nakama session keyed by the
+# verified Steam ID. Returns null on any failure so connect_backend() falls back to device auth.
+# Requires the server to have STEAM_PUBLISHER_KEY configured (see deploy/nakama).
+func _authenticate_steam() -> NakamaSession:
+	var ticket := await SteamManager.get_web_api_ticket_async()
+	if ticket == "":
+		return null
+	var payload := JSON.stringify({"ticket": ticket, "identity": SteamManager.WEB_API_IDENTITY})
+	var res = await client.rpc_async_with_key(_http_key, "steam_auth", payload)
+	if res.is_exception():
+		push_warning("NakamaService: steam_auth RPC failed (%s) — falling back to device auth." % str(res.get_exception()))
+		return null
+	var data = JSON.parse_string(res.payload)
+	if typeof(data) != TYPE_DICTIONARY or not data.has("token"):
+		push_warning("NakamaService: steam_auth returned no token — falling back to device auth.")
+		return null
+	return NakamaSession.new(String(data["token"]), bool(data.get("created", false)), String(data.get("refresh", "")))
 
 func _persist_session() -> void:
 	SaveData.data["nakama_token"] = session.token

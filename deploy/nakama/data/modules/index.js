@@ -67,6 +67,11 @@ function InitModule(ctx, logger, nk, initializer) {
 	_ensureTrialsTournaments(logger, nk);
 	initializer.registerRpc("submit_score", rpcSubmitScore);
 	initializer.registerRpc("trials_seeds", rpcTrialsSeeds);
+	// Steam login: the built-in authenticateSteam can't validate modern (SDK 1.57+) web-API
+	// tickets because it omits the required `identity` param. This RPC validates the ticket WITH
+	// the identity, then mints a Nakama session keyed by the verified Steam ID. Called by the
+	// client with the runtime http_key BEFORE it has a session (NakamaService._authenticate_steam).
+	initializer.registerRpc("steam_auth", rpcSteamAuth);
 	// Forming lobby: an authoritative "lobby" match accretes matchmaker pops up to 8, runs the
 	// vote, then points everyone at a Godot match-server room (notes/matchmaking_orchestration.md).
 	initializer.registerMatch(LOBBY_MODULE, {
@@ -172,6 +177,68 @@ function rpcSubmitScore(ctx, logger, nk, payload) {
 		}]);
 	}
 	return JSON.stringify({ ok: true, board_id: boardId, score: score });
+}
+
+// --- Steam web-API ticket auth (custom, because the built-in omits `identity`) -----------
+// payload: { ticket: <hex from GetAuthTicketForWebApi>, identity: <must match the client's> }
+// Validates via ISteamUserAuth/AuthenticateUserTicket WITH identity (the part Nakama's built-in
+// skips), then find-or-creates a user keyed by the verified Steam ID and returns a session.
+// Config comes from the runtime env (docker-compose --runtime.env): STEAM_PUBLISHER_KEY (a Steam
+// publisher Web API key), STEAM_APP_ID (the appid the ticket was issued for), STEAM_IDENTITY.
+// Returns 13/INTERNAL "not configured" until the publisher key is set, so the client just falls
+// back to device auth — the server stays bootable without the key.
+function rpcSteamAuth(ctx, logger, nk, payload) {
+	var req;
+	try { req = JSON.parse(payload); } catch (e) { throw errInvalid("payload must be JSON"); }
+	var ticket = req.ticket;
+	if (!ticket || typeof ticket !== "string") throw errInvalid("ticket required");
+
+	var key = ctx.env["STEAM_PUBLISHER_KEY"] || "";
+	var appId = ctx.env["STEAM_APP_ID"] || "";
+	var identity = req.identity || ctx.env["STEAM_IDENTITY"] || "";
+	if (!key || !appId) throw { message: "steam auth not configured on server", code: 13 };
+
+	var url = "https://partner.steam-api.com/ISteamUserAuth/AuthenticateUserTicket/v1/?format=json"
+		+ "&key=" + encodeURIComponent(key)
+		+ "&appid=" + encodeURIComponent(appId)
+		+ "&ticket=" + encodeURIComponent(ticket)
+		+ (identity ? "&identity=" + encodeURIComponent(identity) : "");
+
+	var res;
+	try {
+		res = nk.httpRequest(url, "get", { "Accept": "application/json" }, null);
+	} catch (e) {
+		logger.error("steam_auth request failed: %s", (e && e.message) || e);
+		throw { message: "steam validation request failed", code: 13 };
+	}
+	if (res.code !== 200) throw { message: "steam validation http " + res.code, code: 13 };
+
+	var body;
+	try { body = JSON.parse(res.body); } catch (e) { throw { message: "steam validation bad json", code: 13 }; }
+	var r = body && body.response;
+	if (!r || r.error) {
+		var em = (r && r.error) ? (r.error.errordesc || ("code " + r.error.errorcode)) : "unknown";
+		logger.warn("steam_auth rejected: %s", em);
+		throw errPermission("steam ticket rejected: " + em);
+	}
+	var params = r.params;
+	if (!params || !params.steamid) throw errPermission("steam ticket missing steamid");
+	if (params.vacbanned === true || params.publisherbanned === true) throw errPermission("account banned");
+
+	var steamId = String(params.steamid);
+	// Ticket is verified above, so trusting this Steam ID is safe. Key the account on it.
+	var auth = nk.authenticateCustom("steam:" + steamId, null, true);   // {userId, username, created}
+	var sess = nk.authenticateTokenGenerate(auth.userId, auth.username); // {token, exp} — no refresh token
+	logger.info("steam_auth ok: steam=%s user=%s created=%s", steamId, auth.userId, auth.created);
+	// No refresh token is minted here; the session is valid until exp (session.token_expiry_sec).
+	// On expiry the client re-runs steam_auth (connect_backend falls through to it again).
+	return JSON.stringify({
+		token: sess.token,
+		user_id: auth.userId,
+		username: auth.username,
+		created: auth.created,
+		steam_id: steamId,
+	});
 }
 
 // --- Server-owned Trials map seeds (leaderboard_schema.md §3) ----------------
