@@ -532,22 +532,25 @@ func _show_medal() -> void:
 	_detail_label.text = "Total damage: %d  ·  Rounds: %d" % [damage, round_manager.max_rounds]
 	_thresholds_vbox.visible = true
 	_populate_thresholds(damage)
-	# Persist the result (campaign medal / PVE score) BEFORE reading placement so the board
-	# reflects this run's score.
-	SceneManager.report_match_result(damage)
-	# Trials (PVE) only: the leaderboard placement block + a "View full board" jump.
+	# Show the panel + buttons immediately with the live score, THEN run the authoritative re-sim.
+	# The re-sim is chunked (SceneManager.report_match_result → ResimScript), so it no longer
+	# freezes the results screen the way a synchronous full-match replay did.
 	var buttons := [
 		{"text": "Play Again", "cb": _on_play_again, "role": "go"},
 		{"text": "Return Home", "cb": _on_return_home},
 	]
 	if not lb_ctx.is_empty():
-		_populate_placement(damage)
 		buttons.push_front({"text": "View full board", "cb": _on_view_board})
 	else:
 		_lb_vbox.visible = false
-	_show_season_award()   # season-XP nudge if a task completed this Trials match
 	_set_buttons(buttons)
 	_panel.visible = true
+	# report_match_result writes the authoritative score + last_task_award; the season nudge and
+	# leaderboard placement both depend on that, so they wait for it (UI stays responsive meanwhile).
+	await SceneManager.report_match_result(damage)
+	_show_season_award()   # season-XP nudge if a task completed this Trials match
+	if not lb_ctx.is_empty():
+		await _populate_placement(damage)
 
 # Campaign victory composition (the mock). Stars from the medal, DAMAGE score, leave-only
 # Next map / Trials / Ranked (resolves campaign follow-up #4: mission-end is leave-only).
@@ -555,7 +558,6 @@ func _show_campaign_victory() -> void:
 	var damage: int = round_manager.total_damage_dealt
 	var medal: String = round_manager.medal_for(damage)
 	var stars: int = STAR_FOR_MEDAL[medal]
-	SceneManager.report_match_result(damage)  # persist before anything reads the board
 
 	_hero_big.text = "VICTORY" if stars >= 1 else "COMPLETE"
 	var idx := 0
@@ -596,6 +598,9 @@ func _show_campaign_victory() -> void:
 	_victory.visible = true
 	_apply_hero_tilt.call_deferred()
 	_play_victory_choreo.call_deferred()
+	# Persist (campaign medal + online post) after the reveal is composed, via the chunked re-sim,
+	# so the authoritative replay never freezes the victory choreo. Display uses the live damage.
+	await SceneManager.report_match_result(damage)
 
 # Staged victory choreography (design/JUICE.md + victory_screen_mock.html): dim → hero drops in
 # (earns L) → stars cascade low→high, each earned tile pops on land → DAMAGE fades + ticks + pops

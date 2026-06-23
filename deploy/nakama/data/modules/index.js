@@ -156,7 +156,13 @@ function rpcSubmitScore(ctx, logger, nk, payload) {
 	if (!boardId || typeof boardId !== "string") throw errInvalid("board_id required");
 	if (score < 0) throw errInvalid("score must be >= 0");
 
+	// Prefer the account display_name (Steam persona, set by steam_auth) for the record's shown
+	// name; fall back to the auto username (device-auth accounts have no display_name).
 	var username = ctx.username || "";
+	try {
+		var acc = nk.accountGetId(ctx.userId);
+		if (acc && acc.user && acc.user.displayName) username = acc.user.displayName;
+	} catch (e) { /* keep ctx.username */ }
 	var meta = { submitted_unix: Math.floor(Date.now() / 1000) };
 
 	if (req.kind === "trials") {
@@ -228,6 +234,13 @@ function rpcSteamAuth(ctx, logger, nk, payload) {
 	var steamId = String(params.steamid);
 	// Ticket is verified above, so trusting this Steam ID is safe. Key the account on it.
 	var auth = nk.authenticateCustom("steam:" + steamId, null, true);   // {userId, username, created}
+	// Mirror the Steam persona name into the account display_name (refreshed each login since it
+	// can change). Leaderboards render this (see submit_score). Username stays the stable auto one.
+	var persona = (req.persona && typeof req.persona === "string") ? req.persona.substring(0, 128) : "";
+	if (persona) {
+		try { nk.accountUpdateId(auth.userId, null, persona, null, null, null, null); }
+		catch (e) { logger.warn("steam_auth display_name update failed: %s", (e && e.message) || e); }
+	}
 	var sess = nk.authenticateTokenGenerate(auth.userId, auth.username); // {token, exp} — no refresh token
 	logger.info("steam_auth ok: steam=%s user=%s created=%s", steamId, auth.userId, auth.created);
 	// No refresh token is minted here; the session is valid until exp (session.token_expiry_sec).

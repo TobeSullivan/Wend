@@ -28,7 +28,11 @@ const MapResourceScript := preload("res://resources/map_resource.gd")
 # match only ever logged actions it had already validated through these same entry points,
 # and the deterministic re-sim reproduces the exact gold trajectory, so nothing that was
 # legal live can read as illegal here.
-static func run(host: Node2D, record: Dictionary) -> Dictionary:
+# `ticks_per_frame` > 0 spreads the replay across frames (await one process_frame every N ticks)
+# so a long match doesn't freeze the UI — used by the client match-end path. 0 (default) runs
+# straight through with no awaits, so existing synchronous callers (tests, server) are unchanged.
+# Determinism is unaffected: identical computation, only wall-clock is spread.
+static func run(host: Node2D, record: Dictionary, ticks_per_frame: int = 0) -> Dictionary:
 	var map = _rebuild_map(record["map_ref"])
 	var num_boards: int = int(record.get("players", 1))
 	var boards: Array = MapLoaderScript.build_match(host, map, num_boards, -1, false)
@@ -53,6 +57,7 @@ static func run(host: Node2D, record: Dictionary) -> Dictionary:
 		idx += 1
 	var cap := 2000000
 	var ended := false
+	var ticks_since_yield := 0
 	while legal and not coord.match_over and not ended and coord.sim_tick < cap:
 		coord._sim_tick_once()
 		# Apply every action stamped for the tick we just completed, in log order.
@@ -68,6 +73,12 @@ static func run(host: Node2D, record: Dictionary) -> Dictionary:
 				illegal = _diag(entry, reason)
 				break
 			idx += 1
+		# Breathe every `ticks_per_frame` ticks so the main thread can render (see signature note).
+		if ticks_per_frame > 0:
+			ticks_since_yield += 1
+			if ticks_since_yield >= ticks_per_frame:
+				ticks_since_yield = 0
+				await host.get_tree().process_frame
 
 	var per_board: Array = []
 	for b in boards:

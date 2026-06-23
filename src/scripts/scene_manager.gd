@@ -9,6 +9,9 @@ extends Node
 const MapResourceScript := preload("res://resources/map_resource.gd")
 const MapGeneratorScript := preload("res://scripts/map_generator.gd")
 const ResimScript := preload("res://scripts/resim.gd")
+# Spread the match-end authoritative re-sim across frames so it never freezes the results
+# screen (resim is node-based, so it can't go on a worker thread; chunking is the fix).
+const RESIM_TICKS_PER_FRAME := 256
 const EnetTransportScript := preload("res://net/enet_transport.gd")
 const NetProtocolScript := preload("res://net/net_protocol.gd")
 const MatchServerScript := preload("res://net/match_server.gd")
@@ -278,7 +281,7 @@ func report_match_result(advisory_damage: int) -> void:
 	# record, never the live client tally (that's advisory/UX). An illegal log (§4.1) is
 	# rejected outright — no score is written. Locally the re-sim runs client-side: a
 	# stand-in for the server, and a continuous determinism self-check.
-	var result := _authoritative_score(advisory_damage)
+	var result := await _authoritative_score(advisory_damage)
 	if not bool(result["legal"]):
 		push_warning("Match record failed legality check (%s) — no score recorded." % str(result.get("reason", "")))
 		return
@@ -371,7 +374,9 @@ func _authoritative_score(advisory: int) -> Dictionary:
 	var record: Dictionary = coord.make_record()
 	var host := Node2D.new()
 	add_child(host)
-	var res: Dictionary = ResimScript.run(host, record)
+	# Chunked (awaited) so a long replay doesn't hang the results screen. `coord` (the live match)
+	# is only read above, before any await, so it's safe even if the player navigates away mid-replay.
+	var res: Dictionary = await ResimScript.run(host, record, RESIM_TICKS_PER_FRAME)
 	host.queue_free()
 	if not bool(res.get("legal", true)):
 		return {"score": 0, "legal": false, "reason": str(res.get("illegal", ""))}
@@ -397,5 +402,5 @@ func _medal_for(damage: int) -> String:
 # Bow out mid-match: record the (possibly partial) result, then go home. Used by
 # the gold-reached popup and the pause-menu quit. Partial scores count by design.
 func leave_match_to_home(damage: int) -> void:
-	report_match_result(damage)
+	await report_match_result(damage)   # let the chunked re-sim + submit finish before tearing down
 	goto_home()

@@ -81,7 +81,7 @@ func _ready() -> void:
 	# ---- RE-SIM the captured record from scratch ----
 	var resim_host := Node2D.new()
 	add_child(resim_host)
-	var res: Dictionary = ResimScript.run(resim_host, record)
+	var res: Dictionary = await ResimScript.run(resim_host, record)
 	var rb: Dictionary = res["boards"][0]
 	print("HARNESS RESIM over=", res["over"], " round=", res["final_round"],
 		" dmg=", rb["damage"], " kills=", rb["kills"],
@@ -96,7 +96,7 @@ func _ready() -> void:
 	var decoded: Dictionary = ResimScript.decode_record(bytes)
 	var ser_host := Node2D.new()
 	add_child(ser_host)
-	var res_ser: Dictionary = ResimScript.run(ser_host, decoded)
+	var res_ser: Dictionary = await ResimScript.run(ser_host, decoded)
 	var rbs: Dictionary = res_ser["boards"][0]
 	var ser_ok: bool = res_ser["legal"] and rbs["damage"] == live_dmg and rbs["kills"] == live_kills
 	print("HARNESS SERIALIZE bytes=", bytes.size(), " decoded dmg=", rbs["damage"],
@@ -111,14 +111,14 @@ func _ready() -> void:
 	tamper_a["input_log"].insert(1, {"tick": 0, "seat": 0, "action": {"type": "place", "cell": occ_cell}})
 	var ta_host := Node2D.new()
 	add_child(ta_host)
-	var res_a: Dictionary = ResimScript.run(ta_host, tamper_a)
+	var res_a: Dictionary = await ResimScript.run(ta_host, tamper_a)
 	# (b) Phase gate: a build action stamped at a known RUN-phase tick. Inserted in tick
 	#     order so the replay is identical up to that tick, then the gate fires.
 	var tamper_b: Dictionary = record.duplicate(true)
 	_insert_sorted(tamper_b["input_log"], {"tick": first_run_tick, "seat": 0, "action": {"type": "place", "cell": occ_cell}})
 	var tb_host := Node2D.new()
 	add_child(tb_host)
-	var res_b: Dictionary = ResimScript.run(tb_host, tamper_b)
+	var res_b: Dictionary = await ResimScript.run(tb_host, tamper_b)
 	var legal_ok: bool = (not res_a["legal"]) and (not res_b["legal"])
 	print("HARNESS LEGALITY occupied-cell→", res_a["illegal"], " | phase-gate(tick ",
 		first_run_tick, ")→", res_b["illegal"])
@@ -130,7 +130,7 @@ func _ready() -> void:
 	SceneManager.pending_map = map
 	SceneManager.active_coordinator = coord
 	var fake_claim := 99999999
-	SceneManager.report_match_result(fake_claim)
+	await SceneManager.report_match_result(fake_claim)   # async (chunked re-sim) — also proves chunked==live
 	var written: int = SaveData.best_pve_score(map.window_date, map.scale_tier)
 	var wire_ok: bool = written == live_dmg and written != fake_claim
 	print("HARNESS WIRING claim=", fake_claim, " written=", written, " (honest re-sim=", live_dmg, ")")
@@ -140,7 +140,7 @@ func _ready() -> void:
 	# live record, clear storage, submit, and confirm nothing was written. ----
 	SaveData.data.pve_best_scores.clear()
 	coord.input_log.insert(1, {"tick": 0, "seat": 0, "action": {"type": "place", "cell": occ_cell}})
-	SceneManager.report_match_result(12345)
+	await SceneManager.report_match_result(12345)
 	var after_illegal: int = SaveData.best_pve_score(map.window_date, map.scale_tier)
 	var reject_ok: bool = after_illegal == 0
 	print("HARNESS REJECT illegal-log submitted → written=", after_illegal, " (expect 0)")
