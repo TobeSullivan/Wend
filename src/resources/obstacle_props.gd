@@ -57,7 +57,9 @@ const PROPS := {
 
 	# --- building ruins (rare; sparingly per spec) ---
 	"building_ruin_05": {"tex": preload(R + "building_ruin_05.png"), "footprint": Vector2i(1, 2), "overhang": 1.0,  "weight": 2},
-	"building_ruin_11": {"tex": preload(R + "building_ruin_11.png"), "footprint": Vector2i(1, 2), "overhang": 1.0,  "weight": 2},
+	# Tall stacked-stone pillar (art ~3.8 cells tall) — the lone 1x4 prop, so it BLOCKS its
+	# full height instead of overhanging buildable cells (was 1x2, towers sat on its top).
+	"building_ruin_11": {"tex": preload(R + "building_ruin_11.png"), "footprint": Vector2i(1, 4), "overhang": 1.0,  "weight": 2},
 	"building_ruin_04": {"tex": preload(R + "building_ruin_04.png"), "footprint": Vector2i(2, 2), "overhang": 1.0,  "weight": 1},
 	"building_ruin_06": {"tex": preload(R + "building_ruin_06.png"), "footprint": Vector2i(2, 2), "overhang": 1.0,  "weight": 1},
 	"building_ruin_10": {"tex": preload(R + "building_ruin_10.png"), "footprint": Vector2i(2, 2), "overhang": 1.0,  "weight": 1},
@@ -136,6 +138,11 @@ static func pick_footprint(rng: RandomNumberGenerator, max_dim: int) -> Vector2i
 		return Vector2i(1, 1)
 	if roll <= 90:
 		return Vector2i(1, 2)
+	# 91..100 was all 2x2; when there's vertical budget (max_dim >= 4) half that band
+	# becomes a tall 1x4 pillar instead. Same single rng draw + same 1x1/1x2 bands, so
+	# maps without the room (remaining < 4) generate byte-identically to before.
+	if roll <= 95 and max_dim >= 4:
+		return Vector2i(1, 4)
 	return Vector2i(2, 2)
 
 # Resolve the prop ART for a baked footprint on a given board. `key` is a stable int
@@ -144,12 +151,35 @@ static func pick_footprint(rng: RandomNumberGenerator, max_dim: int) -> Vector2i
 # pool (then FALLBACK_ID) if a board lacks a same-footprint prop. Returns the full entry
 # dict ({tex, footprint, overhang, weight}); callers read tex/overhang.
 static func art_for(board_id: String, footprint: Vector2i, key: int) -> Dictionary:
-	var id := _pick_in_pool(_set_for(board_id), footprint, key)
+	var pool := _set_for(board_id)
+	# 1. exact-footprint prop in the board's own theme.
+	var id := _pick_in_pool(pool, footprint, key)
+	# 2. theme-preserving degrade: same width, the tallest prop that still fits. Keeps a
+	#    board on-theme when its pool lacks the (tall) size — e.g. a baked 1x4 on Suburbia
+	#    draws the tallest suburban prop at the base rather than crossing to an urban pillar
+	#    (the seed footprint still blocks the full height; art is purely cosmetic).
 	if id == "":
-		id = _pick_in_pool(PROPS, footprint, key)   # default-pool fallback
+		id = _pick_shorter_in_pool(pool, footprint, key)
+	# 3. default (urban-decay) pool — exact, then shorter — for boards on the default set.
+	if id == "":
+		id = _pick_in_pool(PROPS, footprint, key)
+	if id == "":
+		id = _pick_shorter_in_pool(PROPS, footprint, key)
 	if id == "":
 		id = FALLBACK_ID
 	return _entry(id)
+
+# Same width as the target footprint, greatest height <= target.y, within `pool`. Used to
+# degrade an unmatched (taller) footprint onto a shorter same-theme prop. Returns "" if none.
+static func _pick_shorter_in_pool(pool: Dictionary, footprint: Vector2i, key: int) -> String:
+	var best_h := 0
+	for id in pool:
+		var fp: Vector2i = pool[id]["footprint"]
+		if fp.x == footprint.x and fp.y <= footprint.y and fp.y > best_h:
+			best_h = fp.y
+	if best_h == 0:
+		return ""
+	return _pick_in_pool(pool, Vector2i(footprint.x, best_h), key)
 
 # Weighted pick among a pool's props whose footprint == the target, driven by `key`
 # (not rng) so it's a pure function of the cell. Returns "" if the pool has none.

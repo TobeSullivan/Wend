@@ -97,9 +97,11 @@ static func generate(seed: int, scale_tier: int, mode: int, window_type: int = 0
 	var tries := 0
 	while placed_cells < target_cells and tries < target_cells * 12:
 		tries += 1
-		# Cap footprint by the remaining cell budget so a 2×2 doesn't blow past it.
+		# Cap footprint by the remaining cell budget so a multi-cell prop doesn't blow past
+		# it. 4 cells of room unlocks the tall 1×4 pillar (and 2×2); remaining<=3 is
+		# unchanged from the pre-pillar logic so smaller maps generate identically.
 		var remaining := target_cells - placed_cells
-		var max_dim: int = 2 if remaining >= 3 else 1
+		var max_dim: int = 4 if remaining >= 4 else (2 if remaining >= 3 else 1)
 		# Bake only the blocking FOOTPRINT into the seed — the prop art is resolved
 		# locally per equipped board at draw time (notes/board_obstacle_model.md), so
 		# the shared/resim-fed map never carries a themed prop_id.
