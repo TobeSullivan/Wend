@@ -31,7 +31,32 @@ motions, then hands back a consolidated tweak list). No new features below; thes
   horizon backdrop), NOT a top-down tileable sand ground — unusable for the board (verified the bg +
   sand_piece). Beach needs a real top-down seamless sand tile. Full detail: `notes/open_items.md`.
 
-## Last session (2026-06-23, CC — Steam: build submitted, GodotSteam SDK, Steam→Nakama auth, match-end fixes)
+## Last session (2026-06-23 pt.2, CC — steam_auth 500 fixed & live, 1×4 pillar, quit-freeze fix)
+- **steam_auth E2E now works.** Root cause: the `steam_auth` RPC called
+  `nk.authenticateCustom("steam:"+id, null, true)` — Nakama's JS runtime only skips the username
+  arg when it's `undefined`, so `null` threw `TypeError: expects string` → HTTP 500 on EVERY Steam
+  login → client fell back to device auth → leaderboards showed the auto-handle (`OJglnHpFjH`) not
+  the persona. Fixed `null`→`undefined` (`deploy/nakama/data/modules/index.js:236`), **deployed to
+  the box + nakama restarted** (backup at `index.js.bak.preauthfix`). User confirmed "Irish Whiskey"
+  now shows on the board. NOTE: the fix is client-agnostic — no Steam re-upload needed.
+- **Tall ruin pillar is a real 1×4 blocker** (was 1×2; towers sat on its ~1.8-cell overhang —
+  the "tall white rock" bug). `building_ruin_11`→footprint 1×4; `pick_footprint` bakes a rare 1×4
+  when `remaining≥4` (same single rng draw + same 1×1/1×2 bands → maps with <4 budget generate
+  byte-identically, incl. seed-777 harness=67903); `art_for` degrades a 1×4 within the board's own
+  theme so Suburbia draws its slide, not an urban pillar. sim_harness ✅, gen+art check ✅ (41 pillars).
+- **Quit-to-menu freeze + "Lambda capture freed" errors fixed.** `leaderboard_panel.gd` connected
+  capturing lambdas to coordinator signals (fired on a freed self during teardown) → swapped to
+  `_refresh.unbind(1)` (auto-disconnected). `match_end_panel.gd` `_show_medal`/`_populate_placement`
+  kept building UI after their awaits (chunked re-sim + network fetch) on a freed panel → added
+  `is_instance_valid(self)` guards. Full reimport clean; sim_harness ✅.
+- **Steam upload kicks the desktop client offline** (the original "Disconnected"): SteamCMD logs in
+  with the personal account → same-account single-session limit boots the client. **TODO tomorrow:**
+  dedicated builder account (Edit App Metadata + Publish only) + README §3 → `+login wend_builder`.
+  Detail: memory `wend-steam-builder-account`. Account creation/permissions are user-only.
+- **Uncommitted** (3 fixes): `index.js` (live on box) · `obstacle_props.gd`+`map_generator.gd` ·
+  `leaderboard_panel.gd`+`match_end_panel.gd`.
+
+## Prior session (2026-06-23, CC — Steam: build submitted, GodotSteam SDK, Steam→Nakama auth, match-end fixes)
 - **Steam build gate CLEARED.** Windows export preset added (x86_64, separate `.pck`); Playtest
   **build + store page both submitted for review** (Jun 22, in queue). `steamcmd` + depot/app_build
   VDFs (depot **4884651**) + `deploy/steam/README.md`. Confidential internal beta — store page stays
