@@ -548,6 +548,8 @@ func _show_medal() -> void:
 	# report_match_result writes the authoritative score + last_task_award; the season nudge and
 	# leaderboard placement both depend on that, so they wait for it (UI stays responsive meanwhile).
 	await SceneManager.report_match_result(damage)
+	if not is_instance_valid(self):
+		return  # player quit to menu during the chunked re-sim — this panel is gone
 	_show_season_award()   # season-XP nudge if a task completed this Trials match
 	if not lb_ctx.is_empty():
 		await _populate_placement(damage)
@@ -778,6 +780,8 @@ func _populate_placement(damage: int) -> void:
 	var tier := int(lb_ctx.get("tier", 1))
 	var group := String(lb_ctx.get("group", "solo"))
 	var data: Dictionary = await LeaderboardService.trials_placement(window, tier, group, damage)
+	if not is_instance_valid(self):
+		return  # quit during the network leaderboard fetch — _lb_vbox is freed
 
 	var ctx := _make_label(13, UiStyle.LABEL_COL)
 	ctx.text = String(data.get("context", ""))

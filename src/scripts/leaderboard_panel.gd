@@ -31,9 +31,13 @@ func _ready() -> void:
 	layer = 11  # above the action strip (10)
 	_build_ui()
 	if coordinator != null:
-		coordinator.phase_changed.connect(func(_p): _refresh())
+		# .unbind(1) drops the signal's argument so these stay METHOD callables bound to
+		# self — Godot auto-disconnects them when this panel is freed. A capturing lambda
+		# (func(_p): _refresh()) instead fires during match-end teardown with a freed self
+		# ("Lambda capture at index 0 was freed"), then calls _refresh() on a dead node.
+		coordinator.phase_changed.connect(_refresh.unbind(1))
 		coordinator.lives_resolved.connect(_refresh)
-		coordinator.board_eliminated.connect(func(_b): _refresh())
+		coordinator.board_eliminated.connect(_refresh.unbind(1))
 		coordinator.ready_changed.connect(_refresh)
 	_refresh()
 
