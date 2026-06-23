@@ -1,5 +1,5 @@
 # State — Wend
-Last updated: 2026-06-10
+Last updated: 2026-06-23
 
 ## Current focus
 S1 cosmetic implementation (CC): boards, ranked rename, apply-skins-in-match, Suburbia obstacles,
@@ -31,7 +31,29 @@ motions, then hands back a consolidated tweak list). No new features below; thes
   horizon backdrop), NOT a top-down tileable sand ground — unusable for the board (verified the bg +
   sand_piece). Beach needs a real top-down seamless sand tile. Full detail: `notes/open_items.md`.
 
-## Last session (2026-06-10, CC — S1 feature-complete: obstacles · full FX track · frames/banners · season task UI)
+## Last session (2026-06-23, CC — Steam: build submitted, GodotSteam SDK, Steam→Nakama auth, match-end fixes)
+- **Steam build gate CLEARED.** Windows export preset added (x86_64, separate `.pck`); Playtest
+  **build + store page both submitted for review** (Jun 22, in queue). `steamcmd` + depot/app_build
+  VDFs (depot **4884651**) + `deploy/steam/README.md`. Confidential internal beta — store page stays
+  **HIDDEN by choice for now** (the 2-week "Coming Soon" clock is deliberately not started; 21-day
+  app-credit gate ~mid-July). No GodotSteam needed to pass review, but integrated anyway (below).
+- **GodotSteam GDExtension 4.19.1 integrated** (`src/addons/godotsteam/`, **gitignored as an external
+  dep** — fetch per `deploy/steam/STEAM_SDK.md`). `SteamManager` autoload: init + per-frame callbacks
+  + graceful no-Steam fallback + overlay + identity. **Overlay verified working** in the Steam build.
+- **Steam→Nakama auth = custom RPC.** Built-in `authenticateSteam` can't validate SDK 1.57+ web-API
+  tickets (omits the required `identity`), so `steam_auth` RPC (index.js) validates WITH identity +
+  mints a session; persona → account `display_name` → shown on leaderboards. `connect_backend` now
+  **prefers Steam over a stale device session**. Publisher key in box `.env`; index.js deployed +
+  nakama restarted. ⏳ verify E2E on an online Steam-launched client (`steam_auth ok` in nakama logs).
+- **Match-end freeze fixed.** Authoritative re-sim ran synchronously on the main thread (node-based,
+  can't thread) → froze the results screen. `ResimScript.run` now **chunks across frames**
+  (`ticks_per_frame`); `_authoritative_score`/`report_match_result`/`leave_match_to_home` async; panel
+  renders first. `sim_harness` verifies **chunked==live (67903)** + round-trip/serialize/legality/reject.
+- Pushed `0247b74` (SDK + tooling) and `3a0266f` (auth + freeze). **Next:** re-upload the A+B build to
+  Steam + set live; verify steam_auth E2E; rotate exposed secrets (done); Apple enrollment in progress
+  (Mac export/depot later). Full Steam detail: `deploy/steam/STEAM_SDK.md`.
+
+## Prior session (2026-06-10, CC — S1 feature-complete: obstacles · full FX track · frames/banners · season task UI)
 - **Suburbia obstacle library (③) shipped.** Decoupled obstacle ART from the seed: the generator
   now bakes only the blocking footprint (empty `prop_id`); art is resolved LOCALLY per equipped
   board by `ObstacleProps.art_for(board, footprint, cell_key)`. `obstacle_props.gd` reorganised into
@@ -68,7 +90,7 @@ motions, then hands back a consolidated tweak list). No new features below; thes
   top-down sand ground (verified). Needs a real seamless top-down sand tile.
 - Dev shot harnesses added: `collection_shot` · `season_shot` · `nudge_shot` (alongside `match_shot`).
 
-## Prior session (2026-06-10, CC — S1 implementation)
+## Earlier session (2026-06-10, CC — S1 implementation)
 Three phases shipped (commits `03b9aae` → `5c563b0`, pushed):
 - **Boards:** Suburbia red-brick (T26, retag from toy-brick) + Forest baked pine recolor (T8);
   obstacle determinism gate **verified cleared** (whole map incl. obstacles derives from one
@@ -80,26 +102,11 @@ Three phases shipped (commits `03b9aae` → `5c563b0`, pushed):
   Shared resolver `CosmeticsCatalog.texture_for/tint_for`. Verified in real M1 matches via the
   reusable `match_shot.tscn` harness; sim_harness round-trip + determinism green.
 
-## Earlier session (2026-06-10, design)
-Audited the full S1 asset list section by section against top-down + the *real* board model:
-- **Board architecture corrected:** the path is a procedural Line2D (`road_renderer.gd`); the ground
-  is a swappable tiling texture (`map_loader.gd`). Boards need **no matched path tiles** — any
-  seamless top-down ground that contrasts the path works. Boards reclassified scarce → abundant.
-  Captured in `notes/board_obstacle_model.md` (NEW).
-- **Obstacles reclassified:** they **block** (sim, not cosmetic), "random in MP." Design rule:
-  positions + footprints on one deterministic resim-fed seed; art free over a fixed footprint.
-- **Suburbia mega pack purchased ($19.95):** Tier 26 board ground (replaces dead toy-brick) **+** its
-  obstacle pool. Retag `board_toybrick` → `board_suburbia`.
-- **Membership lapsed → all GDS full price.** Re-sourced the track to owned + recolors → the track
-  itself ships at **$0**; only Suburbia + two bespoke milestone FX (ice/fireball) are bought.
-- **Ranked tiers renamed** Stone/Bronze/Silver/Gold/Masters (pure rename, ladder math unchanged);
-  League badges → tier emblems; medals cut; UI kits → build material (frames/banners authored from
-  owned Wood-UI).
-- Aquatic mobs (fish/starfish/hammerhead, T6/16/27) confirmed **owned**; perspective check pending.
-
 ## Other open threads (not the immediate next step — see NEXT UP above)
-- **Steam (blocked on verification):** clears → create Wend App ID → create Playtest app
-  (confidential/friends-only; hidden page, manual keys). Confirm entity type at registration.
+- **Steam (build in review):** Playtest build + store page submitted Jun 22 (3–5 biz days). SDK
+  integrated + backend `steam_auth` deployed. Remaining: re-upload the A+B build + set live; verify
+  `steam_auth` E2E on an online Steam-launched client; decide when to flip the store page to public
+  "Coming Soon" (gates earliest release: 2-week visible + 21-day credit ~mid-July). Detail: `deploy/steam/STEAM_SDK.md`.
 - **Design (own session):** finalize season-pass absolute threshold integers once playtest data
   exists (`notes/season_pass.md`).
 
@@ -113,7 +120,7 @@ Audited the full S1 asset list section by section against top-down + the *real* 
 - docs: `notes/{open_items,decisions,pvp_ladder,leaderboard_schema,leaderboard_ui_spec,multiplayer_architecture}.md`, `design/DESIGN_MODES.md`
 
 ## Open questions / blocked on
-- **Steam:** identity verification pending (2–7 biz days from 2026-06-07). Confirm entity type.
+- **Steam:** verify `steam_auth` end-to-end — online, Steam-launched build → `steam_auth ok` in nakama logs + real persona name on the board.
 - **Aquatic-mob perspective** — fish/starfish/hammerhead read on a top-down board? CC render check.
 - **Absolute task thresholds** (the X integers) — playtest-gated.
 - Full open backlog in `notes/open_items.md`.

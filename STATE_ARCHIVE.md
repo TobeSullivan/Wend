@@ -1,3 +1,26 @@
+# === Archived from STATE.md on 2026-06-23 (Steam-session trim) ===
+
+Moved out when the 2026-06-23 Steam session was wrapped into STATE.md. Reference only.
+
+## Earlier session (2026-06-10, design)
+Audited the full S1 asset list section by section against top-down + the *real* board model:
+- **Board architecture corrected:** the path is a procedural Line2D (`road_renderer.gd`); the ground
+  is a swappable tiling texture (`map_loader.gd`). Boards need **no matched path tiles** — any
+  seamless top-down ground that contrasts the path works. Boards reclassified scarce → abundant.
+  Captured in `notes/board_obstacle_model.md` (NEW).
+- **Obstacles reclassified:** they **block** (sim, not cosmetic), "random in MP." Design rule:
+  positions + footprints on one deterministic resim-fed seed; art free over a fixed footprint.
+- **Suburbia mega pack purchased ($19.95):** Tier 26 board ground (replaces dead toy-brick) **+** its
+  obstacle pool. Retag `board_toybrick` → `board_suburbia`.
+- **Membership lapsed → all GDS full price.** Re-sourced the track to owned + recolors → the track
+  itself ships at **$0**; only Suburbia + two bespoke milestone FX (ice/fireball) are bought.
+- **Ranked tiers renamed** Stone/Bronze/Silver/Gold/Masters (pure rename, ladder math unchanged);
+  League badges → tier emblems; medals cut; UI kits → build material (frames/banners authored from
+  owned Wood-UI).
+- Aquatic mobs (fish/starfish/hammerhead, T6/16/27) confirmed **owned**; perspective check pending.
+
+---
+
 # === Archived from STATE.md on 2026-06-09 (hygiene trim) ===
 
 The full session-wrap stack and completed build records below were moved out of STATE.md
