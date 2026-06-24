@@ -2,40 +2,41 @@
 Last updated: 2026-06-23
 
 ## Current focus
-Two tracks live: (1) Steam Playtest build is **in review**; (2) the 2026-06-22 design
-pivot (mobs die permanently + merge mechanic) is now **implemented in code** by CC and the
-core design docs are reconciled. Remaining pivot work is balance tuning (playtest-gated)
-and a few stale UI/tutorial follow-ups — see `notes/open_items.md` "Design pivot".
+Three threads: (1) Steam Playtest build is **in review** (submitted Jun 22, 3–5 biz days);
+(2) the 2026-06-22 pivot (mobs die permanently + merge ladder) is **implemented by CC** and the
+core docs are reconciled — remaining work is balance tuning (playtest-gated) + stale UI/tutorial
+follow-ups; (3) **NEW this session:** the tower **tier aura** is specced and handed to CC for
+implementation (`design/TOWER_AURA.md`).
 
 ## Last session
-- **Steam:** Playtest build uploaded via SteamPipe, depot pushed, launch option set
-  (`Wend.exe`, Windows, Launch Default), build set live on a branch. **Both Store Presence
-  and Game Build checklists complete and submitted for review on Jun 22** (3–5 biz days).
-- **Design pivot (deliberate, post-playtest):** mobs die and stay dead; difficulty scales
-  (~stage 30 cap for a normal maze); leaderboard = round + score; lives-based fail state.
-  Boss every 10 rounds among the wave. Trials ~10 lives. PvP 100-life see-saw on **leaks**.
-- **Merge mechanic locked:** same-tier only, pure-merge to T10 (2^n), source-empties =
-  hole-in-maze risk. Multishot at 3/6/10 -> x2/x3/x4 (cap 4). Tower morphs per tier;
-  barrels = shot count; body stays a skin slot. Controller = tap-to-arm; Steam Deck target.
-- Built an interactive merge/juice reference for CC (`wend_merge_reference.html`).
+- **Tower tier aura — design locked, CC handoff produced.** Previewed the aura on the real repo
+  assets (arrow-box + crystal skins over the Suburbia/Summer/Forest tiles). Calls made: **ground
+  glow** beats the outline ring (and "both"); **color walks a per-board ramp** (warm on terracotta
+  Suburbia, cool on the greens) since no single ramp reads on every board; tower body stays a pure
+  skin slot. This **supersedes** the merge-reference "body color walks a 10-stop ramp" tell.
+- Wrote `design/TOWER_AURA.md` (canonical spec), updated the `decisions.md` Cosmetics lock
+  (ring → ground glow + per-board ramp), and added the CC implementation item to `open_items.md`.
 
 ## Next step
-**Playtest the pivot and tune.** Code is in (mobs-die, lives, boss, merge ladder + juice,
-per-tier morph). Open: balance the per-tier stat curves + difficulty ramp for the
-~stage-30 cap, tune the lives integers, rewrite the stale tutorial beats (respawn/upgrade
-anchors) and end-panel copy, and apply the §3 `test_case_library.md` edits in the
-repo-cloned design session that owns that file. Detail in `notes/open_items.md`.
+- **CC: implement the tier aura** per `design/TOWER_AURA.md` (TierAura node behind the body,
+  tier-driven, per-board ramp via the `is_local` resolve path; render-only, off the sim tick).
+- In parallel, **playtest-tune the pivot:** per-tier stat curves + difficulty ramp (~stage-30 cap),
+  lives integers, rewrite stale tutorial/end-panel copy.
+- Apply the `test_case_library.md` §3 edits **plus** the new aura 🔒 case in the repo-cloned design
+  session that owns that file (not in CC's checkout).
 
 ## Recently touched
-- Steam Playtest build/launch config (Steamworks; not repo)
-- notes/design_revisions_2026-06-22.md (this session)
-- wend_merge_reference.html (CC reference; this session)
+- design/TOWER_AURA.md (new — this session)
+- notes/decisions.md (aura lock updated — this session)
+- notes/open_items.md (aura CC item added — this session)
+- STATE.md (this file)
 
 ## Open questions / blocked on
-- **21-day app-credit gate** (~mid-July) before Playtest can go Playable. Review can pass
-  before then.
-- Stat scaling curve deliberately deferred ("deal with that later").
-- `decisions.md` + `design/DESIGN.md` now reflect the pivot (done). `test_case_library.md`
-  is not in this checkout — its §3 rewrite is owed by the repo-cloned design session.
+- **Steam:** review pending (can pass before the **21-day app-credit gate**, ~mid-July, that blocks
+  Playtest going Playable). When verification clears: create App ID → confidential Playtest app.
+- Stat scaling curve + lives integers deliberately deferred to playtest.
+- `design/COSMETICS.md` aura line still says "ring" — one-line reconcile owed (tracked in open_items).
+- `test_case_library.md` not in CC's checkout — its §3 rewrite + the new aura case are owed by the
+  repo-cloned design session.
 - Real capsule/key art still pending for the public Coming Soon page.
 - Possible second game for Feb 2027 Next Fest — undecided.

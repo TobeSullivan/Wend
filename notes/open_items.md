@@ -15,6 +15,16 @@ Mobs-die / lives / boss / merge mechanic landed this session per `notes/design_r
 - **Tutorial anchors stale (OPEN):** `tutorial_callout` maps `respawn`/`upgrade_panel` anchors that no longer exist (respawn is gone; the upgrade panel is now a tier/merge panel). Tutorial beats that teach respawn/upgrades need rewriting for mobs-die + merge. Re-check in playtest (extends the rail-anchor note below).
 - **End-panel copy (OPEN):** `match_end_panel`/`win_panel` still carry score-attack/medal framing; Trials is now round-reached + score with a lives fail state. Verify the result screens read correctly in playtest.
 
+## Tower tier aura (2026-06-23) — CC to implement
+Full spec: `design/TOWER_AURA.md`. Tier-investment tell = a **ground glow** under the tower (supersedes the merge-reference "body color walks a 10-stop ramp"; body returns to a pure skin slot — barrels + tier badge + T10 gold ring stay).
+- Add a `TierAura` render node to the tower, **behind the body**, driven by the tower's current **merge tier**: T1 none; T2→T10 size + opacity + pulse intensify (anchors + curve in the spec §3). Cosmetic, render-only, on **visual frame time** — **must not touch the sim tick or the record** (it's derived from tier, which already is in the record). Pulse never uses `randf()` in the sim path.
+- Color walks a **per-board ramp** (warm / cool sets in spec §4). Resolve from the board being *rendered* — local = equipped board, spectated/opponent = **default** board (same `is_local` split as board/tower skins in `map_loader`). Suggest `CosmeticsCatalog.aura_ramp_for(board_id)`. Assignments: Suburbia→warm, Summer/Forest→cool, default→cool.
+- Hook into the existing per-tier morph in `tower` (place/merge already updates appearance there); reuse the skin-resolve path in `map_loader` / `build_controller`.
+- **Retire/demote** the body-color tier ramp in the `wend_merge_reference.html` model so the body is a true skin slot.
+- Values are **playtest-tunable** (eyeball at real maze density before commit; muddy glows → pull opacity/diameter down).
+- **Reconcile docs:** `design/COSMETICS.md` still says "base aura **ring** + size step" — update that one line to point at `design/TOWER_AURA.md` (ground glow, per-board ramp). `decisions.md` Cosmetics bullet updated this session.
+- **test_case_library.md (not in this checkout):** add 🔒 "tier aura legible on every board (per-board ramp) and over every tower skin" — extends the existing "upgrade legibility survives skins" case. Flag for the repo-cloned design session that owns that file.
+
 ## Steam (ops) — blocked on verification
 - **Identity verification pending** (2–7 biz days from 2026-06-07, third-party Lilaham/TaxIdentity). Blocks finishing account creation + creating the App ID/Playtest. $100 Direct fee paid → 30-day release clock running (earliest ~2026-07-07).
 - **Confirm the entity type** chosen at registration (individual vs company — matters for tax/bank + later restructure).
