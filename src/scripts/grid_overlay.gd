@@ -1,9 +1,6 @@
 extends Node2D
 class_name GridOverlay
 
-# Faint cell grid drawn over the play area (mockup: #grid line, white @ 0.07 opacity).
-# Sits above the grass, below the road. Purely cosmetic — shows the buildable cells.
-
 var cols: int = 25
 var rows: int = 14
 var cell: float = 48.0

@@ -1,27 +1,16 @@
 extends Node
 class_name TutorialDirector
 
-# Fires a campaign mission's tutorial beats as the match plays (design/CAMPAIGN.md).
-# Created by map_loader for the LOCAL board in CAMPAIGN mode only (and only when the map
-# carries beats). Maps the existing match signals to the seven beat triggers, drives the
-# callout UI, and feeds ghost_cells to the build-guide overlay. Each trigger fires at most
-# once per match (the curriculum never needs a trigger to repeat).
-#
-# Open sequence: on_mission_load (the framing line — blocking on M1) → on_build_phase_start
-# (which carries the starter-maze ghost outline). If the framing beat is blocking, the
-# build-phase beat chains when the player acknowledges; otherwise it shows right after.
+var coordinator
+var board
+var build_controller
+var callout
+var guide
 
-var coordinator        # MatchCoordinator
-var board              # BoardState (round_manager) — the local board
-var build_controller   # BuildController — the local board's
-var callout            # TutorialCallout
-var guide              # BuildGuide, or null if this mission has no ghost beats
+var _by_trigger: Dictionary = {}
+var _fired: Dictionary = {}
+var _after_ack: String = ""
 
-var _by_trigger: Dictionary = {}  # trigger:String -> Array[beat]
-var _fired: Dictionary = {}       # trigger -> true (one-shot guard)
-var _after_ack: String = ""       # trigger to fire once a blocking beat is acknowledged
-
-# Called by map_loader before add_child. `beats` is map.tutorial_beats (duck-typed).
 func setup(beats: Array) -> void:
 	for b in beats:
 		var trig := String(b.trigger)
@@ -40,8 +29,6 @@ func _ready() -> void:
 		board.round_summary.connect(_on_round_summary)
 	if build_controller != null:
 		build_controller.towers_changed.connect(_on_towers_changed)
-	# Deferred so the scene is fully built before the (pause-capable) framing beat — pausing
-	# from inside _ready is unsafe per project memory.
 	call_deferred("_begin")
 
 func _begin() -> void:
@@ -50,18 +37,16 @@ func _begin() -> void:
 	if has_load:
 		_fire("on_mission_load")
 	if load_blocking:
-		_after_ack = "on_build_phase_start"  # chains when the framing modal is acknowledged
+		_after_ack = "on_build_phase_start"
 	else:
 		_fire("on_build_phase_start")
-
-# --- trigger plumbing ---
 
 func _fire(trigger: String) -> void:
 	if _fired.has(trigger):
 		return
 	_fired[trigger] = true
 	for b in _by_trigger.get(trigger, []):
-		_show_beat(b)  # ≤1 beat/trigger in the curriculum; a 2nd would replace the toast
+		_show_beat(b)
 
 func _show_beat(beat) -> void:
 	if guide != null and beat.ghost_cells != null and not beat.ghost_cells.is_empty():
@@ -76,8 +61,6 @@ func _on_ack() -> void:
 		var t := _after_ack
 		_after_ack = ""
 		_fire(t)
-
-# --- signal hooks ---
 
 func _on_phase_changed(phase: String) -> void:
 	if phase == "run":

@@ -1,11 +1,5 @@
 extends Node
 
-# Headless verify of NakamaService's device-auth round-trip against the LIVE box (:7350).
-# Run by temporarily swapping run/main_scene to res://tools/nakama_auth_test.tscn (the positional
-# scene arg silently no-ops — see memory reference_godot_headless_verify) and capture stderr:
-#   $env path: & "C:\Users\tobes\Desktop\Godot.exe" --headless --path src  (with main_scene swapped)
-# Proves: NakamaService configured -> device auth -> getAccount -> realtime socket, all real.
-
 var _fails := 0
 
 func _ready() -> void:
@@ -45,7 +39,6 @@ func _run() -> void:
 		_ok("account.user.id == session.user_id", account.user.id == sess.user_id)
 		print("    account.user.id=", account.user.id, "  username=", account.user.username, "  create_time=", account.user.create_time)
 
-	# Bonus: realtime socket (the matchmaking transport). Proves the WS path too.
 	var sock = await NakamaService.ensure_socket()
 	_ok("realtime socket connected", sock != null and sock.is_connected_to_host())
 

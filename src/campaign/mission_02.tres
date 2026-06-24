@@ -17,7 +17,7 @@ ghost_cells = Array[Vector2i]([Vector2i(21, 0), Vector2i(5, 3), Vector2i(6, 3), 
 
 [resource]
 script = ExtResource("3_map")
-seed = 2
+map_seed = 2
 mode = 0
 grid_size = Vector2i(25, 16)
 entry_cell = Vector2i(0, 8)

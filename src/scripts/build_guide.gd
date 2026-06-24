@@ -1,40 +1,31 @@
 extends Node2D
 class_name BuildGuide
 
-# Ghost-outline build guidance (design/CAMPAIGN.md "Build guidance"): a programmatic
-# overlay that shows WHERE to build to form a proper maze. Each prompted cell gets a
-# dashed tile highlight + a semi-transparent tower footprint. When the player builds on a
-# prompted cell it clears (satisfied). No new art — it reuses the loaded-tower texture and
-# draws the dashes itself. Lives in the local board's container (board/world space), under
-# towers; only campaign missions create one, driven by TutorialDirector.
-
 const GridScript := preload("res://scripts/grid.gd")
 const FOOTPRINT_TEX := preload("res://assets/towers/arrow_box_loaded.png")
-const FOOTPRINT_SCALE := 0.12  # matches BuildController.TOWER_SCALE
+const FOOTPRINT_SCALE := 0.12
 
 const DASH := 9.0
 const GAP := 6.0
 const BORDER_INSET := 3.0
-const DASH_COLOR := Color(0.68, 0.93, 1.0, 0.95)      # soft "build here" cyan
-const FOOTPRINT_MODULATE := Color(0.6, 1.0, 0.6, 0.4) # ghost-green, ~40% alpha
+const DASH_COLOR := Color(0.68, 0.93, 1.0, 0.95)
+const FOOTPRINT_MODULATE := Color(0.6, 1.0, 0.6, 0.4)
 
-var build_controller  # BuildController — to detect when a prompted cell gets a tower
+var build_controller
 
-var _prompts: Array = []          # Array[Vector2i] still-prompted (unbuilt) cells
-var _footprints: Dictionary = {}  # Vector2i -> Sprite2D
-var _suggested: Dictionary = {}   # Vector2i -> true, the FULL prompted set (for deviation detection)
+var _prompts: Array = []
+var _footprints: Dictionary = {}
+var _suggested: Dictionary = {}
 
 func _ready() -> void:
-	z_index = -40  # above the road (-50), below towers/mobs (0)
+	z_index = -40
 
-# Prompt this exact set of cells (replaces any current prompts). A cell that already holds
-# a tower is treated as satisfied immediately, so re-prompting mid-mission is safe.
 func set_prompts(cells: Array) -> void:
 	clear()
 	for c in cells:
-		_suggested[c] = true  # remember the full suggested set, including already-built cells
+		_suggested[c] = true
 		if build_controller != null and build_controller._tower_at_cell(c) != null:
-			continue  # already built here — nothing to prompt
+			continue
 		_prompts.append(c)
 		var fp := Sprite2D.new()
 		fp.texture = FOOTPRINT_TEX
@@ -58,15 +49,12 @@ func clear() -> void:
 func has_prompts() -> bool:
 	return not _prompts.is_empty()
 
-# Re-check prompted cells against the board. A tower placed OFF the suggested maze retires
-# the whole outline (design/CAMPAIGN.md "Build guidance" — once the player deviates, it's
-# their maze; the guide steps back). Otherwise clear any prompted cell that now holds a tower.
 func refresh() -> void:
 	if build_controller == null:
 		return
 	for t in build_controller.towers:
 		if is_instance_valid(t) and not _suggested.has(t.grid_cell):
-			clear()  # deviation — the player went off-script, drop the guidance entirely
+			clear()
 			return
 	var still: Array = []
 	var changed := false
@@ -96,11 +84,11 @@ func _draw() -> void:
 		_dashed_rect(tl, size)
 
 func _dashed_rect(tl: Vector2, size: float) -> void:
-	var tr := tl + Vector2(size, 0)
+	var top_right := tl + Vector2(size, 0)
 	var br := tl + Vector2(size, size)
 	var bl := tl + Vector2(0, size)
-	_dashed_line(tl, tr)
-	_dashed_line(tr, br)
+	_dashed_line(tl, top_right)
+	_dashed_line(top_right, br)
 	_dashed_line(br, bl)
 	_dashed_line(bl, tl)
 

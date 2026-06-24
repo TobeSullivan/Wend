@@ -1,18 +1,6 @@
 extends CanvasLayer
 class_name Rail
 
-# The reserved right rail — the single home for all persistent in-match UI
-# (design/INMATCH_HUD.md, reference mock notes/mockups/inmatch_assembly.html). Replaces the
-# old floating-pills HUD + floating action strip: three stacked boxes, top to bottom —
-#   1. STATUS  — Round / Phase·timer / Supply / Gold (identical in both modes)
-#   2. SCORE-or-STANDING (fixed-height frame, content swaps by mode):
-#        Trials  -> SCORE:    hero "Current" + up to 3 ascending rungs (the ghost ladder)
-#        Ranked  -> STANDING: hero "Lives" + Kills / Rank / blank, FROZEN during the run
-#   3. BUTTONS — Start·Speed·Build·Menu (Trials) / Ready·Leaderboard·Build·Menu (Ranked)
-# The board maximizes into the area LEFT of the rail (UiLayout.play_rect). The tower info
-# panel docks in the rail's lower gap beneath the Buttons box (tower_slot_rect) when it fits,
-# else falls back to an over-board overlay. Untyped refs avoid the class-name cycle pitfall.
-
 const UiLayout := preload("res://scripts/ui_layout.gd")
 const UiStyle := preload("res://scripts/ui_style.gd")
 const GhostLadderScript := preload("res://scripts/ghost_ladder.gd")
@@ -20,59 +8,46 @@ const Motion := preload("res://scripts/motion.gd")
 
 const FF_MULTS := [1.0, 2.0, 3.0]
 const GOLD_VAL := Color("e7d39a")
-const SCORE_BOX_MIN_H := 166.0  # fixed frame so the Buttons box anchors at a stable Y
-const TOWER_PANEL_MIN_H := 312.0  # tower info needs ~this much rail gap to dock in-rail
+const SCORE_BOX_MIN_H := 166.0
+const TOWER_PANEL_MIN_H := 312.0
 
-# Injected by map_loader before add_child.
-var round_manager       # RoundManager (the local board)
-var build_controller    # BuildController
-var pause_menu          # PauseMenu — the Menu button drives it
-var minimap             # LeaderboardPanel (PVP) — the Leaderboard button toggles it
-var ghost_ladder        # GhostLadder — Trials target ladder (null in campaign/PVP)
+var round_manager
+var build_controller
+var pause_menu
+var minimap
+var ghost_ladder
 
-# Status box values
 var _round_val: Label
 var _phase_val: Label
 var _supply_val: Label
 var _gold_val: Label
 
-# Score box (Trials / campaign)
 var _score_hero: Label
-var _rungs: Array = []           # up to 3 {star, key, val} row dicts
-# Source for the SCORE rungs: the injected ghost_ladder (Trials, with leaderboard ghosts),
-# or a local ladder built from the map's star thresholds (campaign keeps ghost_ladder null
-# by design, but still shows its 1/2/3-star targets). Null in PVP (Standing box instead).
+var _rungs: Array = []
 var _rung_source
 
-# Standing box (Ranked)
 var _lives_hero: Label
 var _kills_val: Label
 var _rank_val: Label
 
-# Buttons
 var _start_button: Button
 var _ff_button: Button
 var _build_button: Button
 var _menu_button: Button
 var _leaderboard_button: Button
 
-var _status_box: PanelContainer    # the three rail boxes, captured for the arrival cascade
+var _status_box: PanelContainer
 var _score_box: PanelContainer
-var _buttons_box: PanelContainer   # for tower_slot_rect()
+var _buttons_box: PanelContainer
 var _ff_index: int = 0
 var _towers_count: int = 0
 var _towers_cap: int = 0
 var _last_build_mode: bool = false
-# Ghost-ladder climb beat (design/JUICE.md "Staged climbs"): when the score passes a rung the
-# lowest remaining target rises — pop the Current value to mark the climb. Tracked here.
 var _ladder_first_target: int = 0
 var _ladder_init: bool = false
 
 func _ready() -> void:
 	layer = 6
-	# SCORE rung source: Trials uses the injected ghost ladder (leaderboard ghosts above
-	# gold); campaign builds a local ladder from its star thresholds (no ghosts). PVP has no
-	# score box. Built before _build_ui so the box renders its rungs immediately.
 	if not _is_pvp():
 		if ghost_ladder != null:
 			_rung_source = ghost_ladder
@@ -99,20 +74,12 @@ func _ready() -> void:
 	_sync_ff_to_engine()
 	_refresh()
 
-	# JUICE (design/JUICE.md "Spatial grammar" + inmatch_hud_mock): the rail belongs to the
-	# right edge, so its three boxes arrive from the right, staggered, on match start. Arm them
-	# transparent now (before the first frame draws) so the cascade never flashes its end frame;
-	# the slide itself runs deferred, once the boxes have laid out (real slide targets).
 	for b in [_status_box, _score_box, _buttons_box]:
 		if b != null:
 			b.modulate.a = 0.0
 	_play_rail_arrival.call_deferred()
 
 func _play_rail_arrival() -> void:
-	# Scale + fade, staggered top→bottom. The boxes live in a VBoxContainer that re-sorts as the
-	# status text refreshes (the build timer ticks), which STOMPS any animated position — so the
-	# arrival rides scale + modulate (render transforms the container never touches) rather than a
-	# literal slide. Pivot at each box's centre so it grows in place.
 	var boxes := [_status_box, _score_box, _buttons_box]
 	for i in boxes.size():
 		var b: Control = boxes[i]
@@ -122,8 +89,6 @@ func _play_rail_arrival() -> void:
 		var d := Motion.dur(0.20 + i * 0.09)
 		Motion.arrive_property(b, "scale", Vector2.ONE * 0.9, Vector2.ONE, Motion.M, d)
 		Motion.fade_in(b, Motion.S, d)
-
-# --- layout ----------------------------------------------------------------
 
 func _build_ui() -> void:
 	var s := UiLayout.scale_factor()
@@ -139,7 +104,7 @@ func _build_ui() -> void:
 	rail_ctrl.position = reg.position
 	rail_ctrl.custom_minimum_size = reg.size
 	rail_ctrl.size = reg.size
-	rail_ctrl.mouse_filter = Control.MOUSE_FILTER_STOP  # rail area never pokes the board
+	rail_ctrl.mouse_filter = Control.MOUSE_FILTER_STOP
 	root.add_child(rail_ctrl)
 
 	var margin := MarginContainer.new()
@@ -162,7 +127,6 @@ func _build_ui() -> void:
 	_buttons_box = _build_buttons_box()
 	vb.add_child(_buttons_box)
 
-# A styled box (dock surface) with an inner padded VBox; returns [panel, content_vbox].
 func _box() -> Array:
 	var s := UiLayout.scale_factor()
 	var panel := PanelContainer.new()
@@ -192,7 +156,6 @@ func _build_score_box() -> PanelContainer:
 	var box := _box()
 	var panel: PanelContainer = box[0]
 	var v: VBoxContainer = box[1]
-	# Fixed frame: the score/standing box never resizes, so the Buttons box anchors stable.
 	panel.custom_minimum_size = Vector2(0, SCORE_BOX_MIN_H * s)
 	var head := Label.new()
 	head.text = "STANDING" if _is_pvp() else "SCORE"
@@ -206,7 +169,7 @@ func _build_score_box() -> PanelContainer:
 		_lives_hero = _hero(v, "Lives")
 		_kills_val = _kv(v, "Kills", Color.WHITE)
 		_rank_val = _kv(v, "Rank", Color.WHITE)
-		_kv(v, "", Color.WHITE)  # one blank slot to match the Score-box height
+		_kv(v, "", Color.WHITE)
 	else:
 		_score_hero = _hero(v, "Current")
 		for i in range(3):
@@ -233,8 +196,6 @@ func _build_buttons_box() -> PanelContainer:
 	_menu_button = _rail_button(v, "Menu", false)
 	_menu_button.pressed.connect(_on_menu_pressed)
 	return box[0]
-
-# --- small builders --------------------------------------------------------
 
 func _kv(parent: VBoxContainer, key: String, val_col: Color) -> Label:
 	var s := UiLayout.scale_factor()
@@ -274,7 +235,6 @@ func _hero(parent: VBoxContainer, key: String) -> Label:
 	parent.add_child(row)
 	return val
 
-# A SCORE rung: [star][label][value]. Returns {star, key, val} labels for in-place update.
 func _rung_row(parent: VBoxContainer) -> Dictionary:
 	var s := UiLayout.scale_factor()
 	var row := HBoxContainer.new()
@@ -320,8 +280,6 @@ func _rail_button(parent: VBoxContainer, text: String, go: bool) -> Button:
 	parent.add_child(b)
 	return b
 
-# --- refresh ---------------------------------------------------------------
-
 func _refresh() -> void:
 	if round_manager == null:
 		return
@@ -346,7 +304,6 @@ func _refresh_phase() -> void:
 	else:
 		_phase_val.text = "Run"
 
-# Trials SCORE box: live hero score + the ascending remaining rungs (ghost ladder).
 func _refresh_score() -> void:
 	if _is_pvp() or _score_hero == null or round_manager == null:
 		return
@@ -355,8 +312,6 @@ func _refresh_score() -> void:
 	var rungs: Array = []
 	if _rung_source != null:
 		rungs = _rung_source.rungs_above(dmg, _rungs.size())
-	# JUICE: the lowest remaining target is the next rung; when it rises, the score just climbed
-	# past a rung — pop the Current value as the climb beat (one pop per pass, not per hit).
 	var first_target: int = int(rungs[0]["target"]) if not rungs.is_empty() else -1
 	if _ladder_init and first_target != _ladder_first_target:
 		Motion.pop(_score_hero, 1.14, Motion.S)
@@ -374,13 +329,11 @@ func _refresh_score() -> void:
 			r["key"].text = ""
 			r["val"].text = ""
 
-# Ranked STANDING box: lives/kills/rank, FROZEN during the run (resolved at round end so a
-# live rank never asserts info that doesn't exist yet). Refreshed on lives_resolved / round.
 func _refresh_standing() -> void:
 	if not _is_pvp() or _lives_hero == null or round_manager == null:
 		return
 	if round_manager.phase == "run" and not round_manager.match_over:
-		return  # frozen mid-run
+		return
 	_lives_hero.text = "%d" % maxi(0, round_manager.lives)
 	_kills_val.text = "%d" % round_manager.total_kills
 	_rank_val.text = _rank_text()
@@ -393,7 +346,6 @@ func _rank_text() -> String:
 	var total: int = co.boards.size() if co.get("boards") != null else active
 	if co.has_method("placement_of") and round_manager.eliminated:
 		return "%d / %d" % [co.placement_of(round_manager), total]
-	# Active: rank by settled lives among all boards (better lives = better rank).
 	var rank := 1
 	if co.get("boards") != null:
 		for b in co.boards:
@@ -414,7 +366,7 @@ func _refresh_buttons() -> void:
 		_start_button.text = "▶ Start Round"
 		_start_button.visible = building
 		if _ff_button != null:
-			_ff_button.disabled = building  # Speed changes in RUN only (locked rule)
+			_ff_button.disabled = building
 			_ff_button.text = "Speed %d×" % int(FF_MULTS[_ff_index])
 	if _build_button != null:
 		_build_button.disabled = not building
@@ -428,15 +380,12 @@ func _on_towers_changed(count: int, cap: int) -> void:
 	_towers_cap = cap
 	_refresh()
 
-# Keep the Build button label in sync with build-mode (desktop toggle).
 func _process(_dt: float) -> void:
 	if _build_button != null and build_controller != null:
 		var bm: bool = build_controller.is_build_mode()
 		if bm != _last_build_mode:
 			_last_build_mode = bm
 			_build_button.text = "Exit Build  [B]" if bm else "Build  [B]"
-
-# --- actions ---------------------------------------------------------------
 
 func _on_start_pressed() -> void:
 	if round_manager == null:
@@ -465,7 +414,6 @@ func _on_menu_pressed() -> void:
 	if pause_menu != null:
 		pause_menu.toggle_pause()
 
-# Speed multiplier applies in the RUN phase only (and never in PVP).
 func _apply_time_scale() -> void:
 	if _is_pvp():
 		Engine.time_scale = 1.0
@@ -475,8 +423,6 @@ func _apply_time_scale() -> void:
 	else:
 		Engine.time_scale = 1.0
 
-# Init the speed index from the current engine scale so the button label never desyncs from
-# the actual speed (polish #4: a 3× default used to start at 3× but the button read 1×).
 func _sync_ff_to_engine() -> void:
 	var cur := Engine.time_scale
 	for i in range(FF_MULTS.size()):
@@ -486,11 +432,6 @@ func _sync_ff_to_engine() -> void:
 	if _ff_button != null:
 		_ff_button.text = "Speed %d×" % int(FF_MULTS[_ff_index])
 
-# --- tower info dock query -------------------------------------------------
-
-# The screen-space rectangle in the rail's lower gap beneath the Buttons box, where the
-# tower info panel docks. Returns an EMPTY Rect2 when there isn't enough height — the tower
-# node then falls back to an over-board overlay (design: in-rail with overlay fallback).
 func tower_slot_rect() -> Rect2:
 	if _buttons_box == null:
 		return Rect2()

@@ -1,50 +1,39 @@
 extends Node2D
 class_name Tower
 
-# Gameplay tuning (base stats, tier increment, crit/multishot caps, upgrade cost
-# ramp) lives in the GameConstants autoload. Presentation constants stay local.
-
-const SPRITE_SCALE := 0.12  # fits a 48px tile
+const SPRITE_SCALE := 0.12
 
 const LOADED_TEX := preload("res://assets/towers/arrow_box_loaded.png")
 const UNLOADED_TEX := preload("res://assets/towers/arrow_box_unloaded.png")
 const ProjectileScript := preload("res://scripts/projectile.gd")
 const Motion := preload("res://scripts/motion.gd")
 
-# DESIGN color map: damage=red, range=green, attack_speed=blue,
-# crit_chance=yellow, crit_damage=orange, multishot=purple.
-# Each tier subtracts K from the complementary RGB channels.
 const STAT_COLOR_SUB := {
-	"damage":       Vector3(0.0,  0.7, 0.7),  # red
-	"range":        Vector3(0.7,  0.0, 0.7),  # green
-	"attack_speed": Vector3(0.7,  0.7, 0.0),  # blue
-	"crit_chance":  Vector3(0.0,  0.0, 0.7),  # yellow
-	"crit_damage":  Vector3(0.0,  0.35, 0.7), # orange
-	"multishot":    Vector3(0.0,  0.7, 0.0),  # purple
+	"damage":       Vector3(0.0,  0.7, 0.7),
+	"range":        Vector3(0.7,  0.0, 0.7),
+	"attack_speed": Vector3(0.7,  0.7, 0.0),
+	"crit_chance":  Vector3(0.0,  0.0, 0.7),
+	"crit_damage":  Vector3(0.0,  0.35, 0.7),
+	"multishot":    Vector3(0.0,  0.7, 0.0),
 }
 const K_PER_TIER := 0.07
 
 const RANGE_SEGMENTS := 48
 
-var mobs: Array = []  # injected by build_controller / main
-var board  # BoardState (round_manager) — for board-scoped zone lookup. Untyped.
-# Equipped cosmetics (LOCAL board only; set by build_controller before _ready). Render-only,
-# never routed through the match record. null/WHITE = the default arrow body / projectile.
+var mobs: Array = []
+var board
 var skin_tex: Texture2D = null
-# The default arrow box has a directional barrel that aims at its target; skinned bodies
-# (the crystals) are radial and stay put. Set in _ready from whether a skin is equipped.
 var _body_rotates := true
 var proj_tint: Color = Color.WHITE
-var fx_id: String = ""   # equipped "proj" FX id (local board only; render-only)
+var fx_id: String = ""
 var sprite: Sprite2D
 var cooldown: float = 0.0
 var _current_target: Node2D = null
-var total_invested: int = 0  # base placement cost + all tier costs paid in
+var total_invested: int = 0
 var grid_cell: Vector2i
-var damage_done: float = 0.0  # cumulative credited damage this match
-var kills: int = 0            # cumulative kills this match
+var damage_done: float = 0.0
+var kills: int = 0
 
-# Cached sum of zone magnitudes per stat, computed at _ready (zones don't move).
 var zone_bonus := {
 	"damage": 0,
 	"range": 0,
@@ -66,13 +55,10 @@ var _selected: bool = false
 func _ready() -> void:
 	sprite = Sprite2D.new()
 	if skin_tex != null:
-		# Skinned body (e.g. a crystal): fit to the same on-screen width as the default
-		# arrow box so footprints read identically, and keep the skin through reload (no
-		# unloaded variant). Render-only; never enters the sim/record.
 		sprite.texture = skin_tex
 		var fit := SPRITE_SCALE * float(LOADED_TEX.get_width()) / float(maxi(1, skin_tex.get_width()))
 		sprite.scale = Vector2(fit, fit)
-		_body_rotates = false   # crystals are radial — don't aim-rotate the body
+		_body_rotates = false
 	else:
 		sprite.texture = LOADED_TEX
 		sprite.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
@@ -90,8 +76,6 @@ func _ready() -> void:
 func _compute_zone_bonuses() -> void:
 	for stat in zone_bonus:
 		zone_bonus[stat] = 0
-	# Board-scoped: only this board's zones. Falls back to the global group if no
-	# board was injected (e.g. a scene opened directly).
 	var zones: Array = board.bonus_zones if board != null else get_tree().get_nodes_in_group("bonus_zones")
 	for zone in zones:
 		if not zone.touches_tower_cell(grid_cell):
@@ -99,9 +83,6 @@ func _compute_zone_bonuses() -> void:
 		if zone.type in zone_bonus:
 			zone_bonus[zone.type] += zone.magnitude
 
-# Driven by BoardState.sim_step on the fixed sim tick (no longer self-_process'd).
-# The single per-match RNG is threaded in so every crit roll lands in one defined
-# draw order (towers step in placement order) — the re-sim reproduces the sequence.
 func sim_step(delta: float, rng: RandomNumberGenerator) -> void:
 	cooldown = maxf(0.0, cooldown - delta)
 
@@ -125,8 +106,6 @@ func sim_step(delta: float, rng: RandomNumberGenerator) -> void:
 	cooldown = get_cooldown()
 
 func get_damage() -> float:
-	# DESIGN stacking: zone bonuses add together; here they also add to the tier
-	# bonus rather than multiplying it. Working assumption.
 	var mult: float = 1.0 + tiers["damage"] * GameConstants.TOWER_DAMAGE_INCREMENT + zone_bonus["damage"] / 100.0
 	return GameConstants.TOWER_BASE_DAMAGE * mult
 
@@ -166,16 +145,10 @@ func upgrade(stat: String) -> void:
 	tiers[stat] += 1
 	total_invested += GameConstants.UPGRADE_COST_BASE[stat] * tiers[stat]
 	_update_modulate()
-	# JUICE (design/JUICE.md "Tower color deepen on upgrade"): the colour ramp is the existing,
-	# locked identity (unchanged, instant). The only juice is an emphasis-pop at the instant it
-	# deepens, so a silent state change lands as a felt beat. Scoped to a real in-tree sprite so
-	# the headless re-sim replay (which also calls upgrade()) doesn't spawn pointless tweens.
 	if sprite != null and sprite.is_inside_tree():
 		Motion.pop(sprite, 1.22)
 	if stat == "range":
 		_refresh_range_circle()
-	# Record for the re-sim contract (no-op unless recording). board is the BoardState;
-	# seat lives on its build_controller. Logged with the coordinator's current sim_tick.
 	if board != null and board.coordinator != null:
 		var seat: int = board.build_controller.seat if board.build_controller != null else 0
 		board.coordinator.log_input(seat, {"type": "upgrade", "cell": grid_cell, "stat": stat})
@@ -184,7 +157,6 @@ func set_selected(value: bool) -> void:
 	_selected = value
 	_selected_range.visible = value
 
-# Credited by a mob when one of this tower's projectiles lands.
 func register_damage(amount: float, killed: bool) -> void:
 	damage_done += amount
 	if killed:
@@ -219,13 +191,9 @@ func _fire_at(target: Node2D, rng: RandomNumberGenerator) -> void:
 	p.tint = proj_tint
 	p.fx_id = fx_id
 	get_parent().add_child(p)
-	# Track on this board so BoardState.sim_step advances it on the fixed tick
-	# (projectiles no longer self-_process). board is the BoardState (round_manager).
 	if board != null:
 		board.projectiles.append(p)
 
-	# Reload tell: arrow box swaps loaded→unloaded→loaded. Skinned bodies have no unloaded
-	# variant, so they keep their texture (the fired projectile is the firing feedback).
 	if skin_tex == null:
 		sprite.texture = UNLOADED_TEX
 		var tween := create_tween()

@@ -1,14 +1,7 @@
 extends Node2D
 
-# Throwaway capture harness: loads a campaign match through the real map_loader, lets it
-# render a few frames, saves a screenshot, and quits. Run windowed (NOT headless — headless
-# uses a dummy renderer and saves blank images). Drive it by temporarily pointing
-# run/main_scene at tools/ui_shot.tscn. Autoloads (GameConstants) ARE available in this
-# main_scene mode (unlike a --script SceneTree harness).
-
 const MapLoaderScript := preload("res://scripts/map_loader.gd")
 
-# Flip to true to capture the victory panel instead of the in-match board.
 const SHOW_WIN := false
 const OUT_PATH := "C:/dev/Maze Battle TD/ui_shot.png"
 
@@ -50,7 +43,6 @@ func _trigger_win() -> void:
 			return
 
 func _capture() -> void:
-	# Let the camera fit, the layout settle, and a frame draw before grabbing pixels.
 	for i in range(40):
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw

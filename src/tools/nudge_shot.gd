@@ -1,5 +1,4 @@
 extends Control
-# Throwaway: render the season-XP nudge chip on the match-end panel.
 const DIR := "C:/dev/Maze Battle TD/"
 const PanelScript := preload("res://scripts/match_end_panel.gd")
 func _ready() -> void:

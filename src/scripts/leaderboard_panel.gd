@@ -1,40 +1,26 @@
 extends CanvasLayer
 class_name LeaderboardPanel
 
-# PVP arena leaderboard (design/VISUAL_SYSTEM.md "PVP UI"). Replaces the old TFT-style
-# thumbnail minimap with a toggle-able ranked list — position + player name + lives,
-# ranked 1–8 by lives, your row green-highlighted, eliminated rows showing OUT and
-# sinking to the bottom. Tapping a name spectates that board (live, during the run).
-# Stranger handles truncate with an ellipsis at a fixed row height.
-#
-# Only the ONE spectated board renders live (the camera frames it); the list is plain
-# text, so there are never 8 live thumbnails (the cause of the old 8-board FX crash).
-# Created only for multi-board matches (see map_loader); solo never builds one.
-
 const UiLayout := preload("res://scripts/ui_layout.gd")
 const UiStyle := preload("res://scripts/ui_style.gd")
 const Motion := preload("res://scripts/motion.gd")
 
-var coordinator                # MatchCoordinator
-var boards: Array = []         # BoardState per board (index = board index)
+var coordinator
+var boards: Array = []
 var local_index: int = 0
 var grid_size: Vector2i = Vector2i(25, 16)
-var arena                      # GameView — for tap-to-spectate during run
+var arena
 
 var _panel: Panel
 var _rows_box: VBoxContainer
 var _open: bool = false
 var _tween: Tween
-var _row_nodes: Dictionary = {}   # board idx -> {btn, rank, name, lives}; built once, updated in place
+var _row_nodes: Dictionary = {}
 
 func _ready() -> void:
-	layer = 11  # above the action strip (10)
+	layer = 11
 	_build_ui()
 	if coordinator != null:
-		# .unbind(1) drops the signal's argument so these stay METHOD callables bound to
-		# self — Godot auto-disconnects them when this panel is freed. A capturing lambda
-		# (func(_p): _refresh()) instead fires during match-end teardown with a freed self
-		# ("Lambda capture at index 0 was freed"), then calls _refresh() on a dead node.
 		coordinator.phase_changed.connect(_refresh.unbind(1))
 		coordinator.lives_resolved.connect(_refresh)
 		coordinator.board_eliminated.connect(_refresh.unbind(1))
@@ -48,13 +34,13 @@ func _build_ui() -> void:
 
 	var root := Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	root.mouse_filter = Control.MOUSE_FILTER_IGNORE  # board taps pass through when closed
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
 
 	_panel = Panel.new()
 	_panel.add_theme_stylebox_override("panel", UiStyle.dock_box())
 	_panel.size = region.size
-	_panel.position = Vector2(region.position.x - region.size.x, region.position.y)  # off the left edge
+	_panel.position = Vector2(region.position.x - region.size.x, region.position.y)
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	root.add_child(_panel)
 
@@ -80,8 +66,6 @@ func _build_ui() -> void:
 	_rows_box.add_theme_constant_override("separation", int(6 * s))
 	vb.add_child(_rows_box)
 
-# --- Ranking: active boards first (lives desc), eliminated sink to the bottom
-# (better placement above worse). Returns board indices in display order.
 func _ranking() -> Array:
 	var arr: Array = []
 	for i in range(boards.size()):
@@ -90,21 +74,16 @@ func _ranking() -> Array:
 		var ba = boards[a]
 		var bb = boards[b]
 		if ba.eliminated != bb.eliminated:
-			return not ba.eliminated  # active above eliminated
+			return not ba.eliminated
 		if ba.eliminated and bb.eliminated:
-			# both out: the one eliminated later (better placement) ranks higher
 			return coordinator.placement_of(ba) < coordinator.placement_of(bb)
 		return _lives_of(ba) > _lives_of(bb)
 	)
 	return arr
 
-# Lives for ranking/display: the live projection during the run (re-ranks the board
-# mid-match), the settled value otherwise.
 func _lives_of(b) -> int:
 	return coordinator.projected_lives(b) if coordinator != null else b.lives
 
-# While open during the run, re-rank on a light throttle so the projected lives + order
-# move mid-match (kills on any board shift the projection but emit no panel signal).
 var _poll_accum: float = 0.0
 func _process(dt: float) -> void:
 	if _open and coordinator != null and coordinator.phase == "run" and not coordinator.match_over:
@@ -116,9 +95,6 @@ func _process(dt: float) -> void:
 func _refresh() -> void:
 	if _rows_box == null:
 		return
-	# Build the row buttons ONCE; afterwards update them IN PLACE (text + order + style).
-	# Rebuilding every poll used to queue_free the button under the cursor mid-click, so
-	# taps were silently dropped and spectating felt broken ("click over and over").
 	if _row_nodes.is_empty():
 		for idx in range(boards.size()):
 			var row := _make_row(idx)
@@ -130,7 +106,6 @@ func _refresh() -> void:
 		_update_row(_row_nodes[idx], pos + 1, idx)
 		_rows_box.move_child(_row_nodes[idx]["btn"], pos)
 
-# Build one persistent row (structure only); content + style are set by _update_row.
 func _make_row(idx: int) -> Dictionary:
 	var s := UiLayout.scale_factor()
 	var pname: String = coordinator.name_for(boards[idx]) if coordinator != null else "Board %d" % (idx + 1)
@@ -162,8 +137,6 @@ func _make_row(idx: int) -> Dictionary:
 
 	return {"btn": btn, "rank": rank_lbl, "name": name_lbl, "lives": lives_lbl}
 
-# Update a persistent row in place: rank, lives, eliminated dimming, and style (your row
-# green; the board you're currently spectating gets a gold accent so the tap clearly took).
 func _update_row(row: Dictionary, rank: int, idx: int) -> void:
 	var b = boards[idx]
 	var is_local := (idx == local_index)
@@ -175,7 +148,7 @@ func _update_row(row: Dictionary, rank: int, idx: int) -> void:
 	var border: Color = UiStyle.PILL_BORDER
 	var bw := 2
 	if arena != null and not is_local and arena.current_index() == idx:
-		border = Color(1.0, 0.84, 0.55)  # gold accent = currently watching this board
+		border = Color(1.0, 0.84, 0.55)
 		bw = 3
 	UiStyle.style_flat_button(row["btn"], bg, 12, border, bw, false, 0, 0)
 
@@ -189,19 +162,15 @@ func _lbl(text: String, size: int, col: Color) -> Label:
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
 
-# Tap a row: spectate that board live during the run. During build the HARD RULE keeps
-# the camera on your own board, so non-local taps are ignored (your own re-centres).
 func _on_row(idx: int) -> void:
 	if arena == null or coordinator == null:
 		return
 	if coordinator.phase == "run":
 		arena.focus_board(idx)
-		_refresh()  # instant: highlight the row you just tapped (don't wait for the 0.2s poll)
+		_refresh()
 	elif idx == local_index:
 		arena.focus_board(local_index)
 		_refresh()
-
-# --- Drawer (slide in/out from the left edge) ---
 
 func toggle() -> void:
 	if _open:
@@ -212,7 +181,6 @@ func toggle() -> void:
 func is_open() -> bool:
 	return _open
 
-# True when the open drawer covers the screen point (so the board ignores the tap).
 func covers(pos: Vector2) -> bool:
 	return _open and UiLayout.minimap_region(get_viewport().get_visible_rect().size).has_point(pos)
 
@@ -222,16 +190,13 @@ func _open_drawer() -> void:
 	_panel.size = region.size
 	_refresh()
 	_kill_tween()
-	# Arrive on the faithful curve (distance-independent ~11% overshoot — TRANS_BACK over this
-	# wide a slide would overshoot far past the rest edge). arrive_property arms `from` itself.
 	_tween = Motion.arrive_property(_panel, "position:x", region.position.x - region.size.x, region.position.x, Motion.M)
 	_open = true
 
 func _close_drawer() -> void:
 	var region := UiLayout.minimap_region(get_viewport().get_visible_rect().size)
-	_open = false  # taps pass through immediately while it slides out
+	_open = false
 	_kill_tween()
-	# Leave: accelerate out, quicker than it arrived (M in, S out).
 	_tween = create_tween()
 	Motion.leave(_tween.tween_property(_panel, "position:x", region.position.x - region.size.x, Motion.dur(Motion.S)))
 

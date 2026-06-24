@@ -1,19 +1,11 @@
 extends RefCounted
 class_name NakamaBackend
 
-# Nakama-backed LeaderboardService backend (notes/leaderboard_schema.md). Reproduces the exact
-# dict shapes of LeaderboardService.LocalBackend (and the test SampleBackend), populated from the
-# LIVE server: Trials = tournament records, Campaign + Ranked = leaderboards. Writes go through the
-# authoritative `submit_score` RPC (boards reject direct client writes). Every read degrades to an
-# empty board on any error or missing session, so a surface never crashes when offline.
-#
-# Nakama returns score/rank/subscore as STRINGS (int64-as-text) — always int() them.
+const TOP_N := 10
+const NEIGHBORHOOD := 5
+const RANKED_PAGE := 100
 
-const TOP_N := 10           # leading rows shown before the player's neighborhood
-const NEIGHBORHOOD := 5     # rows fetched around the player (around-owner)
-const RANKED_PAGE := 100    # ranked ladder page (also the "total" denominator, accurate <= this)
-
-var _svc  # NakamaService (autoload); injected so this stays unit-testable
+var _svc
 
 func _init(service = null) -> void:
 	_svc = service
@@ -25,13 +17,11 @@ func _init(service = null) -> void:
 func _live() -> bool:
 	return _svc != null and _svc.has_session()
 
-# --- Trials (tournaments) ----------------------------------------------------
-
 func fetch_trials(board_id: String, my_score: int) -> Dictionary:
 	if not _live():
 		return {"entries": [], "my_rank": 0}
 	var session = _svc.session
-	var by_rank := {}   # rank -> entry (dedupes the top-N / neighborhood overlap)
+	var by_rank := {}
 	var my_rank := 0
 
 	var top = await _svc.client.list_tournament_records_async(session, board_id, null, TOP_N)
@@ -43,7 +33,6 @@ func fetch_trials(board_id: String, my_score: int) -> Dictionary:
 		if e["is_me"]:
 			my_rank = e["rank"]
 
-	# The player's neighborhood — only matters once they've posted a score.
 	if my_score > 0:
 		var around = await _svc.client.list_tournament_records_around_owner_async(session, board_id, session.user_id, NEIGHBORHOOD)
 		if around != null and not around.is_exception():
@@ -78,7 +67,6 @@ func fetch_trials_rank(board_id: String, _my_score: int) -> Dictionary:
 	if not _live():
 		return {"rank": 0}
 	var session = _svc.session
-	# owner_ids = [me] → my record comes back in owner_records, carrying my global rank.
 	var res = await _svc.client.list_tournament_records_async(session, board_id, [session.user_id], 1)
 	if res == null or res.is_exception():
 		return {"rank": 0}
@@ -86,8 +74,6 @@ func fetch_trials_rank(board_id: String, _my_score: int) -> Dictionary:
 		if String(rec.owner_id) == session.user_id:
 			return {"rank": int(rec.rank)}
 	return {"rank": 0}
-
-# --- Campaign (all-time leaderboards) ----------------------------------------
 
 func fetch_campaign(mission: int) -> Dictionary:
 	if not _live():
@@ -104,7 +90,6 @@ func fetch_campaign(mission: int) -> Dictionary:
 		by_rank[e["rank"]] = e
 		if e["is_me"]:
 			my_score = e["score"]
-	# Ensure the player's own row is present even when outside the top-N.
 	if my_score == 0:
 		var mine = await _svc.client.list_leaderboard_records_async(session, board_id, [session.user_id], null, 1)
 		if mine != null and not mine.is_exception():
@@ -117,8 +102,6 @@ func fetch_campaign(mission: int) -> Dictionary:
 	entries.sort_custom(func(a, b): return int(a["rank"]) < int(b["rank"]))
 	return {"entries": entries, "my_score": my_score}
 
-# --- Ranked (one tiered ladder per season; value = tier_base + LP) -----------
-
 func fetch_ranked(season: int) -> Dictionary:
 	var out := {"season_label": "Season %d · live" % season, "reset_text": "",
 		"seasons": _season_list(season), "you": null, "bands": []}
@@ -130,7 +113,6 @@ func fetch_ranked(season: int) -> Dictionary:
 	if top == null or top.is_exception():
 		return out
 
-	# Group rows into named bands by ladder value.
 	var by_tag := {}
 	for rec in top.records:
 		var value := int(rec.score)
@@ -149,10 +131,9 @@ func fetch_ranked(season: int) -> Dictionary:
 			bands.append({"name": b["name"], "tag": b["tag"], "rows": rws})
 	out["bands"] = bands
 
-	# The player's own standing.
 	var you = await _ranked_you(board_id, session)
 	if you != null:
-		you["total"] = top.records.size()  # accurate while the board fits in one page
+		you["total"] = top.records.size()
 	out["you"] = you
 	return out
 
@@ -172,10 +153,6 @@ func _ranked_you(board_id: String, session) -> Variant:
 			return you
 	return null
 
-# --- Server-owned Trials seeds (leaderboard_schema.md §3) --------------------
-
-# { daily:[5], weekly:[5], monthly:[5] } of per-scale map seeds for the live windows. Empty on
-# any error / offline → the caller falls back to its local derivation.
 func fetch_trials_seeds() -> Dictionary:
 	if not _live():
 		return {}
@@ -185,10 +162,6 @@ func fetch_trials_seeds() -> Dictionary:
 	var parsed = JSON.parse_string(res.payload)
 	return parsed if typeof(parsed) == TYPE_DICTIONARY else {}
 
-# --- Authoritative write (boards reject direct client writes) ----------------
-
-# kind: "trials" | "campaign" | "ranked". record_b64 = Resim.encode_record(...) base64'd (optional,
-# stored server-side for the later re-sim worker). Returns true on a successful RPC.
 func submit(kind: String, board_id: String, score: int, record_b64: String = "") -> bool:
 	if not _live():
 		return false
@@ -202,8 +175,6 @@ func submit(kind: String, board_id: String, score: int, record_b64: String = "")
 		return false
 	return true
 
-# --- Helpers -----------------------------------------------------------------
-
 func _score_entry(rec, my_id: String) -> Dictionary:
 	return {"rank": int(rec.rank), "name": _name(rec), "score": int(rec.score),
 		"is_me": String(rec.owner_id) == my_id}
@@ -213,15 +184,11 @@ func _name(rec) -> String:
 	return u if u != "" else String(rec.owner_id).substr(0, 8)
 
 func _season_list(current: int) -> Array:
-	# Descends from the current season to 1. Season 0 is the closed beta: while it's current
-	# it is the only entry; once launch rolls to s1+ it stays off the list (beta data survives
-	# server-side for analysis, not for display).
 	var out: Array = []
 	for s in range(current, mini(current, 1) - 1, -1):
 		out.append("Season %d%s" % [s, " · live" if s == current else ""])
 	return out
 
-# Lowest band whose base is still above `value` = the next tier up. Empty at Masters.
 func _next_band_above(value: int) -> Dictionary:
 	var best := {}
 	for b in LeaderboardService.RANKED_BANDS:

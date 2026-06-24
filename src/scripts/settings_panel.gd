@@ -1,21 +1,15 @@
 extends CanvasLayer
 class_name SettingsPanel
 
-# Reusable settings overlay (DESIGN_MODES "Settings contents"), openable from both
-# the home screen and the pause menu. Reads/writes SaveData and applies changes
-# live; saves to disk on close. Has NO Esc handler of its own — whoever opens it
-# (pause menu in-match, home screen otherwise) closes it on Esc, so there's a
-# single Esc arbiter per context and no input race.
-
 const UiStyle := preload("res://scripts/ui_style.gd")
 const Motion := preload("res://scripts/motion.gd")
 
 signal closed
 
 var _root: Control
-var _dim_rect: ColorRect      # overlay backdrop, faded by the arrive/leave grammar
-var _card: PanelContainer     # the settings card, scale-arrives in / leaves out
-var _is_open := false         # logical open state (stays false through the leave animation)
+var _dim_rect: ColorRect
+var _card: PanelContainer
+var _is_open := false
 var _master: HSlider
 var _music: HSlider
 var _sfx: HSlider
@@ -28,8 +22,8 @@ var _resolution: OptionButton
 var _damage_numbers: CheckButton
 
 func _ready() -> void:
-	layer = 40  # above the pause menu (30)
-	process_mode = Node.PROCESS_MODE_ALWAYS  # usable while the tree is paused
+	layer = 40
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_ui()
 	_root.visible = false
 
@@ -40,15 +34,14 @@ func open() -> void:
 	_refresh_from_settings()
 	_is_open = true
 	_root.visible = true
-	Motion.overlay_in(_dim_rect, _card)  # JUICE: dim fades in, card scale-arrives
+	Motion.overlay_in(_dim_rect, _card)
 
 func close() -> void:
 	if not _is_open:
-		return  # guard a double-close during the leave animation
+		return
 	_is_open = false
 	SaveData.save()
 	closed.emit()
-	# JUICE: card leaves + dim fades, then the whole overlay hides (in on_hidden).
 	Motion.overlay_out(_dim_rect, _card, func(): _root.visible = false)
 
 func _build_ui() -> void:
@@ -66,8 +59,6 @@ func _build_ui() -> void:
 	var panel := PanelContainer.new()
 	_card = panel
 	panel.custom_minimum_size = Vector2(460, 0)
-	# Centre + grow both so it stays centred as it sizes to its content (PRESET_CENTER
-	# froze the offsets from the pre-content size — same fix as the pause menu).
 	panel.anchor_left = 0.5
 	panel.anchor_top = 0.5
 	panel.anchor_right = 0.5
@@ -89,8 +80,6 @@ func _build_ui() -> void:
 	vbox.add_theme_constant_override("separation", 12)
 	margin.add_child(vbox)
 
-	# Header row: title (left, expanding) + top-right close button. Settings auto-saves
-	# on close, so the close button is the primary dismissal.
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 12)
 	vbox.add_child(header)
@@ -154,8 +143,6 @@ func _build_ui() -> void:
 	back.pressed.connect(close)
 	vbox.add_child(back)
 
-# --- Populate from saved values ---
-
 func _refresh_from_settings() -> void:
 	_master.value = float(SaveData.get_setting("master_volume"))
 	_music.value = float(SaveData.get_setting("music_volume"))
@@ -167,8 +154,6 @@ func _refresh_from_settings() -> void:
 	_resolution.select(clampi(int(SaveData.get_setting("resolution_index")), 0, SaveData.RESOLUTIONS.size() - 1))
 	_fullscreen.button_pressed = bool(SaveData.get_setting("fullscreen"))
 	_damage_numbers.button_pressed = bool(SaveData.get_setting("damage_numbers"))
-
-# --- Handlers (apply live) ---
 
 func _on_master_changed(v: float) -> void:
 	SaveData.set_setting("master_volume", v)
@@ -186,7 +171,6 @@ func _on_sfx_changed(v: float) -> void:
 	SaveData.apply_audio()
 
 func _on_speed_selected(idx: int) -> void:
-	# "Default" speed — applied at match start (see main.gd), not to menus here.
 	SaveData.set_setting("default_game_speed", _speed.get_item_id(idx))
 
 func _on_resolution_selected(idx: int) -> void:
@@ -200,8 +184,6 @@ func _on_fullscreen_toggled(on: bool) -> void:
 func _on_damage_numbers_toggled(on: bool) -> void:
 	SaveData.set_setting("damage_numbers", on)
 
-# --- UI helpers ---
-
 var _last_pct: Label
 
 func _add_volume_row(parent: VBoxContainer, label_text: String) -> HSlider:
@@ -214,7 +196,6 @@ func _add_volume_row(parent: VBoxContainer, label_text: String) -> HSlider:
 	_last_pct = _label("100%", 16, Color(0.7, 0.9, 1.0))
 	_last_pct.custom_minimum_size = Vector2(50, 0)
 	_last_pct.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	# Wire after creating the pct label so the handler can update it.
 	match label_text:
 		"Master volume": slider.value_changed.connect(_on_master_changed)
 		"Music volume": slider.value_changed.connect(_on_music_changed)

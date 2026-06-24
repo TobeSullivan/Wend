@@ -1,16 +1,10 @@
 extends CanvasLayer
 class_name BuildConfirm
 
-# Touch-only bottom-center placement confirm (extracted from the old action strip). On touch
-# a tap parks a tower preview at a cell; this prompt confirms/cancels the parked build. It's
-# a BOARD interaction (over the play surface), not persistent rail state, so it lives on its
-# own layer rather than in the rail. Built only when touch is present (map_loader). Mobile is
-# not a shipping target — this is kept working but is effectively vestigial on desktop.
-
 const UiLayout := preload("res://scripts/ui_layout.gd")
 const UiStyle := preload("res://scripts/ui_style.gd")
 
-var build_controller    # BuildController
+var build_controller
 
 var _prompt: HBoxContainer
 var _prompt_label: Label

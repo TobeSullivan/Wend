@@ -1,21 +1,9 @@
 extends Control
 
-# Season — the free, earned-only reward track (design/SEASON.md, 30 tiers x 1,000 pts;
-# layout from notes/mockups/season_mock.html). Header: season + time left + points.
-# Progress strip: current tier, bar to the next, the next unclaimed reward. Track: one
-# horizontal row of 30 tier cards — claimed (green check) / claimable (gold Claim) /
-# current (YOU ARE HERE) / locked — with the milestone towers big at 10/20/30.
-#
-# No pricing anywhere: the absence of a buy button is what says "free" (SEASON.md — don't
-# label it). XP comes from TASKS (notes/task_system.md) — the runtime is live (TaskCatalog,
-# awarded at match end in scene_manager), and the Rewards/Tasks toggle here surfaces the 15
-# active tasks + progress. The claim flow grants into the Collection. Prestige never appears
-# here (Ranked-exclusive).
-
 const UiStyle := preload("res://scripts/ui_style.gd")
 const Motion := preload("res://scripts/motion.gd")
 const Catalog := preload("res://scripts/cosmetics_catalog.gd")
-const TaskCatalogScript := preload("res://scripts/task_catalog.gd")  # season XP source
+const TaskCatalogScript := preload("res://scripts/task_catalog.gd")
 
 const TIER_W := 236.0
 
@@ -28,7 +16,6 @@ var _next_art: PanelContainer
 var _scroll: ScrollContainer
 var _track: HBoxContainer
 
-# Rewards (track) ↔ Tasks (the XP-earning view) toggle.
 var _prog_strip: PanelContainer
 var _track_wrap: PanelContainer
 var _tasks_box: PanelContainer
@@ -41,8 +28,7 @@ func _ready() -> void:
 	UiStyle.menu_backdrop(self)
 	_build()
 	_refresh()
-	_show_tasks(false)   # start on the reward track; sets the segment highlight
-	# Land the view on the action: scroll to the current tier after layout.
+	_show_tasks(false)
 	_center_on_current.call_deferred()
 
 func _build() -> void:
@@ -58,7 +44,6 @@ func _build() -> void:
 	root.add_theme_constant_override("separation", 16)
 	margin.add_child(root)
 
-	# --- Top bar: tilted gold season pill + meta (time left / points). ---
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 22)
 	root.add_child(top)
@@ -75,7 +60,6 @@ func _build() -> void:
 	ttl.rotation_degrees = -2.0
 	top.add_child(ttl)
 
-	# Segmented toggle: Rewards = the tier track, Tasks = how you earn the points.
 	_seg_rewards = _seg_button("Rewards")
 	_seg_rewards.pressed.connect(func(): _show_tasks(false))
 	top.add_child(_seg_rewards)
@@ -95,14 +79,12 @@ func _build() -> void:
 	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(sp)
 
-	# Time left: the season clock is server-owned and not live pre-beta — honest dash.
 	top.add_child(_meta_block("time left", "—"))
 	var pts := _meta_block("season points", "0")
 	_points_label = pts.get_child(1)
 	_points_label.add_theme_color_override("font_color", UiStyle.PILL_GOLD)
 	top.add_child(pts)
 
-	# --- Progress strip. ---
 	var prog := PanelContainer.new()
 	UiStyle.apply_card(prog, 14)
 	root.add_child(prog)
@@ -144,30 +126,26 @@ func _build() -> void:
 	_next_name = _label("", 15, Color.WHITE)
 	nv.add_child(_next_name)
 
-	# --- The track. ---
-	var wrap := PanelContainer.new()
-	UiStyle.apply_card(wrap)
-	wrap.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	root.add_child(wrap)
+	var wrapper := PanelContainer.new()
+	UiStyle.apply_card(wrapper)
+	wrapper.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	root.add_child(wrapper)
 	var wm := MarginContainer.new()
 	for side in ["margin_left", "margin_right"]:
 		wm.add_theme_constant_override(side, 14)
 	wm.add_theme_constant_override("margin_top", 18)
 	wm.add_theme_constant_override("margin_bottom", 12)
-	wrap.add_child(wm)
+	wrapper.add_child(wm)
 	_scroll = ScrollContainer.new()
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	wm.add_child(_scroll)
 	_track = HBoxContainer.new()
 	_track.add_theme_constant_override("separation", 0)
 	_track.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	# The rail behind the tier circles: the HBox draws it on itself, so it sits behind
-	# all the tier columns and scrolls with them.
 	_track.draw.connect(_draw_rail)
 	_scroll.add_child(_track)
-	_track_wrap = wrap
+	_track_wrap = wrapper
 
-	# Tasks view (hidden until the toggle selects it) — fills the same slot as the track.
 	_tasks_box = PanelContainer.new()
 	UiStyle.apply_card(_tasks_box)
 	_tasks_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -194,8 +172,6 @@ func _meta_block(lab: String, val: String) -> VBoxContainer:
 	v.add_child(_label(val, 21, Color.WHITE))
 	return v
 
-# --- Tasks view (the XP source: notes/task_system.md) ---------------------------
-
 func _seg_button(text: String) -> Button:
 	var b := Button.new()
 	b.text = text
@@ -204,7 +180,6 @@ func _seg_button(text: String) -> Button:
 	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	return b
 
-# Swap between the reward track and the task list (they share the screen's main slot).
 func _show_tasks(on: bool) -> void:
 	_showing_tasks = on
 	_prog_strip.visible = not on
@@ -215,8 +190,6 @@ func _show_tasks(on: bool) -> void:
 	if on:
 		_refresh_tasks()
 
-# Build the 15 active tasks (5 shapes × 3 cadences) grouped into Daily / Weekly / Monthly
-# columns, from the live TaskCatalog state (windows rolled so an expired cadence reads fresh).
 func _refresh_tasks() -> void:
 	for c in _tasks_box.get_children():
 		c.queue_free()
@@ -278,8 +251,6 @@ func _task_card(t: Dictionary) -> Control:
 	v.add_child(bar)
 	return card
 
-# --- Refresh / state -----------------------------------------------------------
-
 func _refresh() -> void:
 	var points: int = SaveData.season_points()
 	var claimed: Array = SaveData.claimed_season_tiers()
@@ -324,7 +295,6 @@ func _tier_column(t: Dictionary, points: int, claimed: Array) -> Control:
 	var first := Catalog.item(items[0])
 	var owned_look := state == "claimed"
 
-	# Tier circle.
 	var num := PanelContainer.new()
 	num.custom_minimum_size = Vector2(74, 74)
 	num.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -351,7 +321,6 @@ func _tier_column(t: Dictionary, points: int, claimed: Array) -> Control:
 	nl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	num.add_child(nl)
 
-	# Reward card.
 	var card := PanelContainer.new()
 	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var border := UiStyle.PILL_BORDER
@@ -445,13 +414,13 @@ func _tier_column(t: Dictionary, points: int, claimed: Array) -> Control:
 func _art_inner(it: Dictionary, revealed: bool, px: int) -> Control:
 	var art := String(it.get("art", ""))
 	if art != "" and ResourceLoader.exists(art):
-		var tr := TextureRect.new()
-		tr.texture = load(art)
-		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		var tex := TextureRect.new()
+		tex.texture = load(art)
+		tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		if not revealed:
-			tr.modulate = Color(0, 0, 0, 0.5)
-		return tr
+			tex.modulate = Color(0, 0, 0, 0.5)
+		return tex
 	if it["slot"] == "title":
 		var t := Label.new()
 		t.text = "T"
@@ -492,7 +461,6 @@ func _rarity_chip(rarity: String) -> Control:
 	chip.add_child(m)
 	return chip
 
-# The rail behind the tier circles, gold-filled to the current position.
 func _draw_rail() -> void:
 	if _track.get_child_count() == 0:
 		return

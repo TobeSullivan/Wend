@@ -1,16 +1,8 @@
 extends Node
 
-# SceneManager autoload — owns navigation between screens and carries the chosen
-# MapResource into the match scene. The match scene reads `pending_map` in its
-# _ready; the loader does the rest. All in-match exits route back to the home
-# screen through here (DESIGN_MODES: "no intermediate screen between any in-match
-# exit and the home screen").
-
 const MapResourceScript := preload("res://resources/map_resource.gd")
 const MapGeneratorScript := preload("res://scripts/map_generator.gd")
 const ResimScript := preload("res://scripts/resim.gd")
-# Spread the match-end authoritative re-sim across frames so it never freezes the results
-# screen (resim is node-based, so it can't go on a worker thread; chunking is the fix).
 const RESIM_TICKS_PER_FRAME := 256
 const EnetTransportScript := preload("res://net/enet_transport.gd")
 const NetProtocolScript := preload("res://net/net_protocol.gd")
@@ -18,7 +10,6 @@ const MatchServerScript := preload("res://net/match_server.gd")
 const Motion := preload("res://scripts/motion.gd")
 const CosmeticsCatalogScript := preload("res://scripts/cosmetics_catalog.gd")
 
-# PVP: 1 local player + 7 bots (DESIGN_MODES: 8-player solo-queue ranked).
 const PVP_BOARD_COUNT := 8
 
 const HOME_SCENE := "res://scenes/home_screen.tscn"
@@ -30,26 +21,16 @@ const COLLECTION_SCENE := "res://scenes/collection.tscn"
 const SEASON_SCENE := "res://scenes/season.tscn"
 const MATCH_SCENE := "res://scenes/prototype.tscn"
 
-# --- Networked match (PVP). The transport is owned HERE (an autoload) so it persists
-# across the lobby→match scene change and sits at a stable tree path for RPCs. ---
-var transport = null            # active MatchTransport (EnetTransport) or null
-var is_dedicated_server := false  # true on the headless VPS authority (godot -- --server)
-var last_player_name := "Player"  # remembered so re-queue keeps your name
-var pending_local_index := 0    # the local player's seat in a networked match
-var pending_player_names: Array = []  # seat-indexed lobby handles
-var pending_seat_by_peer: Dictionary = {}  # {enet_peer_id: seat} — host uses it to map a disconnect to a board
-# Ranked (networked PVP): the lobby-average hidden MMR carried in via the Nakama GO message
-# (queue_controller._on_go), read at match end as the net-positive LP anchor. pending_is_ranked
-# distinguishes a networked ranked match from offline bot practice (which has no transport/lobby).
-var pending_ranked_avg_mmr := 150.0  # RankedLadder.SEED_MMR; overwritten by the real lobby avg
+var transport = null
+var is_dedicated_server := false
+var last_player_name := "Player"
+var pending_local_index := 0
+var pending_player_names: Array = []
+var pending_seat_by_peer: Dictionary = {}
+var pending_ranked_avg_mmr := 150.0
 var pending_is_ranked := false
-# Last season-task award ({points, completed}) from record_match — the match-end panel reads
-# it to show the season nudge. Refreshed every Trials/Ranked match; {} before any.
 var last_task_award: Dictionary = {}
 
-# Authored campaign missions, by mission index. Five missions — a tutorial curriculum
-# that ramps from zero, one new concept per mission (design/CAMPAIGN.md). The old
-# ten-mission arc was deprecated 2026-06-06 and removed.
 const CAMPAIGN_MISSIONS := {
 	1: "res://campaign/mission_01.tres",
 	2: "res://campaign/mission_02.tres",
@@ -59,22 +40,12 @@ const CAMPAIGN_MISSIONS := {
 }
 const CAMPAIGN_MISSION_COUNT := 5
 
-# The live match's MatchCoordinator, set by main.gd when a real match builds. Used to
-# derive the AUTHORITATIVE score by re-simming its record at match end (resim_contract
-# §4/§8). Not set on the re-sim's own throwaway builds (those go through resim.gd, not
-# main.gd), so re-simming never clobbers this. Cleared on return to home.
 var active_coordinator = null
 
-# Deep-link context for the leaderboard browse screen (which category/window/scale to land
-# on), consumed once by leaderboard_browse.gd. Empty = open at the default (Trials/Daily).
 var pending_leaderboard := {}
 
-# Set before a scene change; consumed by the match scene.
 var pending_map = null
-# Number of boards the match scene builds (1 = solo; PVP = PVP_BOARD_COUNT).
 var pending_board_count := 1
-# Drives the pause-menu variant (single-player pauses the tree; multiplayer does
-# not). Campaign and solo PVE are single-player.
 var current_is_multiplayer := false
 
 func goto_home() -> void:
@@ -82,10 +53,10 @@ func goto_home() -> void:
 	pending_board_count = 1
 	current_is_multiplayer = false
 	pending_is_ranked = false
-	active_coordinator = null  # the match scene (and its coordinator) is about to be freed
+	active_coordinator = null
 	get_tree().paused = false
-	Engine.time_scale = 1.0  # menus always run at normal speed
-	_menu_change(HOME_SCENE, true)  # "back" — the cover wipes off to the right
+	Engine.time_scale = 1.0
+	_menu_change(HOME_SCENE, true)
 
 func goto_campaign_select() -> void:
 	get_tree().paused = false
@@ -97,7 +68,6 @@ func goto_pve_select() -> void:
 	Engine.time_scale = 1.0
 	_menu_change(PVE_SELECT_SCENE)
 
-# The two cosmetics homes (design/COSMETICS.md "IA — two homes, not three tabs").
 func goto_collection() -> void:
 	get_tree().paused = false
 	Engine.time_scale = 1.0
@@ -108,10 +78,6 @@ func goto_season() -> void:
 	Engine.time_scale = 1.0
 	_menu_change(SEASON_SCENE)
 
-# DEV ONLY (debug builds): F10 anywhere grants every catalog cosmetic so any item can be
-# equipped and tested in-match. Global (autoload) so it works on any screen, not just the
-# Collection. If the active screen exposes dev_refresh() (Collection does), refresh it live.
-# Compiled out of release/playtest builds via OS.is_debug_build().
 func _unhandled_input(event: InputEvent) -> void:
 	if not OS.is_debug_build():
 		return
@@ -123,33 +89,27 @@ func _unhandled_input(event: InputEvent) -> void:
 		if scene != null and scene.has_method("dev_refresh"):
 			scene.dev_refresh()
 
-# --- Menu screen transition (design/JUICE.md "home->select screen transition", the
-# connective tissue). SceneManager swaps scenes hard, so we snapshot the outgoing screen into
-# a cover on a top CanvasLayer, swap underneath, then slide the cover off — revealing the new
-# screen as it plays its own entrance. Forward wipes left; "back" (home) wipes right. Menus
-# only — entering a MATCH stays a hard cut (gameplay setup shouldn't ride a menu wipe). ---
 var _transition_layer: CanvasLayer = null
 var _did_first_nav := false
 
 func _menu_change(path: String, back := false) -> void:
-	# First navigation (boot -> home) has nothing meaningful to snapshot — hard cut.
 	if not _did_first_nav:
 		_did_first_nav = true
 		get_tree().change_scene_to_file(path)
 		return
 	var vp_size := get_viewport().get_visible_rect().size
-	var img := get_viewport().get_texture().get_image()  # current frame (saved screenshots prove it's upright)
+	var img := get_viewport().get_texture().get_image()
 	if img == null or img.is_empty():
-		get_tree().change_scene_to_file(path)  # no frame to snapshot (e.g. headless) — hard cut
+		get_tree().change_scene_to_file(path)
 		return
 	var cover := TextureRect.new()
 	cover.texture = ImageTexture.create_from_image(img)
 	cover.size = vp_size
 	cover.position = Vector2.ZERO
-	cover.mouse_filter = Control.MOUSE_FILTER_STOP  # swallow input during the wipe
+	cover.mouse_filter = Control.MOUSE_FILTER_STOP
 	if _transition_layer == null:
 		_transition_layer = CanvasLayer.new()
-		_transition_layer.layer = 128  # above everything
+		_transition_layer.layer = 128
 		add_child(_transition_layer)
 	_transition_layer.add_child(cover)
 	get_tree().change_scene_to_file(path)
@@ -164,19 +124,14 @@ func _slide_cover_off(cover: TextureRect, back: bool, w: float) -> void:
 	t.tween_property(cover, "position:x", (w if back else -w), Motion.dur(Motion.SCREEN))
 	t.tween_property(cover, "modulate:a", 0.0, Motion.dur(Motion.SCREEN))
 	t.chain().tween_callback(cover.queue_free)
-	# Safety: the cover swallows input (layer 128), so guarantee it's gone even if the tween
-	# never completes — a stuck cover would soft-lock all navigation.
 	get_tree().create_timer(1.0).timeout.connect(func(): if is_instance_valid(cover): cover.queue_free())
 
-# The leaderboard hub. `ctx` deep-links a category/window/scale (e.g. a Trials-select card
-# or a post-match "View full board" jumps straight to its board); empty opens at the default.
 func goto_leaderboards(ctx := {}) -> void:
 	pending_leaderboard = ctx
 	get_tree().paused = false
 	Engine.time_scale = 1.0
 	_menu_change(LEADERBOARD_SCENE)
 
-# Solo PVE: a generated map played for score. Single-player for pause purposes.
 func start_pve_map(map) -> void:
 	pending_map = map
 	pending_board_count = 1
@@ -184,10 +139,8 @@ func start_pve_map(map) -> void:
 	get_tree().paused = false
 	get_tree().change_scene_to_file(MATCH_SCENE)
 
-# PVP: a fully-randomized seeded map played against 7 bots (local sim; real netcode
-# later). Last-standing, lives-based — no score/medals. Multiplayer pause variant.
 func start_pvp() -> void:
-	var match_seed := int(Time.get_unix_time_from_system())  # a fresh map each match
+	var match_seed := int(Time.get_unix_time_from_system())
 	var tier := (match_seed % 5) + 1
 	pending_map = MapGeneratorScript.generate(match_seed, tier, MapResourceScript.Mode.PVP)
 	pending_board_count = PVP_BOARD_COUNT
@@ -195,14 +148,11 @@ func start_pvp() -> void:
 	get_tree().paused = false
 	get_tree().change_scene_to_file(MATCH_SCENE)
 
-# --- Networked PVP (lobby + transport) ---
-
 func goto_lobby() -> void:
 	get_tree().paused = false
 	Engine.time_scale = 1.0
 	_menu_change(LOBBY_SCENE)
 
-# Create a fresh ENet transport as a child of this autoload (stable path for RPCs).
 func _make_transport():
 	net_close()
 	transport = EnetTransportScript.new()
@@ -224,10 +174,6 @@ func net_close() -> void:
 		transport.queue_free()
 		transport = null
 
-# Boot as the headless dedicated server (godot --headless -- --server): the server is peer 1 /
-# authority but never a player (no seat). A persistent MatchServer child is the ROOM ROUTER: it
-# hosts many concurrent matches keyed by match_id, each an isolated authority subtree it builds
-# WITHOUT change_scene (so the server's own scene tree never flips to a single match).
 func start_dedicated_server() -> int:
 	var err := net_host()
 	if err != OK:
@@ -239,12 +185,8 @@ func start_dedicated_server() -> int:
 	add_child(server)
 	return OK
 
-# Launch a networked PVP match: every client generates the IDENTICAL map from the
-# shared seed, then builds it with the local player on their own seat (no bots; the
-# transport is kept alive for in-match relay). Called on host + each client from the
-# lobby's START_MATCH handshake.
-func start_networked_pvp(seed: int, tier: int, board_count: int, seat: int, names: Array, seat_by_peer: Dictionary = {}) -> void:
-	pending_map = MapGeneratorScript.generate(seed, tier, MapResourceScript.Mode.PVP)
+func start_networked_pvp(map_seed: int, tier: int, board_count: int, seat: int, names: Array, seat_by_peer: Dictionary = {}) -> void:
+	pending_map = MapGeneratorScript.generate(map_seed, tier, MapResourceScript.Mode.PVP)
 	pending_board_count = board_count
 	pending_local_index = seat
 	pending_player_names = names
@@ -267,23 +209,14 @@ func start_campaign_mission(index: int) -> void:
 	get_tree().change_scene_to_file(MATCH_SCENE)
 
 func restart_current_match() -> void:
-	# pending_map is still set; reloading the match scene re-runs the loader on it.
 	get_tree().paused = false
 	get_tree().reload_current_scene()
 
-# Records the result for the current map (campaign medal or PVE score). Storage is
-# best-kept, so calling this with a partial score is always safe — a partial can
-# never beat a full run. PVP records nothing (last-standing, no medals/score).
 func report_match_result(advisory_damage: int) -> void:
 	var snap := _snapshot_match_result(advisory_damage)
 	if not snap.is_empty():
 		await _finish_match_result(snap)
 
-# Capture the just-ended match's identity, score thresholds, match record, and the local board's
-# task stats SYNCHRONOUSLY — so the result can be scored and submitted even after the match scene
-# is freed. The bow-out path (leave_match_to_home) navigates home immediately, then finishes off
-# this snapshot in the background. Mutates the coordinator only to log the bow-out `end` marker so
-# a partial run still scores (resim_contract §8). Returns {} when there's nothing to record.
 func _snapshot_match_result(advisory_damage: int) -> Dictionary:
 	if pending_map == null:
 		return {}
@@ -303,7 +236,7 @@ func _snapshot_match_result(advisory_damage: int) -> Dictionary:
 	var coord = active_coordinator
 	if coord != null and is_instance_valid(coord) and coord.record_enabled:
 		if not coord.match_over:
-			coord.record_end_marker()  # log the bow-out so the re-sim scores the partial
+			coord.record_end_marker()
 		snap["record"] = coord.make_record()
 	var board = _local_board()
 	if board != null and is_instance_valid(board):
@@ -315,10 +248,6 @@ func _snapshot_match_result(advisory_damage: int) -> Dictionary:
 		snap["task"] = {"towers": towers, "zones": zones, "kills": board.total_kills}
 	return snap
 
-# Score the snapshot via the authoritative (chunked) re-sim, then write + submit the result. Runs
-# ENTIRELY off the snapshot — no live coordinator/pending_map reads — so it is safe to run in the
-# background after navigating home. resim_contract §4/§8: the score we record is the authoritative
-# re-sim, never the live tally; an illegal log (§4.1) is rejected and no score is written.
 func _finish_match_result(snap: Dictionary) -> void:
 	var record: Dictionary = snap["record"]
 	var result := await _authoritative_score(record, int(snap["advisory"]))
@@ -336,36 +265,22 @@ func _finish_match_result(snap: Dictionary) -> void:
 		SaveData.record_pve_score(snap["window_date"], snap["scale_tier"], damage)
 		_post_online("trials", LeaderboardService.trials_board_id(
 			snap["window_type"], snap["scale_tier"], "solo"), damage, record_b64)
-		# Season tasks count Trials (not campaign). Score = the authoritative re-sim damage.
 		var t: Dictionary = snap["task"]
 		if not t.is_empty():
 			_award_tasks({"towers": t["towers"], "zones": t["zones"], "kills": t["kills"], "score": damage})
 
-# Networked Ranked result: write the player's new authoritative LADDER VALUE (tier_base + LP)
-# to the season board via the submit_score RPC (op "set"; boards reject direct client writes).
-# Unlike Trials/campaign, the value is NOT a re-sim of local damage — it's derived from the
-# host-authoritative placement (finish_order via MATCH_END) by the LP engine, then mirrored
-# here. The match record blob still rides along for the later re-sim worker. No-op offline.
 func report_ranked_result(value_after: int) -> void:
 	_post_online("ranked", "ranked_s%d" % SaveData.ranked_season(), value_after)
-	# Season tasks count Ranked (not casual PVP — which never reaches here). No authoritative
-	# re-sim score in PVP, so the score shape uses the local board's damage tally.
 	var b = _local_board()
 	if b != null:
 		_record_match_tasks(b, b.total_damage_dealt)
 
-# The local player's BoardState (board 0) for the just-ended match, or null if the
-# coordinator is gone. Used only to read end-of-match task stats.
 func _local_board():
 	if active_coordinator != null and is_instance_valid(active_coordinator) \
 			and not active_coordinator.boards.is_empty():
 		return active_coordinator.boards[0]
 	return null
 
-# Feed one completed Trials/Ranked match into the season-task counters (notes/task_system.md).
-# All reads are client-side and read-only — task stats NEVER enter the match record (cardinal
-# rule 2). `score` is supplied by the caller (authoritative damage for Trials, the live tally
-# for Ranked). Towers/zones/kills come off the local board.
 func _record_match_tasks(board, score: int) -> void:
 	if board == null or not is_instance_valid(board):
 		return
@@ -376,13 +291,9 @@ func _record_match_tasks(board, score: int) -> void:
 		zones = _zones_occupied(board)
 	_award_tasks({"towers": towers, "zones": zones, "kills": board.total_kills, "score": score})
 
-# Feed completed task stats into the season-task counters; keep the {points, completed} result so
-# the match-end panel can show the season nudge. Task stats NEVER enter the match record (cardinal
-# rule 2) — all reads are client-side.
 func _award_tasks(stats: Dictionary) -> void:
 	last_task_award = TaskCatalog.record_match(stats)
 
-# Distinct bonus zones the player built at least one tower inside ("build inside X zones").
 func _zones_occupied(board) -> int:
 	var count := 0
 	for zone in board.bonus_zones:
@@ -392,16 +303,10 @@ func _zones_occupied(board) -> int:
 				break
 	return count
 
-# Post the authoritative score to the online board when a Nakama backend is active. Offline
-# (LocalBackend) this is a no-op — boards are write-gated to the submit_score RPC. The match record
-# is encoded SYNCHRONOUSLY (before the first await) so active_coordinator is read while still valid;
-# the network submit is then fire-and-forget (match-end must not block on the network).
 func _post_online(kind: String, board_id: String, score: int, record_b64 := "") -> void:
 	var be = LeaderboardService.backend()
 	if be == null or not be.has_method("submit"):
 		return
-	# A pre-encoded record (the bow-out path captures it before the coordinator is freed) is used
-	# as-is; otherwise encode from the still-live coordinator (the ranked/match-end-panel paths).
 	if record_b64 == "":
 		var coord = active_coordinator
 		if coord != null and is_instance_valid(coord) and coord.record_enabled:
@@ -409,20 +314,11 @@ func _post_online(kind: String, board_id: String, score: int, record_b64 := "") 
 			record_b64 = Marshalls.raw_to_base64(bytes)
 	await be.submit(kind, board_id, score, record_b64)
 
-# Derive the local board's authoritative score by re-simming the captured match record.
-# Returns { score, legal, reason }. Falls back to the advisory value (legal) only when
-# there's no record to replay (e.g. a scene opened directly with no coordinator). An
-# illegal record (§4.1) returns legal=false and the caller writes no score. A mid-match
-# bow-out logs an `end` marker first so the re-sim scores the partial, not the played-out
-# remainder.
 func _authoritative_score(record: Dictionary, advisory: int) -> Dictionary:
 	if record.is_empty():
 		return {"score": advisory, "legal": true, "reason": ""}
 	var host := Node2D.new()
 	add_child(host)
-	# Chunked (awaited) so a long replay doesn't hang the results screen. The replay runs entirely
-	# off the captured `record` on a throwaway host — independent of the live match, so it's safe
-	# even after the player has navigated home (the bow-out path finishes this in the background).
 	var res: Dictionary = await ResimScript.run(host, record, RESIM_TICKS_PER_FRAME)
 	host.queue_free()
 	if not bool(res.get("legal", true)):
@@ -430,7 +326,7 @@ func _authoritative_score(record: Dictionary, advisory: int) -> Dictionary:
 	var rboards: Array = res.get("boards", [])
 	if rboards.is_empty():
 		return {"score": advisory, "legal": true, "reason": ""}
-	var score := int(rboards[0]["damage"])  # solo = seat 0
+	var score := int(rboards[0]["damage"])
 	if score != advisory:
 		push_warning("Re-sim score %d differs from live %d — determinism check (recording re-sim)." % [score, advisory])
 	return {"score": score, "legal": true, "reason": ""}
@@ -444,10 +340,8 @@ func _medal_for(damage: int, snap: Dictionary) -> String:
 		return "bronze"
 	return "none"
 
-# Bow out mid-match: record the (possibly partial) result, then go home. Used by
-# the gold-reached popup and the pause-menu quit. Partial scores count by design.
 func leave_match_to_home(damage: int) -> void:
-	var snap := _snapshot_match_result(damage)  # capture BEFORE goto_home() frees the match scene
-	goto_home()                                 # navigate immediately — never wait on re-sim/network
+	var snap := _snapshot_match_result(damage)
+	goto_home()
 	if not snap.is_empty():
-		_finish_match_result(snap)  # intentionally NOT awaited — records while the player is home
+		_finish_match_result(snap)

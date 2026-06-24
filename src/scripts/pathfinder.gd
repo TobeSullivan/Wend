@@ -3,11 +3,7 @@ class_name Pathfinder
 
 const GridScript := preload("res://scripts/grid.gd")
 
-# For each segment (entry→cp1, cp1→cp2, ...), try direct-line first. If the
-# straight line crosses a blocked tile, fall back to 8-dir A* (no corner-cut),
-# then string-pull the result so the polyline only bends where it must.
-
-const LOS_STEP_PX := 6.0  # how often to sample cells along a segment
+const LOS_STEP_PX := 6.0
 
 const NEIGHBORS_8 := [
 	{"d": Vector2i(1, 0),  "cost": 10, "checks": []},
@@ -22,9 +18,6 @@ const NEIGHBORS_8 := [
 
 const NEIGHBORS_4 := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
-# Orthogonal (4-directional, grid-aligned) path for the ROAD render only — clean L
-# corners, no diagonals, to match the mockup. Mobs still walk compute_full_path (which
-# takes diagonal shortcuts). Collinear runs are collapsed so corners land only at turns.
 static func compute_orthogonal_path(start: Vector2i, waypoints: Array, goal: Vector2i, blocked: Dictionary) -> PackedVector2Array:
 	var cells: Array = [start]
 	var current := start
@@ -43,7 +36,6 @@ static func compute_orthogonal_path(start: Vector2i, waypoints: Array, goal: Vec
 		out.append(GridScript.cell_to_world(c))
 	return out
 
-# Keep only cells where the travel direction changes (turns); drop straight-run interiors.
 static func _collapse_collinear(cells: Array) -> Array:
 	if cells.size() <= 2:
 		return cells
@@ -85,8 +77,6 @@ static func _astar_4(start: Vector2i, goal: Vector2i, blocked: Dictionary) -> Ar
 static func _manhattan(a: Vector2i, b: Vector2i) -> int:
 	return 10 * (absi(a.x - b.x) + absi(a.y - b.y))
 
-# Returns world-space polyline: entry → (... detour vertices ...) → cp1 → ... → exit.
-# Returns empty PackedVector2Array if any segment is impassable.
 static func compute_full_path(start: Vector2i, waypoints: Array, goal: Vector2i, blocked: Dictionary) -> PackedVector2Array:
 	var pts := PackedVector2Array()
 	pts.append(GridScript.cell_to_world(start))
@@ -97,14 +87,11 @@ static func compute_full_path(start: Vector2i, waypoints: Array, goal: Vector2i,
 		var seg := _segment_polyline(current, next_stop, blocked)
 		if seg.is_empty():
 			return PackedVector2Array()
-		# seg[0] == current's world pos; already appended.
 		for i in range(1, seg.size()):
 			pts.append(seg[i])
 		current = next_stop
 	return pts
 
-# Returns world-space polyline from `from` cell to `to` cell, going around towers
-# if (and only if) the straight line crosses any.
 static func _segment_polyline(from: Vector2i, to: Vector2i, blocked: Dictionary) -> PackedVector2Array:
 	var from_w := GridScript.cell_to_world(from)
 	var to_w := GridScript.cell_to_world(to)
@@ -118,8 +105,6 @@ static func _segment_polyline(from: Vector2i, to: Vector2i, blocked: Dictionary)
 		world_pts.append(GridScript.cell_to_world(c))
 	return _string_pull(world_pts, blocked)
 
-# True if the straight segment from a to b doesn't pass through a blocked cell.
-# Endpoints are exempt — they're waypoints themselves.
 static func _line_of_sight(a: Vector2, b: Vector2, blocked: Dictionary) -> bool:
 	var d := a.distance_to(b)
 	var steps: int = maxi(2, int(d / LOS_STEP_PX))
@@ -131,8 +116,6 @@ static func _line_of_sight(a: Vector2, b: Vector2, blocked: Dictionary) -> bool:
 			return false
 	return true
 
-# 8-directional A*, no corner-cutting through diagonally-adjacent towers.
-# Returns Array[Vector2i].
 static func _astar_8(start: Vector2i, goal: Vector2i, blocked: Dictionary) -> Array:
 	if start == goal:
 		return [start]
@@ -152,10 +135,8 @@ static func _astar_8(start: Vector2i, goal: Vector2i, blocked: Dictionary) -> Ar
 			var neighbor: Vector2i = current + d
 			if not GridScript.in_bounds(neighbor):
 				continue
-			# Allow start/goal even if "blocked" (shouldn't happen — they're reserved).
 			if neighbor != goal and neighbor != start and blocked.has(neighbor):
 				continue
-			# No corner-cutting: both flanking orthogonals must be clear.
 			var corner_blocked := false
 			for c in n.checks:
 				if blocked.has(current + c):
@@ -172,7 +153,6 @@ static func _astar_8(start: Vector2i, goal: Vector2i, blocked: Dictionary) -> Ar
 					open.append(neighbor)
 	return []
 
-# String-pull: collapse intermediate vertices whose removal still leaves LOS.
 static func _string_pull(pts: PackedVector2Array, blocked: Dictionary) -> PackedVector2Array:
 	if pts.size() <= 2:
 		return pts
@@ -186,7 +166,6 @@ static func _string_pull(pts: PackedVector2Array, blocked: Dictionary) -> Packed
 	result.append(pts[pts.size() - 1])
 	return result
 
-# Octile heuristic — matches 10/14 move costs.
 static func _octile(a: Vector2i, b: Vector2i) -> int:
 	var dx: int = absi(a.x - b.x)
 	var dy: int = absi(a.y - b.y)

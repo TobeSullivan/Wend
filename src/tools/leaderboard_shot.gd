@@ -1,14 +1,6 @@
 extends Control
 
-# Throwaway capture harness for the leaderboard browse screen. Sets a SAMPLE backend (so the
-# board looks populated, like Nakama would) and screenshots each category. Run WINDOWED (not
-# headless — headless renders blank): point run/main_scene here, or
-#   Godot.exe --path src res://tools/leaderboard_shot.tscn
-# Root is a Control filling the viewport so the Browse child's full-rect anchors + grass
-# backdrop resolve against the screen (a Node2D root left them unsized).
-
 const BrowseScript := preload("res://scripts/leaderboard_browse.gd")
-const LeaderboardService := preload("res://scripts/leaderboard_service.gd")
 const PveSelectScript := preload("res://scripts/pve_select.gd")
 const MapResourceScript := preload("res://resources/map_resource.gd")
 
@@ -33,8 +25,6 @@ func _run() -> void:
 	await _settle()
 	await _shot("leaderboard_campaign.png")
 
-	# Surface 4: the Trials-select cards (renamed Thread→Knot + inline rank). Seed a couple of
-	# best scores IN MEMORY (no save() — never touches disk) so the rank chips show.
 	_browse.queue_free()
 	var today := LeaderboardService.window_date(MapResourceScript.WindowType.DAILY)
 	SaveData.data.pve_best_scores["%s|1" % today] = 940100
@@ -51,10 +41,10 @@ func _settle() -> void:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 
-func _shot(name: String) -> void:
+func _shot(filename: String) -> void:
 	var img := get_viewport().get_texture().get_image()
-	img.save_png(OUT_DIR + name)
-	print("SHOT ", name)
+	img.save_png(OUT_DIR + filename)
+	print("SHOT ", filename)
 
 class SampleBackend extends RefCounted:
 	func fetch_trials(_board_id: String, _my_score: int) -> Dictionary:

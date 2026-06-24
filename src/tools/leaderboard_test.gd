@@ -1,15 +1,5 @@
 extends Node2D
 
-# Leaderboard verification harness (notes/leaderboard_ui_spec.md + leaderboard_schema.md).
-# PASS 1: LeaderboardService store-independent logic — board-id naming, scale/window names,
-#         ranked tier→band math, reset countdown text.
-# PASS 2: LocalBackend honesty — empty boards with no data; your single own-entry once a
-#         Trials score exists; ranked/campaign empty.
-# PASS 3: wiring — with an injected sample backend, the board-browse screen renders rows for
-#         every category (Trials/Ranked/Campaign) and survives category + selection switches.
-# Drive headlessly: godot --headless --path src res://tools/leaderboard_test.tscn
-
-const LeaderboardService := preload("res://scripts/leaderboard_service.gd")
 const BrowseScript := preload("res://scripts/leaderboard_browse.gd")
 const MapResourceScript := preload("res://resources/map_resource.gd")
 const MapLoaderScript := preload("res://scripts/map_loader.gd")
@@ -23,7 +13,7 @@ func _ready() -> void:
 	_test_local_backend()
 	await _test_browse_wiring()
 	await _test_entry_points()
-	LeaderboardService.set_backend(null)  # restore default for anything downstream
+	LeaderboardService.set_backend(null)
 	if _fails == 0:
 		print("RESULT ✅ LEADERBOARDS OK (service logic + local backend + browse wiring)")
 	else:
@@ -40,27 +30,21 @@ func _check(label: String, got, want) -> void:
 func _check_true(label: String, cond: bool) -> void:
 	_check(label, cond, true)
 
-# --- PASS 1: pure service logic ---
-
 func _test_service_logic() -> void:
 	print("service logic:")
 	_check("scale_name(3) = Tangle", LeaderboardService.scale_name(3), "Tangle")
 	_check("scale_id(5) = knot", LeaderboardService.scale_id(5), "knot")
-	var root := "trials_beta" if LeaderboardService.BETA else "trials"  # beta flag moves the id root
+	var root := "trials_beta" if LeaderboardService.BETA else "trials"
 	_check("board id format", LeaderboardService.trials_board_id(MapResourceScript.WindowType.DAILY, 3, "solo"), root + "_daily_tangle_solo")
 	_check("board id weekly/knot/quad", LeaderboardService.trials_board_id(MapResourceScript.WindowType.WEEKLY, 5, "quad"), root + "_weekly_knot_quad")
 	_check("window_word daily", LeaderboardService.window_word(MapResourceScript.WindowType.DAILY), "today")
 	_check("window_word monthly", LeaderboardService.window_word(MapResourceScript.WindowType.MONTHLY), "this month")
-	# Ranked tier bands (value = tier_base + LP).
 	_check("value 77 → Stone 77 (sub-100)", LeaderboardService.ranked_tier(77), {"name": "Stone", "tag": "stn", "lp": 77})
 	_check("value 177 → Bronze 77", LeaderboardService.ranked_tier(177), {"name": "Bronze", "tag": "brz", "lp": 77})
 	_check("value 277 → Silver 77", LeaderboardService.ranked_tier(277), {"name": "Silver", "tag": "sil", "lp": 77})
 	_check("value 2240 → Masters 1840", LeaderboardService.ranked_tier(2240), {"name": "Masters", "tag": "mas", "lp": 1840})
-	# Countdown text is computed (non-empty, well-formed) for each window.
 	for wt in [MapResourceScript.WindowType.DAILY, MapResourceScript.WindowType.WEEKLY, MapResourceScript.WindowType.MONTHLY]:
 		_check_true("reset text non-empty (window %d)" % wt, LeaderboardService.window_reset_text(wt).begins_with("resets in "))
-
-# --- PASS 2: LocalBackend (honest empty / own-entry) ---
 
 func _test_local_backend() -> void:
 	print("local backend:")
@@ -72,20 +56,16 @@ func _test_local_backend() -> void:
 	_check("ranked unranked offline (you=null)", lb.fetch_ranked(1)["you"], null)
 	_check("campaign empty offline", lb.fetch_campaign(1), {"entries": [], "my_score": 0})
 
-# --- PASS 3: browse wiring with a sample (Nakama-stand-in) backend ---
-
 func _test_browse_wiring() -> void:
 	print("browse wiring (sample backend):")
 	LeaderboardService.set_backend(SampleBackend.new())
 	var browse = BrowseScript.new()
 	add_child(browse)
-	await _wait(0.1)  # let _ready build the default (Trials) view
+	await _wait(0.1)
 
-	# Trials renders rows + a jump divider (rank gap 3→13).
 	_check_true("Trials list populated", _list_count(browse) > 0)
 	_check_true("Trials has a jump divider", _has_divider(browse))
 
-	# Switch categories — each must rebuild without error and produce content.
 	browse._set_category(browse.Cat.RANKED)
 	await _wait(0.05)
 	_check_true("Ranked list populated", _list_count(browse) > 0)
@@ -94,27 +74,22 @@ func _test_browse_wiring() -> void:
 	await _wait(0.05)
 	_check_true("Campaign list populated", _list_count(browse) > 0)
 
-	# Back to Trials, change a selector (scale) — exercises _select rebuild path.
 	browse._set_category(browse.Cat.TRIALS)
 	browse._select(func(): browse._tier = 5)
 	await _wait(0.05)
 	_check_true("Trials rebuilt after scale switch", _list_count(browse) > 0)
 	browse.queue_free()
 
-# --- PASS 4: entry points (Surface 4 select cards, Surface 1 post-match block) ---
-
 func _test_entry_points() -> void:
 	print("entry points:")
 	LeaderboardService.set_backend(SampleBackend.new())
 
-	# Surface 4: the Trials-select screen builds (renamed cards + inline rank path).
 	var select = PveSelectScript.new()
 	add_child(select)
 	await _wait(0.1)
 	_check_true("Trials-select screen builds", select.is_inside_tree())
 	select.queue_free()
 
-	# Surface 1: a PVE match wires lb_ctx onto the match-end panel; campaign does not.
 	var pve_host := Node2D.new()
 	add_child(pve_host)
 	MapLoaderScript.build_match(pve_host, MapGeneratorScript.generate(7, 3, MapResourceScript.Mode.PVE), 1, 0, false)
@@ -156,10 +131,6 @@ func _has_divider(browse) -> bool:
 func _wait(seconds: float) -> void:
 	await get_tree().create_timer(seconds).timeout
 
-
-# Sample backend: stands in for Nakama so the UI can be verified against full boards. Never
-# ships — the shipping default is LeaderboardService.LocalBackend. Duck-typed (the service
-# only calls these method names), so no inheritance coupling.
 class SampleBackend extends RefCounted:
 	func fetch_trials(_board_id: String, _my_score: int) -> Dictionary:
 		return {"my_rank": 14, "entries": [
@@ -180,7 +151,7 @@ class SampleBackend extends RefCounted:
 	func fetch_trials_rank(_board_id: String, _my_score: int) -> Dictionary:
 		return {"rank": 14}
 	func fetch_trials_seeds() -> Dictionary:
-		return {}  # empty → callers fall back to the local window-identity derivation
+		return {}
 	func fetch_ranked(_season: int) -> Dictionary:
 		return {
 			"season_label": "Season 2 · live", "reset_text": "18 days left",

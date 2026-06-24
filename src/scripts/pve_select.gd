@@ -1,35 +1,25 @@
 extends Control
 
-# Solo PVE map select (DESIGN_MODES "Navigation from PVE", solo path). Each time
-# window — Daily / Weekly / Monthly — offers five curated seeded maps (Scale 1–5).
-# Maps are seeded from the window's identity (today's date / this week / this
-# month), so each set is stable for its window and rolls over when the window
-# does, and the three windows never share a map. Local-only, no backend:
-# leaderboards and group lobbies are still deferred; only a local best is shown.
-
 const UiStyle := preload("res://scripts/ui_style.gd")
 const StarRatingScript := preload("res://scripts/star_rating.gd")
 const MapGen := preload("res://scripts/map_generator.gd")
 const MapResourceScript := preload("res://resources/map_resource.gd")
-const LeaderboardService := preload("res://scripts/leaderboard_service.gd")
 const Motion := preload("res://scripts/motion.gd")
 
-# A distinct seed salt per window so Daily/Weekly/Monthly can never collide even
-# if their identity hashes land near each other.
 const WINDOW_SALT := {
 	MapResourceScript.WindowType.DAILY: 0,
 	MapResourceScript.WindowType.WEEKLY: 1_000_003,
 	MapResourceScript.WindowType.MONTHLY: 2_000_003,
 }
-const WEEK_SECONDS := 604800.0  # 7 * 86400
+const WEEK_SECONDS := 604800.0
 
-var _windows: Dictionary = {}   # WindowType -> Array of 5 MapResources (Scale 1–5)
+var _windows: Dictionary = {}
 var _current: int = MapResourceScript.WindowType.DAILY
 
 var _title: Label
 var _subtitle: Label
 var _list_box: VBoxContainer
-var _tab_buttons: Dictionary = {}  # WindowType -> Button
+var _tab_buttons: Dictionary = {}
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -40,26 +30,18 @@ func _ready() -> void:
 	_build_list_container()
 	_show_window(MapResourceScript.WindowType.DAILY)
 
-# --- Window identity + generation ---
-
-# Each window's five maps are seeded from the SERVER-owned per-window seeds (schema §3) so every
-# player that window shares the same five maps and a client can't pick an easy one. Offline (or
-# pre-Nakama) it falls back to the local window-identity derivation — deterministic per window,
-# just not server-authoritative.
 func _generate_all_windows() -> void:
 	var server: Dictionary = await LeaderboardService.trials_seeds()
 	for wt in [MapResourceScript.WindowType.DAILY, MapResourceScript.WindowType.WEEKLY, MapResourceScript.WindowType.MONTHLY]:
 		var meta: Dictionary = _window_meta(wt)
 		var server_seeds: Array = server.get(LeaderboardService.WINDOW_IDS.get(wt, ""), [])
-		var base: int = hash(meta.date) + int(WINDOW_SALT[wt])  # local fallback base
+		var base: int = hash(meta.date) + int(WINDOW_SALT[wt])
 		var maps: Array = []
 		for tier in range(1, 6):
 			var map_seed: int = int(server_seeds[tier - 1]) if server_seeds.size() >= 5 else base + tier * 1013
 			maps.append(MapGen.generate(map_seed, tier, MapResourceScript.Mode.PVE, wt, meta.date))
 		_windows[wt] = maps
 
-# Returns {date, label, sub} for a window. `date` is the stable per-window key
-# used for both seeding and local score storage, so the three never overlap.
 func _window_meta(window_type: int) -> Dictionary:
 	var d := Time.get_date_dict_from_system()
 	match window_type:
@@ -70,8 +52,6 @@ func _window_meta(window_type: int) -> Dictionary:
 			return {"date": "%04d-%02d" % [d.year, d.month], "label": "Monthly", "sub": "Five maps, Scale 1–5. New set each month."}
 		_:
 			return {"date": "%04d-%02d-%02d" % [d.year, d.month, d.day], "label": "Daily", "sub": "Five maps, Scale 1–5. New set each day. Solo run for high score."}
-
-# --- Layout ---
 
 func _build_background() -> void:
 	UiStyle.menu_backdrop(self)
@@ -123,15 +103,13 @@ func _build_tabs() -> void:
 func _build_list_container() -> void:
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	center.offset_top = 60  # nudge below the tab bar
+	center.offset_top = 60
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(center)
 
 	_list_box = VBoxContainer.new()
 	_list_box.add_theme_constant_override("separation", 12)
 	center.add_child(_list_box)
-
-# --- Window switching ---
 
 func _show_window(window_type: int) -> void:
 	_current = window_type
@@ -150,8 +128,6 @@ func _show_window(window_type: int) -> void:
 		cards.append(c)
 	_cascade_cards(cards)
 
-# JUICE (meta_menu_mock): the scale cards cascade in, staggered, on load + each tab switch.
-# Scale + fade (not position) so the VBoxContainer can't stomp them. Armed transparent first.
 func _cascade_cards(cards: Array) -> void:
 	for c in cards:
 		c.modulate.a = 0.0
@@ -169,8 +145,6 @@ func _do_cascade_cards(cards: Array) -> void:
 
 func _map_card(map) -> Control:
 	var tier: int = map.scale_tier
-	# Best + live rank for this map's board (rank 0 = unplayed). Offline the LocalBackend
-	# reports rank 1 once you've posted a score; Nakama returns the real global rank later.
 	var rinfo: Dictionary = await LeaderboardService.trials_rank(_current, tier)
 	var best: int = int(rinfo.get("best", 0))
 	var rank: int = int(rinfo.get("rank", 0))
@@ -199,7 +173,6 @@ func _map_card(map) -> Control:
 	info.add_child(_label("Rounds %d   ·   Supply %d   ·   Checkpoints %d   ·   Zones %d   ·   Mobs %d" % [
 		map.round_count, map.supply_cap, map.checkpoint_cells.size(), map.bonus_zones.size(), map.mob_count], 14, UiStyle.LABEL_COL))
 
-	# Best score with a gold star ("no score yet" + no star if unplayed).
 	var best_row := HBoxContainer.new()
 	best_row.add_theme_constant_override("separation", 6)
 	if best > 0:
@@ -210,8 +183,6 @@ func _map_card(map) -> Control:
 	best_row.add_child(_label("Best: %d" % best if best > 0 else "No score yet", 14, Color(1.0, 0.9, 0.5)))
 	info.add_child(best_row)
 
-	# Inline live rank — both informs and is the tap target into the board for this scale +
-	# window (notes/leaderboard_ui_spec.md Surface 4). "unplayed" text when there's no rank.
 	if rank > 0:
 		var rank_btn := Button.new()
 		rank_btn.text = "#%d  ›" % rank
@@ -237,7 +208,6 @@ func _map_card(map) -> Control:
 	return panel
 
 func _tier_color(tier: int) -> Color:
-	# Cool (easy) to warm (hard) across Scale 1–5.
 	return Color(0.45, 0.85, 0.5).lerp(Color(1.0, 0.45, 0.35), (tier - 1) / 4.0)
 
 func _label(text: String, font_size: int, color: Color) -> Label:

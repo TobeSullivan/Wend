@@ -1,10 +1,5 @@
 extends Control
 
-# Star tier display (design/VISUAL_SYSTEM.md: medals → stars). Draws `total` stars,
-# the first `filled` of them gold, the rest as dim hollow outlines. Pure _draw — no
-# textures — so it renders identically in any checkout regardless of the gitignored
-# art pack. 3★ = gold, 2★ = silver, 1★ = bronze, 0★ = unattempted.
-
 var total: int = 3
 var filled: int = 0
 var star_size: float = 22.0
@@ -15,7 +10,6 @@ const GOLD_EDGE := Color("7a5a14")
 const EMPTY := Color(0.0, 0.0, 0.0, 0.28)
 const EMPTY_EDGE := Color(0.0, 0.0, 0.0, 0.45)
 
-# Map a saved medal name to a filled-star count.
 static func filled_for_medal(medal: String) -> int:
 	match medal:
 		"gold": return 3

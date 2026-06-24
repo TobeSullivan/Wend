@@ -1,29 +1,20 @@
 extends Node
 class_name LobbyClient
 
-# Client side of the Nakama forming lobby (phase 3c). After the Matchmaker pops (matched.match_id),
-# the client joins that authoritative "lobby" match; it then receives lobby state (X/N + who has
-# voted), can cast a launch vote, and finally receives GO — the (match_id, host, port) of the Godot
-# match-server room to JOIN_ROOM into (phase 3d). Authority stays in the Godot server; this lobby
-# only forms the group.
-
-signal lobby_state(info)   # {count, max, floor, mode, present, voted, you_voted}
-signal launched(info)      # {match_id, host, port} — go join the Godot room
+signal lobby_state(info)
+signal launched(info)
 signal closed(reason)
 
 const OP_VOTE := 1
 const OP_LOBBY_STATE := 2
 const OP_GO := 3
-const OP_HELLO := 4   # C->S: { mmr } — the player's hidden MMR, so the lobby can average it (ranked)
+const OP_HELLO := 4
 
 var _socket
 var _match_id := ""
 var _my_id := ""
 var _joined := false
 
-# my_mmr: the player's hidden MMR (ranked). > 0 announces it to the lobby via OP_HELLO so the
-# launch can carry the lobby-average MMR in GO (the net-positive anchor); 0 (the default, for
-# non-ranked / test callers) sends nothing and the server falls back to its seed.
 func join(socket, match_id: String, my_user_id: String, my_mmr: float = 0.0) -> bool:
 	_socket = socket
 	_match_id = match_id

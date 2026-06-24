@@ -1,11 +1,5 @@
 extends Control
 
-# PVP queue + forming-lobby UI (phase 3d). Drives a QueueController: press Find Match → Nakama
-# matchmaker → forming lobby (X/8 + launch vote) → on launch the controller connects to the Godot
-# match-server room and starts the networked match (the scene changes itself). The old
-# single-shared-lobby / connect-by-IP model is gone — Nakama forms the group, the dedicated Godot
-# server hosts the room (notes/matchmaking_orchestration.md, notes/remote_beta_plan.md).
-
 const UiStyle := preload("res://scripts/ui_style.gd")
 const QueueControllerScript := preload("res://scripts/queue_controller.gd")
 
@@ -31,10 +25,6 @@ func _ready() -> void:
 	_build_ui()
 	_name_edit.text = SceneManager.last_player_name
 	_show(_idle_box)
-
-# ============================================================================
-# UI
-# ============================================================================
 
 func _build_ui() -> void:
 	var center := CenterContainer.new()
@@ -149,10 +139,6 @@ func _show(box) -> void:
 	_queue_box.visible = (box == _queue_box)
 	_lobby_box.visible = (box == _lobby_box)
 
-# ============================================================================
-# Actions
-# ============================================================================
-
 func _on_find_pressed() -> void:
 	SceneManager.last_player_name = _my_name()
 	_status.text = "Connecting…"
@@ -165,10 +151,6 @@ func _on_vote_pressed() -> void:
 	_queue.vote()
 	_vote_btn.disabled = true
 	_vote_hint.text = "Waiting for everyone to launch…"
-
-# ============================================================================
-# QueueController signals
-# ============================================================================
 
 func _on_phase(phase, info) -> void:
 	match phase:
@@ -202,7 +184,6 @@ func _on_lobby_update(info: Dictionary) -> void:
 	for uid in info.get("present", []):
 		_present.add_child(_label(String(uid).substr(0, 8) + ("   ✓" if voted.has(uid) else ""), 14, Color.WHITE))
 
-	# Vote is offered only at floor..max-1; at max the server auto-launches (no vote).
 	_vote_btn.visible = count < maxp
 	_vote_btn.disabled = not (count >= floorp and count < maxp and not you_voted)
 	if count < floorp:
@@ -213,10 +194,6 @@ func _on_lobby_update(info: Dictionary) -> void:
 		_vote_hint.text = "You voted, waiting for everyone present"
 	else:
 		_vote_hint.text = "Everyone present must vote to launch now"
-
-# ============================================================================
-# Helpers
-# ============================================================================
 
 func _my_name() -> String:
 	var n := _name_edit.text.strip_edges()

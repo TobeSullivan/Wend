@@ -47,6 +47,12 @@ Even illustrative snippets stay small and clearly marked. The user switches to C
 ### Research is fair game
 Market research, competitor analysis, IP/legal framing, mechanic references — all in scope. Use web search liberally for current data.
 
+### No comments in code
+Write code without explanatory comments — clear names and structure carry the intent. Don't add comments unless explicitly asked. Applies to new code; don't strip existing comments unless asked to.
+
+### No shadowing
+Never name a variable, parameter, or member after a GDScript global (`seed`, `range`, `sign`, `wrap`, `log`, `step`, `hash`, `min`, `max`, `len`, `abs`, `pow`, `load`, `char`, …) or an inherited base-class member (`name`, `position`, `scale`, `rotation`, `owner`, `size`, …). These trip the analyzer's shadow warnings. Qualify the name instead — `map_seed`, `decay_step`, `text_wrap`, `prop_name`.
+
 ---
 
 ## Wrap deploy — ALWAYS produce the push command

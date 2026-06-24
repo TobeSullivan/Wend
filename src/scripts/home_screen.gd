@@ -1,23 +1,14 @@
 extends Control
 
-# Home screen (design/VISUAL_SYSTEM.md "Home"). Hierarchy by SIZE, not colour: PVE and
-# PVP are two equal large hero buttons, centre; Campaign is a smaller, lower-contrast
-# tertiary button below (it's the tutorial). A slim ambient season strip sits top-centre;
-# Settings is top-right, Quit bottom-left. Everything floats on the inert grass backdrop.
-
 const UiStyle := preload("res://scripts/ui_style.gd")
 const Motion := preload("res://scripts/motion.gd")
 
 var _settings
 const SettingsPanelScript := preload("res://scripts/settings_panel.gd")
 
-# Break-the-grid attitude (design/JUICE.md + meta_menu_mock): the two heroes tilt and offset
-# off-axis. Each hero lives in a plain Control "slot" the HBox manages, positioned freely
-# inside so it can offset + animate (a container would stomp a child's position).
 const HERO_TILT := -2.5
 const HERO_OFFSET_Y := 12.0
 
-# Entrance refs (armed transparent, then arrive on match-the-mock staggered delays).
 var _season_pill: Control
 var _title: Label
 var _subtitle: Label
@@ -37,23 +28,16 @@ func _ready() -> void:
 	_build_corner_leaderboards()
 	_build_corner_quit()
 
-	# JUICE entrance (meta_menu_mock): arm everything transparent BEFORE the first frame, then
-	# arrive staggered — season drops in, heroes arrive off-axis, campaign rises, corners fade.
 	for n in [_season_pill, _title, _subtitle, _hero_trials, _hero_ranked, _campaign_btn] + _corner_buttons:
 		if n != null:
 			n.modulate.a = 0.0
 	_play_home_arrival.call_deferred()
 
 func _play_home_arrival() -> void:
-	_seat_heroes()  # set the heroes' resting off-axis positions BEFORE slide_in caches them
-	# Title/subtitle + season ease in first; the heroes earn the long arrive (they're the focus),
-	# dropping into their off-axis resting offsets; campaign rises; corners fade in last.
+	_seat_heroes()
 	Motion.fade_in(_season_pill, Motion.M)
 	Motion.fade_in(_title, Motion.M, Motion.dur(0.05))
 	Motion.fade_in(_subtitle, Motion.M, Motion.dur(0.10))
-	# Heroes drop into their off-axis offsets — they live in plain Control slots (not a
-	# container), so a position slide holds. The campaign button is in the centre VBox, so it
-	# rides scale+fade (a container would stomp a position tween).
 	if _hero_trials != null:
 		Motion.slide_in(_hero_trials, Vector2(0, 34), Motion.L, Motion.dur(0.16))
 	if _hero_ranked != null:
@@ -72,8 +56,6 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 func _build_season_strip() -> void:
-	# Ambient context AND the home's door into the Season track (the "home widget" surface,
-	# design/COSMETICS.md): a slim pill with live tier + progress; click opens the Season screen.
 	var pill := PanelContainer.new()
 	_season_pill = pill
 	pill.add_theme_stylebox_override("panel", UiStyle.pill_box())
@@ -137,8 +119,6 @@ func _build_center() -> void:
 
 	vbox.add_child(_spacer(20))
 
-	# PVE and PVP: two equal hero buttons, off-axis (break-the-grid attitude). Each sits in a
-	# plain Control slot so it can offset + animate freely (the HBox manages only the slots).
 	var heroes := HBoxContainer.new()
 	heroes.add_theme_constant_override("separation", 18)
 	heroes.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -151,7 +131,6 @@ func _build_center() -> void:
 
 	vbox.add_child(_spacer(8))
 
-	# Campaign — clearly tertiary: smaller, lower contrast, set apart from PVE/PVP.
 	_campaign_btn = Button.new()
 	_campaign_btn.text = "Campaign  ·  Tutorial"
 	_campaign_btn.custom_minimum_size = Vector2(240, 0)
@@ -161,8 +140,6 @@ func _build_center() -> void:
 	_campaign_btn.pressed.connect(func(): SceneManager.goto_campaign_select())
 	vbox.add_child(_campaign_btn)
 
-# A plain Control slot the HBox manages; the hero is positioned + tilted freely inside it
-# (a container would stomp a child's position, so the off-axis offset + the drop-in need this).
 func _hero_slot(hero: Button) -> Control:
 	var slot := Control.new()
 	slot.custom_minimum_size = Vector2(300, 120 + 2.0 * HERO_OFFSET_Y)
@@ -170,8 +147,6 @@ func _hero_slot(hero: Button) -> Control:
 	slot.add_child(hero)
 	return slot
 
-# Seat each hero at its resting off-axis position + tilt (after layout, so sizes are real).
-# Trials rides high, Ranked rides low; both tilt the same few degrees off-grid.
 func _seat_heroes() -> void:
 	_seat_hero(_hero_trials, -HERO_OFFSET_Y)
 	_seat_hero(_hero_ranked, HERO_OFFSET_Y)
@@ -189,11 +164,9 @@ func _hero_button(title: String, sub: String, on_pressed: Callable) -> Button:
 	b.custom_minimum_size = Vector2(300, 120)
 	b.add_theme_font_size_override("font_size", 30)
 	UiStyle.style_hero_button(b)
-	# Two-line label: big title over a small subtitle.
 	b.text = title
 	b.autowrap_mode = TextServer.AUTOWRAP_OFF
 	b.pressed.connect(on_pressed)
-	# Subtitle as a child label pinned under the title text.
 	var sub_lbl := _label(sub, 14, UiStyle.LABEL_COL)
 	sub_lbl.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	sub_lbl.offset_bottom = -14
@@ -235,7 +208,6 @@ func _build_corner_leaderboards() -> void:
 	add_child(lb)
 	_corner_buttons.append(lb)
 
-	# Collection sits above Leaderboards — same corner stack, same weight.
 	var col := Button.new()
 	col.text = "Collection"
 	col.add_theme_font_size_override("font_size", 15)

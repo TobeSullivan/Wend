@@ -1,48 +1,27 @@
 extends RefCounted
 class_name NetProtocol
 
-# Wire message shapes for PVP netcode. Messages are plain Dictionaries with a "t"
-# (type) field; transports move them verbatim (see match_transport.gd). The set is
-# deliberately tiny — the match is round-barrier synchronized, so only build inputs,
-# the shared clock, ready votes, and per-round kill tallies ever cross the wire
-# (notes/multiplayer_architecture.md §0).
-#
-# Direction key: C→H client→host(authority), H→C host→clients, both = either way.
-
-# --- Room join (rooms model: Nakama forms the lobby, then points clients here) ---
-# C→H: {match_id, name, expected, tier?}. The client connects to the match server and declares
-# which room (match_id) it is joining. The server groups peers by match_id into isolated rooms
-# and auto-starts a room once `expected` members have joined. START_MATCH is then sent per-peer
-# carrying that peer's seat. (Nakama supplies match_id/expected in phase 3d.)
 const JOIN_ROOM := "join_room"
 
-# --- Lobby (pre-match) — LEGACY single-lobby flow, superseded by JOIN_ROOM + Nakama (3b–3d).
-# SET_NAME/PLAY/LOBBY_STATE belong to the old one-shared-lobby server; kept until the client
-# join path is rebuilt on Nakama. The room router does NOT use them.
-const LOBBY_STATE := "lobby_state"   # H→C: {players:[{id,name,seat}], host_id, count, countdown}
-const SET_NAME := "set_name"         # C→H: {name}
-const START_MATCH := "start_match"   # H→C: {seed, tier, count, seat, names:[...]}
-const PLAY := "play"                 # C→H: the lobby leader asks the dedicated server to start
+const LOBBY_STATE := "lobby_state"
+const SET_NAME := "set_name"
+const START_MATCH := "start_match"
+const PLAY := "play"
 
-# --- In-match: build phase ---
-const BUILD_INPUT := "build_input"   # both: {seat, action, cell?, stat?}  (host relays C→H to all)
-const READY := "ready"               # C→H: {seat, value}
+const BUILD_INPUT := "build_input"
+const READY := "ready"
 
-# --- In-match: clock / barrier (authority owns these) ---
-const CLOCK := "clock"               # H→C: {phase, round, build_time_left}
-const RUN_DONE := "run_done"         # C→H: {seat, round, kills}
-const RESOLUTION := "resolution"     # H→C: {lives:{seat:int}, eliminated:[seat], round}
-const MATCH_END := "match_end"       # H→C: {placement:{seat:int}}
+const CLOCK := "clock"
+const RUN_DONE := "run_done"
+const RESOLUTION := "resolution"
+const MATCH_END := "match_end"
 
-# Build-input action kinds.
 const ACT_PLACE := "place"
 const ACT_SELL := "sell"
 const ACT_UPGRADE := "upgrade"
 
 const DEFAULT_PORT := 8771
 const MAX_PLAYERS := 8
-
-# --- Builders (keep call sites terse + typo-safe) ---
 
 static func build_input_place(seat: int, cell: Vector2i) -> Dictionary:
 	return {"t": BUILD_INPUT, "seat": seat, "action": ACT_PLACE, "cell": cell}

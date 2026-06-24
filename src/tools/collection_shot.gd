@@ -1,11 +1,5 @@
 extends Control
 
-# Throwaway capture of the Collection profile card, to tune the wood frame/banner 9-patch.
-# Run WINDOWED (headless renders blank):
-#   Godot.exe --path src res://tools/collection_shot.tscn
-# Grants all cosmetics + equips a wood frame and a coloured banner so both tints show,
-# boots the real Collection scene, saves a settled frame, restores the save.
-
 const DIR := "C:/dev/Maze Battle TD/"
 var _saved
 

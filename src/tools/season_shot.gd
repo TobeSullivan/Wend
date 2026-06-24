@@ -1,7 +1,5 @@
 extends Control
 
-# Throwaway capture of the Season screen Tasks view (run + view).
-#   Godot.exe --path src res://tools/season_shot.tscn
 const DIR := "C:/dev/Maze Battle TD/"
 const TaskCat := preload("res://scripts/task_catalog.gd")
 var _saved_t; var _saved_c

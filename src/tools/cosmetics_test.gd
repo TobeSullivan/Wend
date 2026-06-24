@@ -1,13 +1,5 @@
 extends Node
 
-# Cosmetics verification harness (design/COSMETICS.md + design/SEASON.md).
-# PASS 1: catalog integrity — every track id resolves, 30 tiers, art paths exist,
-#         and the design invariants hold (NO prestige on the track; milestones = towers).
-# PASS 2: track math — tier unlocks, states, next-reward.
-# PASS 3: save round-trip — grant / equip / claim against SaveData (state restored after).
-# PASS 4: both screens instantiate and build against a mid-season save without errors.
-# Drive headlessly: godot --headless --path src res://tools/cosmetics_test.tscn
-
 const Catalog := preload("res://scripts/cosmetics_catalog.gd")
 
 var _fails := 0
@@ -32,8 +24,6 @@ func _check(label: String, got, want) -> void:
 
 func _check_true(label: String, cond: bool) -> void:
 	_check(label, cond, true)
-
-# --- PASS 1: catalog integrity --------------------------------------------------
 
 func _test_catalog() -> void:
 	print("catalog:")
@@ -77,8 +67,6 @@ func _test_catalog() -> void:
 	for slot in ["tower", "board", "zone", "proj", "mob", "frame", "banner"]:
 		_check_true("default equipped covers %s" % slot, eq.has(slot))
 
-# --- PASS 2: track math ----------------------------------------------------------
-
 func _test_track_math() -> void:
 	print("track math:")
 	_check("0 pts → tier 0", Catalog.unlocked_tier(0), 0)
@@ -92,8 +80,6 @@ func _test_track_math() -> void:
 	_check("state: beyond next = locked", Catalog.tier_state(3, 1000, [1]), "locked")
 	_check("next reward skips claimed", Catalog.next_reward_tier(2000, [1]), 2)
 	_check("next reward at zero = tier 1", Catalog.next_reward_tier(0, []), 1)
-
-# --- PASS 3: save round-trip ------------------------------------------------------
 
 func _test_save_roundtrip() -> void:
 	print("save round-trip:")
@@ -111,7 +97,6 @@ func _test_save_roundtrip() -> void:
 	_check("points accumulate", SaveData.season_points(), 2500)
 	_check("2500 pts unlocks tier 2", Catalog.unlocked_tier(SaveData.season_points()), 2)
 
-	# Claim tier 1 the way the Season screen does.
 	for id in Catalog.tier_items(1):
 		SaveData.grant_cosmetic(id)
 	SaveData.claim_season_tier(1)
@@ -128,15 +113,12 @@ func _test_save_roundtrip() -> void:
 	var done: Vector2i = Catalog.slot_completion("title", owned)
 	_check("title slot completion counts the claim", done.x, 1)
 
-	SaveData.data["cosmetics"] = saved  # restore (don't leak test state into the save file)
+	SaveData.data["cosmetics"] = saved
 	SaveData.save()
-
-# --- PASS 4: the two screens build ------------------------------------------------
 
 func _test_screens() -> void:
 	print("screens:")
 	var saved = SaveData.data.get("cosmetics", {}).duplicate(true)
-	# A believable mid-season save: tier 12, tiers 1-9 claimed, a few things equipped.
 	var owned: Array = []
 	for t in range(1, 10):
 		for id in Catalog.tier_items(t):

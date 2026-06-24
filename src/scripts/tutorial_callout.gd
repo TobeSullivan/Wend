@@ -1,29 +1,19 @@
 extends CanvasLayer
 class_name TutorialCallout
 
-# Tutorial beat presentation (design/CAMPAIGN.md "Tutorial-beat system"). Two forms:
-#  • toast — a non-blocking card near the bottom-center (or leaning toward an anchor
-#    region), dismissed only when the player taps it — no auto-timeout (tutorial tips wait
-#    for the player; polish_punchlist "dismissable-only"). Does NOT pause the game.
-#  • blocking modal — a dimmed backdrop + centered card + "Got it" button that pauses the
-#    tree until acknowledged (single-player pauses; only M1's opener uses this).
-# No literal pointer-arrows yet — `anchor` only nudges the toast's screen position.
-
 const UiStyle := preload("res://scripts/ui_style.gd")
 
 const CARD_MAX_W := 520.0
 
-signal acknowledged   # emitted when a blocking beat is dismissed (director chains the next)
+signal acknowledged
 
 var _toast: Control = null
 var _modal: Control = null
 
 func _ready() -> void:
-	layer = 50  # above the in-match HUD
-	process_mode = Node.PROCESS_MODE_ALWAYS  # button must work while the tree is paused
+	layer = 50
+	process_mode = Node.PROCESS_MODE_ALWAYS
 
-# Non-blocking callout. `anchor` nudges position; replaces any current toast. Stays until the
-# player taps it — no auto-timeout (polish_punchlist "dismissable-only").
 func show_toast(text: String, anchor: String = "") -> void:
 	_dismiss_toast()
 	var p := _panel_with_text(text)
@@ -32,13 +22,11 @@ func show_toast(text: String, anchor: String = "") -> void:
 	_toast = p
 	p.gui_input.connect(_on_toast_input)
 
-# Blocking modal: dim backdrop + card + "Got it". Pauses the tree; resumes + emits
-# `acknowledged` on click. Caller must be single-player (pause-safe) — campaign always is.
 func show_blocking(text: String) -> void:
 	_dismiss_toast()
 	var root := Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	root.mouse_filter = Control.MOUSE_FILTER_STOP  # swallow clicks meant for the board
+	root.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.55)
@@ -89,8 +77,6 @@ func _dismiss_toast() -> void:
 		_toast.queue_free()
 	_toast = null
 
-# --- builders ---
-
 func _panel_with_text(text: String) -> PanelContainer:
 	var p := PanelContainer.new()
 	UiStyle.apply_card(p, 16)
@@ -127,22 +113,20 @@ func _pad(m: MarginContainer, n: int) -> void:
 	m.add_theme_constant_override("margin_top", n)
 	m.add_theme_constant_override("margin_bottom", n)
 
-# Position a content-sized panel within the screen. The panel sizes to its content; we pin
-# it to an anchor point and grow inward so it never clips off-screen.
 func _anchor_panel(p: Control, anchor: String) -> void:
 	match anchor:
-		"score":  # top-right, under the HUD's score readout
+		"score":
 			p.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 			p.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 			p.grow_vertical = Control.GROW_DIRECTION_END
 			p.offset_top = 92
 			p.offset_right = -24
-		"upgrade_panel":  # right side, by the inspector dock
+		"upgrade_panel":
 			p.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
 			p.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 			p.grow_vertical = Control.GROW_DIRECTION_BOTH
 			p.offset_right = -24
-		_:  # bottom-center toast (default; covers "board", "tower", "respawn", "zone", "")
+		_:
 			p.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 			p.grow_horizontal = Control.GROW_DIRECTION_BOTH
 			p.grow_vertical = Control.GROW_DIRECTION_BEGIN

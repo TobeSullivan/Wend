@@ -1,11 +1,5 @@
 extends Control
 
-# Throwaway capture harness for the Collection + Season screens. Seeds a believable
-# mid-season save (tier 12, tiers 1-9 claimed, flair equipped), instances each real
-# screen, and saves a settled frame of both. Restores the save after. Run WINDOWED
-# (headless saves blank images):
-#   Godot.exe --path . res://tools/cosmetics_shot.tscn
-
 const Catalog := preload("res://scripts/cosmetics_catalog.gd")
 const DIR := "C:/dev/Maze Battle TD/"
 

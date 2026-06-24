@@ -1,18 +1,6 @@
 extends CanvasLayer
 class_name TowerDrawer
 
-# Tower info — a CONTEXTUAL panel (design/INMATCH_HUD.md "Tower overlay"). Shows the selected
-# tower's stats (6-row Stat·Now·Cost·[+] grid), total damage + kills, and a Sell button.
-# Hidden when nothing is selected; appears on tower-select, dismisses on click-off / Esc
-# (both already chain through build_controller's selection signals + the pause stack).
-#
-# Placement is the "in-rail with overlay fallback" model: by default it docks in the rail's
-# lower gap beneath the Buttons box (rail.tower_slot_rect); on windows too short to hold it,
-# it falls back to an over-board overlay hugging the board's top-right edge
-# (game_view.board_screen_rect). No hide button, no reserved dock. Class name + covers() +
-# public fields are kept so map_loader's wiring is unchanged. Untyped refs avoid the
-# class-name cycle pitfall.
-
 const UiLayout := preload("res://scripts/ui_layout.gd")
 const UiStyle := preload("res://scripts/ui_style.gd")
 
@@ -22,13 +10,13 @@ const STAT_LABELS := {
 	"crit_chance": "Crit", "crit_damage": "Crit dmg", "multishot": "Multishot",
 }
 const TILE_PX := 48.0
-const OVERLAY_W := 266.0   # panel width when it falls back to the over-board overlay
+const OVERLAY_W := 266.0
 const OVERLAY_PAD := 10.0
 
-var round_manager       # RoundManager
-var build_controller    # BuildController
-var game_view           # GameView — for board_screen_rect() (overlay fallback)
-var rail                # Rail — for tower_slot_rect() (in-rail dock)
+var round_manager
+var build_controller
+var game_view
+var rail
 
 var _panel: PanelContainer
 var _name_lab: Label
@@ -54,12 +42,9 @@ func _ready() -> void:
 		round_manager.phase_changed.connect(func(_p): _refresh())
 
 func _process(_delta: float) -> void:
-	# Total damage climbs during the run; refresh just that field live while shown.
 	if _panel.visible and is_instance_valid(_selected):
 		_update_damage()
 
-# A tap is "over" the panel if it lands on the visible panel (the click gate skips the board
-# there). Works in both placements since it reads the panel's current global rect.
 func covers(pos: Vector2) -> bool:
 	return _panel != null and _panel.visible and _panel.get_global_rect().has_point(pos)
 
@@ -87,7 +72,6 @@ func _build_ui() -> void:
 	v.add_theme_constant_override("separation", int(4 * s))
 	m.add_child(v)
 
-	# Header: TOWER / name / Lv n · selected
 	var head := Label.new()
 	head.text = "TOWER"
 	head.add_theme_font_size_override("font_size", int(11 * s))
@@ -106,8 +90,6 @@ func _build_ui() -> void:
 	_sub_lab.add_theme_color_override("font_color", Color("9fb088"))
 	v.add_child(_sub_lab)
 
-	# Stat rows (one shared 4-column grid: Stat · Now · Cost · [+]). Square + axis-aligned —
-	# this is read and aimed at, so no angle/overlap styling (JUICE break-the-grid guardrail).
 	for stat in STATS:
 		var rowpanel := PanelContainer.new()
 		rowpanel.add_theme_stylebox_override("panel", UiStyle.stat_box())
@@ -151,7 +133,6 @@ func _build_ui() -> void:
 		row.add_child(up)
 		v.add_child(rowpanel)
 
-	# Total damage dealt this match (live) + per-tower kills (Trials kills home).
 	var dmgpanel := PanelContainer.new()
 	dmgpanel.add_theme_stylebox_override("panel", UiStyle.stat_box())
 	var dm := MarginContainer.new()
@@ -176,7 +157,6 @@ func _build_ui() -> void:
 	drow.add_child(_dmg_lab)
 	v.add_child(dmgpanel)
 
-	# Sell (bare label — 30% refund still applies, just not shown).
 	var sell := Button.new()
 	sell.text = "Sell"
 	sell.custom_minimum_size = Vector2(0, 34 * s)
@@ -185,19 +165,15 @@ func _build_ui() -> void:
 	sell.pressed.connect(_on_sell_pressed)
 	v.add_child(sell)
 
-# --- placement (in-rail dock, or over-board overlay fallback) ---------------
-
 func _place() -> void:
 	if _panel == null or not _panel.visible:
 		return
 	var s := UiLayout.scale_factor()
 	var slot: Rect2 = rail.tower_slot_rect() if rail != null else Rect2()
 	if slot.size.y > 0.0:
-		# Dock in the rail's lower gap beneath the buttons (zero board occlusion).
 		_panel.custom_minimum_size = Vector2(slot.size.x, 0)
 		_panel.position = slot.position
 	else:
-		# Fall back to an overlay hugging the board's top-right edge.
 		var w := OVERLAY_W * s
 		var pad := OVERLAY_PAD * s
 		_panel.custom_minimum_size = Vector2(w, 0)
@@ -209,19 +185,15 @@ func _place() -> void:
 			_panel.position = Vector2(vp.x - UiLayout.rail_w() - w - pad, pad)
 	_panel.reset_size()
 
-# --- selection -------------------------------------------------------------
-
 func _on_tower_selected(tower) -> void:
 	_selected = tower
 	_panel.visible = true
 	_refresh()
-	_place.call_deferred()  # let the content settle so reset_size measures the real height
+	_place.call_deferred()
 
 func _on_selection_cleared() -> void:
 	_selected = null
 	_panel.visible = false
-
-# --- content ---------------------------------------------------------------
 
 func _refresh() -> void:
 	if not is_instance_valid(_selected) or not _panel.visible:
@@ -288,7 +260,7 @@ func _on_upgrade_pressed(stat: String) -> void:
 	var ucell: Vector2i = _selected.grid_cell
 	_selected.upgrade(stat)
 	if build_controller != null:
-		build_controller.on_local_upgrade(ucell, stat)  # relay to other players (networked)
+		build_controller.on_local_upgrade(ucell, stat)
 	_refresh()
 
 func _on_sell_pressed() -> void:

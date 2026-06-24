@@ -1,32 +1,19 @@
 extends Control
 
-# Collection — Locker + Codex merged into one home (design/COSMETICS.md "IA — two homes";
-# layout from notes/mockups/collection_mock.html). LEFT: live loadout preview (a cropped
-# window of a First Contact-style maze, towers firing on Run) + the profile card (name from
-# the online identity — Steam later — plus earned flair). RIGHT: the slot rack with per-slot
-# completion, then the active slot's full catalog — owned items equip (preview updates),
-# earnable-locked show a silhouette + how-to-earn, art-not-imported shows a placeholder
-# tagged "import pending". Overall completion top-right; Season is a CROSS-LINK, not a tab.
-#
-# Equip state is client render-layer only (COSMETICS cardinal rule 2) — this screen writes
-# SaveData.equip_cosmetic and nothing else.
-
 const UiStyle := preload("res://scripts/ui_style.gd")
 const Motion := preload("res://scripts/motion.gd")
 const Catalog := preload("res://scripts/cosmetics_catalog.gd")
 const ProjFX := preload("res://scripts/projectile_fx.gd")
-# Wood-UI kit, recoloured per item (single-hue): one frame shape + one banner shape, the
-# equipped item's tint applied as modulate. design/COSMETICS.md "frames/banners = build material".
 const FRAME_TEX := preload("res://assets/ui/frame_panel.png")
 const BANNER_TEX := preload("res://assets/ui/banner_plank.png")
 
 var _active_slot := "tower"
-var _equipped := {}          # slot -> item id (save merged over catalog defaults)
+var _equipped := {}
 
 var _preview: PreviewBoard
 var _profile_box: PanelContainer
-var _slot_buttons := {}      # slot id -> Button
-var _slot_counts := {}       # slot id -> the rack button's count Label
+var _slot_buttons := {}
+var _slot_counts := {}
 var _grid_title: Label
 var _grid_count: Label
 var _grid: GridContainer
@@ -40,7 +27,6 @@ func _ready() -> void:
 	_load_equipped()
 	_build()
 	_refresh_all()
-	# Entrance: top bar settles in, the preview board arrives, racks + catalog cascade.
 	Motion.fade_in(_preview, Motion.M)
 	Motion.fade_in(_profile_box, Motion.M, Motion.dur(0.10))
 	var rack_btns: Array = _slot_buttons.values()
@@ -52,8 +38,6 @@ func _load_equipped() -> void:
 		var explicit: String = SaveData.equipped_cosmetic(s["id"])
 		if explicit != "":
 			_equipped[s["id"]] = explicit
-
-# --- Build ------------------------------------------------------------------
 
 func _build() -> void:
 	var margin := MarginContainer.new()
@@ -75,7 +59,6 @@ func _build() -> void:
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(body)
 
-	# LEFT: preview board + profile card.
 	var left := VBoxContainer.new()
 	left.add_theme_constant_override("separation", 20)
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -90,7 +73,6 @@ func _build() -> void:
 	_profile_box.custom_minimum_size = Vector2(0, 196)
 	left.add_child(_profile_box)
 
-	# RIGHT: slot racks + the active slot's catalog.
 	var right := VBoxContainer.new()
 	right.add_theme_constant_override("separation", 12)
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -139,7 +121,6 @@ func _build_topbar() -> Control:
 	top.add_theme_constant_override("separation", 22)
 	top.alignment = BoxContainer.ALIGNMENT_BEGIN
 
-	# Gold tilted title pill (the screens' shared headline grammar).
 	var ttl := PanelContainer.new()
 	ttl.add_theme_stylebox_override("panel", UiStyle.pill_box(true))
 	var tl := _label("COLLECTION", 30, Color.WHITE)
@@ -220,8 +201,6 @@ func _build_back() -> void:
 	back.offset_right = -20
 	back.offset_bottom = -16
 	add_child(back)
-
-# --- Refresh ------------------------------------------------------------------
 
 func _refresh_all() -> void:
 	var owned: Array = SaveData.cosmetics_owned()
@@ -313,9 +292,6 @@ func _item_card(it: Dictionary, owned: bool) -> Control:
 		card.add_child(imp)
 	return card
 
-# The item's art box: texture when imported, tint swatch for recolor/shape items, a gold
-# "T" for titles, a "?" placeholder otherwise. Locked + texture = black silhouette (codex
-# behavior, COSMETICS.md).
 func _item_art(it: Dictionary, owned: bool, px: int) -> Control:
 	var box := PanelContainer.new()
 	box.custom_minimum_size = Vector2(px, px)
@@ -323,13 +299,13 @@ func _item_art(it: Dictionary, owned: bool, px: int) -> Control:
 	box.add_theme_stylebox_override("panel", UiStyle.flat_box(Color("222820"), 10, Color("161c0f"), 2, false))
 	var art := String(it.get("art", ""))
 	if art != "" and ResourceLoader.exists(art):
-		var tr := TextureRect.new()
-		tr.texture = load(art)
-		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		var tex := TextureRect.new()
+		tex.texture = load(art)
+		tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		if not owned:
-			tr.modulate = Color(0, 0, 0, 0.55)  # black silhouette
-		box.add_child(tr)
+			tex.modulate = Color(0, 0, 0, 0.55)
+		box.add_child(tex)
 	elif it["slot"] == "title":
 		var t := _label("T", 30, UiStyle.PILL_GOLD)
 		t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -338,14 +314,12 @@ func _item_art(it: Dictionary, owned: bool, px: int) -> Control:
 			t.modulate = Color(1, 1, 1, 0.45)
 		box.add_child(t)
 	elif it["slot"] == "proj" and ProjFX.icon_frame(it["id"]) != null:
-		# FX self-illustrate: show a representative frame (recoloured to match in-match),
-		# silhouetted when locked. Unwired proj ids (gold bolt) fall through to the swatch.
-		var tr := TextureRect.new()
-		tr.texture = ProjFX.icon_frame(it["id"])
-		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		tr.modulate = Color(0, 0, 0, 0.55) if not owned else ProjFX.icon_modulate(it["id"])
-		box.add_child(tr)
+		var tex := TextureRect.new()
+		tex.texture = ProjFX.icon_frame(it["id"])
+		tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tex.modulate = Color(0, 0, 0, 0.55) if not owned else ProjFX.icon_modulate(it["id"])
+		box.add_child(tex)
 	elif it.has("tint"):
 		var sw := Control.new()
 		var tint: Color = it["tint"]
@@ -390,16 +364,11 @@ func _equip(id: String) -> void:
 	_refresh_all()
 	Motion.pop(_preview if it["slot"] != "frame" and it["slot"] != "banner" and it["slot"] != "title" else _profile_box)
 
-# DEV ONLY: re-read ownership + rebuild after the global F10 unlock-all (SceneManager).
 func dev_refresh() -> void:
 	_load_equipped()
 	_refresh_all()
 	Motion.pop(_overall_label)
 
-# --- Profile card (identity is read-only from the platform; flair is the equip) ---
-
-# A 9-patch wood panel recoloured by `tint` (single-hue frames/banners). `m` = the
-# texture's border margin (9-slice corners), `pad` = inner content padding for children.
 func _wood_box(tex: Texture2D, tint: Color, mx: int, my: int, pad: int) -> StyleBoxTexture:
 	var sb := StyleBoxTexture.new()
 	sb.texture = tex
@@ -433,8 +402,6 @@ func _refresh_profile() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_BEGIN
 	pm.add_child(row)
 
-	# Avatar block + equipped frame (border tint). Avatar art comes from Steam later —
-	# initial-on-panel until then.
 	var frame := Catalog.item(_equipped.get("frame", "frame_none"))
 	var fcol: Color = frame.get("tint", UiStyle.CHIP_BORDER)
 	var av := PanelContainer.new()
@@ -477,7 +444,6 @@ func _refresh_profile() -> void:
 	_profile_box.add_child(src)
 
 func _player_name() -> String:
-	# Online identity when a session exists (device-auth now, Steam persona later).
 	var svc = get_node_or_null("/root/NakamaService")
 	if svc != null and svc.get("session") != null:
 		var u = svc.session.get("username")
@@ -497,15 +463,7 @@ func _label(text: String, font_size: int, color: Color) -> Label:
 		l.add_theme_color_override("font_color", color)
 	return l
 
-
-# ============================================================================
-# PreviewBoard — the live loadout preview: a cropped window (12x7 cells) of a
-# First Contact-style 25x16 maze, rendered entirely in _draw from the EQUIPPED
-# loadout. Run walks the horde and lets the towers fire (visual only — no sim,
-# no scoring; this never touches match code). Geometry mirrors the mock.
-# ============================================================================
 class PreviewBoard extends Control:
-	# Inner classes don't see the outer script's preload consts — re-declare them.
 	const UiStyle := preload("res://scripts/ui_style.gd")
 	const Catalog := preload("res://scripts/cosmetics_catalog.gd")
 
@@ -517,18 +475,17 @@ class PreviewBoard extends Control:
 		Vector2i(14, 8), Vector2i(9, 9), Vector2i(12, 9), Vector2i(14, 9), Vector2i(10, 10), Vector2i(14, 10)]
 	const TLVL := [1, 2, 3, 2, 1, 3, 2, 1, 2, 3]
 	const OBST := [Vector2i(11, 5), Vector2i(10, 6), Vector2i(9, 7), Vector2i(11, 11), Vector2i(12, 11), Vector2i(13, 11)]
-	const WIN := Rect2i(7, 5, 12, 7)  # the cropped cell window (x0, y0, cols, rows)
+	const WIN := Rect2i(7, 5, 12, 7)
 	const MOB_COUNT := 5
-	# Path-dirt tone per biome id (the path readability contrast — COSMETICS hard filter).
 	const PATH_DIRT := {"board_summer": Color("cdb98a"), "board_forest": Color("b59560"),
 		"board_beach": Color("e8d9a8"), "board_suburbia": Color("8a8f96")}
 
-	var _path: Array = []        # Vector2 cell centres, entry -> CP -> exit
+	var _path: Array = []
 	var _running := false
-	var _mob_t: Array = []       # per-mob path parameter
-	var _cooldown: Array = []    # per-tower frames to next shot
-	var _shots: Array = []       # {from: Vector2(px), to: Vector2(px), t: float}
-	var _bursts: Array = []      # {pos: Vector2(px), life: float}
+	var _mob_t: Array = []
+	var _cooldown: Array = []
+	var _shots: Array = []
+	var _bursts: Array = []
 	var _board_tex: Texture2D
 	var _tower_tex: Texture2D
 	var _mob_tex: Texture2D
@@ -588,8 +545,6 @@ class PreviewBoard extends Control:
 			_bursts.clear()
 			queue_redraw()
 
-	# Pull the equipped loadout's textures/tints. Items without imported art fall back to
-	# the slot default's art (never a runtime tint of a painted sprite — COSMETICS rule).
 	func refresh(equipped: Dictionary) -> void:
 		_equipped_board_id = String(equipped.get("board", "board_summer"))
 		_board_tex = _tex_or(equipped.get("board", ""), "res://assets/maps/summer_grass_tile.png")
@@ -602,7 +557,7 @@ class PreviewBoard extends Control:
 		queue_redraw()
 
 	func _tex_or(item_id: String, fallback: String) -> Texture2D:
-		return Catalog.texture_for(String(item_id), fallback)  # shared resolver (also used in-match)
+		return Catalog.texture_for(String(item_id), fallback)
 
 	func _compute_path() -> void:
 		var blocked := {}
@@ -640,7 +595,6 @@ class PreviewBoard extends Control:
 			cur = prev.get(cur)
 		return out
 
-	# Path parameter -> interpolated cell position.
 	func _pt(t: float) -> Vector2:
 		t = clampf(t, 0.0, float(_path.size() - 1))
 		var i := int(t)
@@ -649,7 +603,6 @@ class PreviewBoard extends Control:
 		var b: Vector2i = _path[mini(_path.size() - 1, i + 1)]
 		return Vector2(a).lerp(Vector2(b), f)
 
-	# Cell -> pixel (centre) within the cropped window.
 	func _px(cell: Vector2) -> Vector2:
 		return Vector2(
 			(cell.x - WIN.position.x + 0.5) / float(WIN.size.x) * size.x,
@@ -689,13 +642,11 @@ class PreviewBoard extends Control:
 
 	func _draw() -> void:
 		var cell := Vector2(size.x / WIN.size.x, size.y / WIN.size.y)
-		# Biome tiles across the window.
 		if _board_tex != null:
 			for gx in range(WIN.position.x, WIN.position.x + WIN.size.x):
 				for gy in range(WIN.position.y, WIN.position.y + WIN.size.y):
 					var org := _px(Vector2(gx, gy)) - cell * 0.5
 					draw_texture_rect(_board_tex, Rect2(org, cell), false, Color(0.86, 0.92, 0.78))
-		# Path dirt (the legibility contrast every biome must keep).
 		var dirt: Color = PATH_DIRT.get(_dirt_key(), Color("cdb98a"))
 		for c in _path:
 			var cc: Vector2i = c
@@ -703,16 +654,13 @@ class PreviewBoard extends Control:
 				continue
 			draw_rect(Rect2(_px(Vector2(cc)) - cell * 0.5, cell), dirt)
 			draw_rect(Rect2(_px(Vector2(cc)) - cell * 0.5, cell), Color(0, 0, 0, 0.10), false, 1.0)
-		# Obstacles.
 		for o in OBST:
 			var oo: Vector2i = o
 			if not WIN.has_point(oo):
 				continue
 			draw_rect(Rect2(_px(Vector2(oo)) - cell * 0.38, cell * 0.76), Color("4a443a"))
-		# Bonus-zone ring on the checkpoint (carries the equipped zone tint; label stays).
 		draw_circle(_px(Vector2(CP)), cell.x * 0.62, Color(_zone_tint, 0.30))
 		draw_arc(_px(Vector2(CP)), cell.x * 0.62, 0.0, TAU, 40, Color(_zone_tint, 0.9), 2.0, true)
-		# Towers: aura ring (the growth signal lives OFF the body) + body + level badge.
 		var font := get_theme_default_font()
 		for i in TOWERS.size():
 			var tp := _px(Vector2(TOWERS[i]))
@@ -727,7 +675,6 @@ class PreviewBoard extends Control:
 			draw_rect(Rect2(badge_pos, Vector2(26, 16)), UiStyle.PILL_GOLD)
 			draw_string(font, badge_pos + Vector2(4, 12), "L%d" % TLVL[i],
 				HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color.WHITE)
-		# Horde.
 		if _mob_tex != null:
 			for t in _mob_t:
 				var mp := _px(_pt(t))
@@ -738,16 +685,13 @@ class PreviewBoard extends Control:
 				draw_set_transform(mp, ang, Vector2.ONE)
 				draw_texture_rect(_mob_tex, Rect2(-Vector2(mw, mh) * 0.5, Vector2(mw, mh)), false)
 				draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-		# Shots + impact bursts (equipped projectile tint; stock silhouette + duration).
 		for s in _shots:
 			var p: Vector2 = s["from"].lerp(s["to"], s["t"])
 			draw_circle(p, cell.x * 0.10, _proj_tint)
 		for bu in _bursts:
 			var r: float = cell.x * 0.35 * (1.6 - bu["life"] * 0.6)
 			draw_circle(bu["pos"], r, Color(_proj_tint, bu["life"] * 0.5))
-		# Panel edge.
 		draw_rect(Rect2(Vector2.ZERO, size), Color("1a2012"), false, 3.0)
 
 	func _dirt_key() -> String:
-		# Equipped board id drives the dirt tone; default summer.
 		return _equipped_board_id if _equipped_board_id != "" else "board_summer"

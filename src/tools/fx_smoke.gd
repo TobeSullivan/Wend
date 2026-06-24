@@ -1,18 +1,11 @@
 extends Node2D
 
-# Regression test for the projectile FX path (projectile_fx.gd):
-#   Godot.exe --headless --path src res://tools/fx_smoke.tscn
-# Directly fires a fx_fireball projectile at a dummy target and steps it to impact,
-# asserting: body is an AnimatedSprite2D (not the arrow), the hit resolves, and an
-# impact burst node is spawned as a sibling. Proves the path runs error-free without
-# needing a live match / tutorial gating.
-
 const ProjScript := preload("res://scripts/projectile.gd")
 const ProjFXScript := preload("res://scripts/projectile_fx.gd")
 
 class FakeMob extends Node2D:
 	var alive := true
-	var hp := 1.0   # < projectile damage, so the hit registers as a KILL (impact fires)
+	var hp := 1.0
 	var hits := 0
 	func take_hit(_d, _c, _s) -> void:
 		hits += 1
@@ -33,19 +26,17 @@ func _ready() -> void:
 	p.fx_id = "fx_fireball"
 	p.position = Vector2.ZERO
 	board.add_child(p)
-	await get_tree().process_frame   # let the projectile's _ready build its visual
+	await get_tree().process_frame
 
 	var body_ok: bool = p.sprite is AnimatedSprite2D
 	print("BODY is AnimatedSprite2D: ", body_ok)
 
-	# Big delta forces step >= dist → take_hit + impact spawn → returns true.
 	var before := board.get_child_count()
 	var done: bool = p.sim_step(1.0)
 	var after := board.get_child_count()
 	print("hit resolved: ", target.hits == 1, "  sim_step done: ", done)
 	print("impact spawned (child delta): ", after - before, " (expect +1)")
 
-	# A crit must stay the gold arrow (no body FX), and an unwired id must be empty.
 	var crit = ProjScript.new()
 	crit.target = FakeMob.new()
 	crit.is_crit = true
@@ -61,19 +52,16 @@ func _ready() -> void:
 	print("config has body+impact: ", config.has("body") and config.has("impact"))
 	print("unwired id returns empty: ", unwired_empty)
 
-	# Trail hook (general capability — not currently bound to a shipped FX): one puff = one node.
 	var fb_frame = config["body"]["frames"][0]
 	var tb := board.get_child_count()
 	ProjFXScript.spawn_trail_puff(board, Vector2(10, 10), {"frame": fb_frame, "px": 14.0, "alpha": 0.3, "life": 0.2})
 	var trail_ok: bool = (board.get_child_count() - tb) == 1
 	print("trail puff spawns a node: ", trail_ok)
 
-	# Arcane bolt (T14 replacement) — directional single-frame body, no impact/trail.
 	var arc := ProjFXScript.config_for("fx_arcane_bolt")
 	var arcane_ok: bool = arc.has("body") and not arc.has("trail") and bool(arc["body"]["rotates"])
 	print("arcane bolt is directional body-only: ", arcane_ok)
 
-	# Whole-track wiring: each FX resolves to its expected hook(s).
 	var body_fx := ["fx_fireball", "fx_ice_spell", "fx_arcane_bolt", "fx_lightning", "fx_dark"]
 	var impact_fx := ["fx_blue_impact", "fx_smoke_ring", "fx_explosion"]
 	var hooks_ok := true
@@ -83,7 +71,6 @@ func _ready() -> void:
 		if not ProjFXScript.config_for(id).has("impact"): hooks_ok = false
 	print("all wired FX resolve their hook: ", hooks_ok)
 
-	# Burst-mode impact (single-frame starburst) spawns a render node too.
 	var eb := board.get_child_count()
 	ProjFXScript.spawn_impact(board, Vector2(20, 20), "fx_explosion")
 	var burst_ok: bool = (board.get_child_count() - eb) == 1

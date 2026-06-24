@@ -1,27 +1,6 @@
 extends Node
 class_name CosmeticsCatalog
 
-# The cosmetics content model (design/COSMETICS.md, locked 2026-06-09) + the S1 season
-# track (design/SEASON.md, numbers locked 2026-06-10). Pure static data + helpers — this
-# file references NO other scripts (SaveData holds the player's raw cosmetics dict; the
-# screens combine the two), so it can never join a class_name preload cycle.
-#
-# Cardinal rules (COSMETICS.md — do not bend):
-#   1. 100% visual, zero competitive effect.
-#   2. Skins NEVER enter the sim — equip state is client render-layer only, never routed
-#      through the match record (it would break re-sim determinism).
-#   3. Cosmetic FX match the default silhouette + duration.
-#
-# Catalog honesty: only items with a LOCKED acquisition source exist here — defaults,
-# the 30 S1 track tiers, and the Ranked prestige bundle (Title + Frame + Rank Sticker,
-# never on the track, never buyable). Reserve tower art (ballista, tesla, ...) stays out
-# until a season/source assigns it. Items whose pack art isn't imported yet carry
-# art = "" and render as placeholders tagged "import pending" (per the collection mock).
-
-# ============================================================================
-# Slots (8 + board sticker). group: "match" = changes the match view; "pro" = profile flair.
-# ============================================================================
-
 const SLOTS := [
 	{"id": "tower", "name": "Tower", "group": "match"},
 	{"id": "board", "name": "Board", "group": "match"},
@@ -34,17 +13,9 @@ const SLOTS := [
 	{"id": "title", "name": "Title", "group": "pro"},
 ]
 
-# Rarity = how you earned it, never luck (COSMETICS.md). Prestige is Ranked-exclusive.
 const RARITY_LABEL := {"common": "common", "rare": "rare", "prestige": "prestige"}
 
-# ============================================================================
-# Items. Fields: id, slot, name, rarity, art (res:// path or "" = not imported yet),
-# tint (swatch colour for recolor/shape items), hint (how to earn; "" once owned),
-# default_owned (stock loadout).
-# ============================================================================
-
 const ITEMS := [
-	# --- Stock loadout (in repo today; asset_catalog.md "Defaults") ---
 	{"id": "tower_arrow", "slot": "tower", "name": "Arrow Box", "rarity": "common",
 		"art": "res://assets/towers/arrow_box_loaded.png", "default_owned": true},
 	{"id": "board_summer", "slot": "board", "name": "Summer", "rarity": "common",
@@ -60,7 +31,6 @@ const ITEMS := [
 	{"id": "banner_olive", "slot": "banner", "name": "Olive", "rarity": "common",
 		"tint": Color("323d2c"), "default_owned": true},
 
-	# --- S1 season track (design/SEASON.md S1 tier map; tier in TRACK below) ---
 	{"id": "title_recruit", "slot": "title", "name": "Recruit", "rarity": "common", "hint": "Season 1 · Tier 1"},
 	{"id": "mob_green", "slot": "mob", "name": "Green recolor", "rarity": "common", "tint": Color("5fbe38"), "hint": "Season 1 · Tier 2"},
 	{"id": "zone_teal", "slot": "zone", "name": "Teal", "rarity": "common", "tint": Color("2fa7a0"), "hint": "Season 1 · Tier 3"},
@@ -100,8 +70,6 @@ const ITEMS := [
 		"art": "res://assets/towers/skins/dark_crystal.png", "hint": "Season 1 · Tier 30"},
 	{"id": "fx_dark", "slot": "proj", "name": "Dark spell", "rarity": "rare", "tint": Color("6a3a8a"), "hint": "Season 1 · Tier 30"},
 
-	# --- Ranked prestige bundle (COSMETICS.md): Title + Frame + Rank Sticker per season
-	#     placement, scaled by tier. Ranked-exclusive — never on the track, never buyable. ---
 	{"id": "title_stone", "slot": "title", "name": "Stone", "rarity": "prestige", "hint": "Ranked · Stone placement"},
 	{"id": "title_bronze", "slot": "title", "name": "Bronze", "rarity": "prestige", "hint": "Ranked · Bronze placement"},
 	{"id": "title_silver", "slot": "title", "name": "Silver", "rarity": "prestige", "hint": "Ranked · Silver placement"},
@@ -114,11 +82,6 @@ const ITEMS := [
 	{"id": "frame_masters", "slot": "frame", "name": "Masters frame", "rarity": "prestige", "tint": Color("e0c060"), "hint": "Ranked · Masters placement"},
 	{"id": "sticker_rect_s1", "slot": "sticker", "name": "Rectangle (S1)", "rarity": "prestige", "tint": Color("b38e2c"), "hint": "Ranked · season placement"},
 ]
-
-# ============================================================================
-# S1 track: 30 tiers x 1,000 pts (8 weeks; notes/season_pass.md). Milestones 10/20/30.
-# Each tier grants the listed item ids (milestone tiers grant tower + its themed FX).
-# ============================================================================
 
 const SEASON := 1
 const TIER_COUNT := 30
@@ -158,27 +121,18 @@ const TRACK := [
 	{"tier": 30, "items": ["tower_dark_crystal", "fx_dark"]},
 ]
 
-# ============================================================================
-# Lookups + state math. `owned`/`claimed` come from SaveData's cosmetics dict; this file
-# stays pure so it never references the autoload.
-# ============================================================================
-
 static func item(id: String) -> Dictionary:
 	for it in ITEMS:
 		if it["id"] == id:
 			return it
 	return {}
 
-# Render-layer resolvers (the single mapping equip-id → texture/tint, shared by the Collection
-# preview and the live match so the two never diverge). An item with no imported art falls back
-# to the slot default's art — never a runtime tint of a painted body sprite (COSMETICS rule).
 static func texture_for(id: String, fallback_path: String) -> Texture2D:
 	var art := String(item(id).get("art", ""))
 	if art != "" and ResourceLoader.exists(art):
 		return load(art)
 	return load(fallback_path)
 
-# For tint-driven slots (zone, projectile/FX recolors) the item's `tint` IS its definition.
 static func tint_for(id: String, default_color: Color) -> Color:
 	return item(id).get("tint", default_color)
 
@@ -202,12 +156,10 @@ static func default_equipped() -> Dictionary:
 			out[it["slot"]] = it["id"]
 	return out
 
-# True if `id` is owned given the save's owned list (stock items are always owned).
 static func is_owned(id: String, owned: Array) -> bool:
 	var it := item(id)
 	return not it.is_empty() and (it.get("default_owned", false) or owned.has(id))
 
-# Per-slot (owned, total) for the rack completion counts.
 static func slot_completion(slot: String, owned: Array) -> Vector2i:
 	var have := 0
 	var items := slot_items(slot)
@@ -216,7 +168,6 @@ static func slot_completion(slot: String, owned: Array) -> Vector2i:
 			have += 1
 	return Vector2i(have, items.size())
 
-# Overall collection completion in [0, 1].
 static func overall_completion(owned: Array) -> float:
 	var have := 0
 	for it in ITEMS:
@@ -224,13 +175,9 @@ static func overall_completion(owned: Array) -> float:
 			have += 1
 	return float(have) / float(ITEMS.size()) if ITEMS.size() > 0 else 0.0
 
-# --- Season track math (points -> tiers). Tier N unlocks at N * POINTS_PER_TIER. ---
-
 static func unlocked_tier(points: int) -> int:
 	return clampi(points / POINTS_PER_TIER, 0, TIER_COUNT)
 
-# State for a tier given the save's points + claimed list:
-# "claimed" | "claimable" (reached, unclaimed) | "current" (the tier being earned) | "locked".
 static func tier_state(tier: int, points: int, claimed: Array) -> String:
 	if claimed.has(tier):
 		return "claimed"
@@ -247,8 +194,7 @@ static func tier_items(tier: int) -> Array:
 			return t["items"]
 	return []
 
-# The first unclaimed-tier reward at or after the current position (the "next reward" chip).
-static func next_reward_tier(points: int, claimed: Array) -> int:
+static func next_reward_tier(_points: int, claimed: Array) -> int:
 	for t in TRACK:
 		if not claimed.has(t["tier"]):
 			return t["tier"]

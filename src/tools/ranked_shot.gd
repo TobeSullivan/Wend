@@ -1,10 +1,5 @@
 extends Control
 
-# Windowed capture harness for Surface 2 (the Ranked post-match result screen). Reproduces the
-# mockup case: 2nd of 8, Silver 47 → 77, +30 LP, 23 LP to Gold. Run WINDOWED (headless renders
-# blank):  Godot.exe --path src res://tools/ranked_shot.tscn
-# Sets the ranked state IN MEMORY only (no save()).
-
 const UiStyle := preload("res://scripts/ui_style.gd")
 const MatchEndPanelScript := preload("res://scripts/match_end_panel.gd")
 
@@ -13,7 +8,6 @@ const OUT_DIR := "C:/dev/Maze Battle TD/"
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	UiStyle.menu_backdrop(self)
-	# Silver 47 going in → +30 for 2nd → Silver 77, 23 LP to Gold (factor 1.0: mmr == lobby avg).
 	SaveData.data["ranked"] = {"season": 1, "value": 247, "mmr": 200.0}
 	SceneManager.pending_ranked_avg_mmr = 200.0
 
@@ -28,11 +22,9 @@ func _ready() -> void:
 	_run.call_deferred()
 
 func _run() -> void:
-	# Mid-climb: the LP bar is filling, order rows arriving (~0.35s).
 	await get_tree().create_timer(0.35).timeout
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(OUT_DIR + "ranked_mid.png")
-	# Settled: bar at the final LP, rows in.
 	await get_tree().create_timer(1.3).timeout
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(OUT_DIR + "ranked_settled.png")

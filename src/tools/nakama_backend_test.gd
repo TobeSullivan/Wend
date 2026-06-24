@@ -1,16 +1,6 @@
 extends Node
 
-# Live verify of NakamaBackend against the box :7350 — proves the 3 leaderboard surfaces light
-# up with REAL server data through LeaderboardService. Seeds a small field (3 bot accounts + me)
-# on a DAILY trials board (self-purges at the UTC reset), campaign_m01, and the build's ranked
-# season board, then reads
-# back through the service (now on NakamaBackend) and asserts ranks / neighborhood / banding.
-# Run by swapping run/main_scene to res://tools/nakama_backend_test.tscn. Test records are deleted
-# afterward by the SSH cleanup step in the session (psql), so boards return to empty.
-
-# Board ids follow the build's beta flags (LeaderboardService.BETA / SaveData.BUILD_SEASON) so
-# this harness exercises whichever board set the box currently serves (beta or launch).
-var TRIALS: String = LeaderboardService.trials_board_id(0, 1, "solo")  # daily/thread/solo
+var TRIALS: String = LeaderboardService.trials_board_id(0, 1, "solo")
 const CAMP := "campaign_m01"
 var RANKED: String = "ranked_s%d" % SaveData.BUILD_SEASON
 
@@ -38,17 +28,14 @@ func _run() -> void:
 
 	var client = NakamaService.client
 	var me = NakamaService.session
-	# Make the service report my local best for the daily/thread board (mirrors a real match write).
 	SaveData.record_pve_score(LeaderboardService.window_date(0), 1, 1750000)
 
-	# 3 bot competitors (fixed device ids → idempotent across reruns).
 	var b0 = await _bot(client, 0)
 	var b1 = await _bot(client, 1)
 	var b2 = await _bot(client, 2)
 	_ok("3 bot accounts authed", b0 != null and b1 != null and b2 != null
 		and not b0.is_exception() and not b1.is_exception() and not b2.is_exception())
 
-	# Seed scores. Trials/campaign = "best", ranked = "set".
 	var s := true
 	s = await _submit(client, b0, "trials", TRIALS, 2000000) and s
 	s = await _submit(client, b1, "trials", TRIALS, 1500000) and s
@@ -56,12 +43,11 @@ func _run() -> void:
 	s = await _submit(client, me, "trials", TRIALS, 1750000) and s
 	s = await _submit(client, b0, "campaign", CAMP, 142000) and s
 	s = await _submit(client, me, "campaign", CAMP, 88000) and s
-	s = await _submit(client, b0, "ranked", RANKED, 2240) and s   # Masters 1840
-	s = await _submit(client, b1, "ranked", RANKED, 277) and s    # Silver 77
-	s = await _submit(client, me, "ranked", RANKED, 250) and s    # Silver 50
+	s = await _submit(client, b0, "ranked", RANKED, 2240) and s
+	s = await _submit(client, b1, "ranked", RANKED, 277) and s
+	s = await _submit(client, me, "ranked", RANKED, 250) and s
 	_ok("all submit_score RPCs ok", s)
 
-	# --- Reads through LeaderboardService (NakamaBackend active) ---
 	print("trials:")
 	var tb: Dictionary = await LeaderboardService.trials_board(0, 1, "solo")
 	var entries: Array = tb.get("entries", [])
@@ -71,8 +57,8 @@ func _run() -> void:
 	_ok("is_me flagged at rank 2", _is_me_at(entries, 2))
 	_ok("top score is 2,000,000", entries.size() > 0 and int(entries[0].get("score", 0)) == 2000000)
 
-	var tr: Dictionary = await LeaderboardService.trials_rank(0, 1, "solo")
-	_ok("trials_rank == 2", int(tr.get("rank", 0)) == 2)
+	var tr_result: Dictionary = await LeaderboardService.trials_rank(0, 1, "solo")
+	_ok("trials_rank == 2", int(tr_result.get("rank", 0)) == 2)
 
 	var pl: Dictionary = await LeaderboardService.trials_placement(0, 1, "solo", 1750000)
 	_ok("placement rank == 2", int(pl.get("rank", 0)) == 2)
@@ -103,8 +89,6 @@ func _run() -> void:
 	else:
 		print("RESULT FAIL — ", _fails, " check(s) failed")
 
-# --- helpers ---
-
 func _bot(client, idx: int):
 	return await client.authenticate_device_async("wendtest_bot_%d_padpadpad" % idx)
 
@@ -128,14 +112,14 @@ func _is_me_at(entries: Array, rank: int) -> bool:
 			return true
 	return false
 
-func _has_band(bands: Array, name: String) -> bool:
+func _has_band(bands: Array, band_name: String) -> bool:
 	for b in bands:
-		if String(b.get("name", "")) == name:
+		if String(b.get("name", "")) == band_name:
 			return true
 	return false
 
-func _band_rows(bands: Array, name: String) -> int:
+func _band_rows(bands: Array, band_name: String) -> int:
 	for b in bands:
-		if String(b.get("name", "")) == name:
+		if String(b.get("name", "")) == band_name:
 			return (b.get("rows", []) as Array).size()
 	return 0

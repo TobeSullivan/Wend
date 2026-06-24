@@ -1,23 +1,6 @@
 extends Node
 
-# Drives a networked PVP match over a MatchTransport. Created by main.gd after the
-# match is built (one per match), it bridges the local sim to the host-authoritative
-# protocol (NetProtocol):
-#
-#   HOST (authority): runs the real MatchCoordinator clock + resolve_lives, broadcasts
-#     CLOCK / RESOLUTION / MATCH_END, and relays each client's build inputs to everyone.
-#   CLIENT: its coordinator is driven_externally (no self-clock) — it mirrors the host's
-#     CLOCK/RESOLUTION, and sends its own build inputs + ready vote up to the host.
-#
-# Each client simulates ALL boards locally (full live opponent boards for free); only
-# discrete build inputs, the clock, and per-round lives cross the wire (round-barrier
-# model). Trust-client: kills accrue on each owner's local sim; lives are resolved by
-# the host. boards[i] is seat i (map_loader builds boards in seat order).
 
-const NetProtocol := preload("res://net/net_protocol.gd")
-
-# Authority-only: emitted when the match ends (last board standing / all-but-one forfeited). On the
-# dedicated server the owning MatchRoom listens and tears itself down. Never fires on a client.
 signal match_finished
 
 var transport
@@ -25,9 +8,9 @@ var coordinator
 var boards: Array = []
 var local_seat: int = 0
 
-var local_ready: bool = false       # this client's own ready vote (host owns the rest)
-var net_ready_count: int = 0        # host-reported ready count (for the Ready (n/m) label)
-var seat_by_peer: Dictionary = {}   # {enet_peer_id: seat} — host maps a disconnect to a board
+var local_ready: bool = false
+var net_ready_count: int = 0
+var seat_by_peer: Dictionary = {}
 var _clock_accum: float = 0.0
 
 func setup(t, coord, board_list: Array, seat: int, peer_seats: Dictionary = {}) -> void:
@@ -39,9 +22,6 @@ func setup(t, coord, board_list: Array, seat: int, peer_seats: Dictionary = {}) 
 	coordinator.net = self
 	coordinator.driven_externally = not transport.is_authority()
 
-	# Only the LOCAL interactive board relays its actions; opponent boards apply inbound
-	# relays (apply_remote_*) which never re-relay, so there's no loop. A dedicated server
-	# (local_seat < 0) holds no board, so there's nothing local to wire.
 	if local_seat >= 0 and local_seat < boards.size():
 		var lc = boards[local_seat].build_controller
 		lc.net = self
@@ -63,28 +43,24 @@ func is_local_board(b) -> bool:
 func local_board():
 	return boards[local_seat]
 
-# --- Local actions out (called by build_controller / coordinator on the local board) ---
-
 func submit_local_input(msg: Dictionary) -> void:
 	if transport.is_authority():
-		transport.broadcast(msg)          # host → all clients
+		transport.broadcast(msg)
 	else:
-		transport.send_to_authority(msg)  # client → host (which relays on)
+		transport.send_to_authority(msg)
 
 func send_local_ready(value: bool) -> void:
 	local_ready = value
 	transport.send_to_authority(NetProtocol.ready(local_seat, value))
 
-# --- Inbound ---
-
 func _on_received(_from_id: int, msg: Dictionary) -> void:
 	match msg.get("t", ""):
 		NetProtocol.BUILD_INPUT:
 			if int(msg["seat"]) == local_seat:
-				return  # our own echo — already applied locally
+				return
 			_apply_build_input(msg)
 			if transport.is_authority():
-				transport.broadcast(msg)  # relay a client's input on to everyone else
+				transport.broadcast(msg)
 		NetProtocol.READY:
 			if transport.is_authority():
 				coordinator.set_board_ready(boards[int(msg["seat"])], bool(msg["value"]))
@@ -108,13 +84,9 @@ func _apply_build_input(msg: Dictionary) -> void:
 		NetProtocol.ACT_UPGRADE:
 			bc.apply_remote_upgrade(msg["cell"], msg["stat"])
 
-# --- Authority → broadcasts ---
-
 func _process(dt: float) -> void:
 	if transport == null or not transport.is_authority() or coordinator.match_over:
 		return
-	# Periodic clock sync so client build timers stay smooth (discrete phase/round changes
-	# are pushed immediately via the connected signals).
 	_clock_accum += dt
 	if _clock_accum >= 0.2:
 		_clock_accum = 0.0
@@ -146,10 +118,7 @@ func _broadcast_match_end() -> void:
 	for b in coordinator.finish_order:
 		order.append(boards.find(b))
 	transport.broadcast({"t": NetProtocol.MATCH_END, "order": order})
-	# Server: the owning MatchRoom tears itself down on this; clients never reach here.
 	match_finished.emit()
-
-# --- Client ← applies ---
 
 func _apply_clock(msg: Dictionary) -> void:
 	net_ready_count = int(msg.get("ready", 0))
@@ -165,7 +134,6 @@ func _apply_clock(msg: Dictionary) -> void:
 	elif new_phase != "ended" and new_round != coordinator.round_num:
 		coordinator.round_num = new_round
 		coordinator.emit_signal("round_changed", new_round)
-	# "ended" is handled by MATCH_END (it carries placement) so it lands after lives.
 
 func _apply_resolution(msg: Dictionary) -> void:
 	var lives: Dictionary = msg["lives"]
@@ -186,8 +154,6 @@ func _apply_match_end(msg: Dictionary) -> void:
 		coordinator.finish_order.append(boards[int(s)])
 	coordinator.net_end_match()
 
-# A client dropped: the host forfeits that player's board (eliminated, worst placement),
-# tells everyone, and ends the match if only one board is left standing.
 func _on_peer_left(id: int) -> void:
 	if not transport.is_authority() or coordinator.match_over:
 		return
@@ -209,8 +175,6 @@ func _on_peer_left(id: int) -> void:
 		coordinator.net_end_match()
 		_broadcast_match_end()
 
-# The host vanished (clients only). The match can't continue without the authority —
-# end it locally so the player isn't stuck staring at a frozen board.
 func _on_server_closed() -> void:
 	if transport.is_authority():
 		return

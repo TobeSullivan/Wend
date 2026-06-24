@@ -1,20 +1,10 @@
 extends Node
 class_name Matchmaker
 
-# Client-side ranked matchmaker (matchmaking_orchestration.md steps 1–2). Submits a Nakama
-# matchmaker ticket over the realtime socket and runs an ESCALATION schedule that widens the
-# query and lowers the count floor over time (8 → 6 → 4), until the matchmaker pops a group.
-# On a pop it emits matched(); phase 3c joins that group into the Nakama forming-lobby handler,
-# which then points everyone at a Godot match-server room (phase 3d).
-#
-# Escalation timings + band widths are DIALS (need queue telemetry — orchestration §"dials"):
-# tune RANKED_SCHEDULE. "Speed beats quality" — the terminal step matches anyone down to the floor.
-
-signal matched(info)          # {match_id, token, ticket, users:[{user_id, username}]}
-signal escalated(step, info)  # advanced to a wider step; info = {query, min, max}
+signal matched(info)
+signal escalated(step, info)
 signal failed(reason)
 
-# (seconds_from_start, query, min_count, max_count). Floor is 4 for ranked (orchestration).
 const RANKED_SCHEDULE := [
 	{"at": 0.0,  "query": "+properties.mode:ranked", "min": 8, "max": 8},
 	{"at": 15.0, "query": "+properties.mode:ranked", "min": 6, "max": 8},
@@ -37,9 +27,6 @@ func is_running() -> bool:
 func current_ticket() -> String:
 	return _ticket
 
-# Begin queueing. `schedule` defaults to the ranked escalation; pass a custom one for other modes
-# or tests. string/numeric props are attached to every ticket (the query filters on the OTHER
-# side's props), e.g. {"mode": "ranked"} + {"lp": 1240}.
 func start(socket, schedule: Array = RANKED_SCHEDULE, string_props: Dictionary = {"mode": "ranked"}, numeric_props: Dictionary = {}) -> void:
 	if _running:
 		return
@@ -66,24 +53,21 @@ func _process(dt: float) -> void:
 	if not _running or _advancing:
 		return
 	_elapsed += dt
-	# Jump to the latest schedule step whose `at` has elapsed (skips intermediate steps if frames
-	# stalled — the goal is "as wide as time allows", not stepping through each).
 	var target := _step
 	for i in range(_schedule.size()):
 		if _elapsed >= float(_schedule[i]["at"]):
 			target = i
 	if target > _step:
-		_advance_to(target)  # coroutine; _advancing guards re-entry
+		_advance_to(target)
 
 func _advance_to(step: int) -> void:
 	if not _running or step <= _step or _advancing:
 		return
 	_advancing = true
-	# Remove the previous (narrower) ticket before re-adding, so we never hold two tickets.
 	if _ticket != "":
 		await _socket.remove_matchmaker_async(_ticket)
 		_ticket = ""
-	if not _running:  # cancelled mid-await
+	if not _running:
 		_advancing = false
 		return
 	var s: Dictionary = _schedule[step]
@@ -102,7 +86,7 @@ func _on_matched(m) -> void:
 	if not _running:
 		return
 	_running = false
-	_ticket = ""  # consumed by the match — don't try to remove it on cancel (would 404)
+	_ticket = ""
 	var users: Array = []
 	for u in m.users:
 		users.append({"user_id": String(u.presence.user_id), "username": String(u.presence.username)})

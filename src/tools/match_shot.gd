@@ -1,12 +1,5 @@
 extends Node2D
 
-# Throwaway capture harness for the IN-MATCH render (verifies equipped skins land in a real
-# match, not just the Collection preview). Equips a board, boots the real match scene
-# (prototype.tscn → main.gd → MapLoader.build_match), and saves a settled frame. Restores the
-# save after. Run WINDOWED (headless renders blank):
-#   Godot.exe --path src res://tools/match_shot.tscn
-# Override the board via the env var WEND_SHOT_BOARD (defaults to board_suburbia).
-
 const DIR := "C:/dev/Maze Battle TD/"
 
 var _saved
@@ -21,7 +14,6 @@ func _ready() -> void:
 		"equipped": {"board": board_id, "tower": "tower_fire_crystal", "proj": "fx_gold_bolt"},
 		"season_points": 0, "claimed_tiers": [],
 	}
-	# Boot the real match scene as a child so its camera frames the board for us.
 	SceneManager.pending_map = load("res://campaign/mission_01.tres")
 	SceneManager.pending_board_count = 1
 	var proto = load("res://scenes/prototype.tscn").instantiate()
@@ -29,7 +21,6 @@ func _ready() -> void:
 	_capture.call_deferred()
 
 func _capture() -> void:
-	# Let the match build, then place a few towers on the local board so the body skin shows.
 	await get_tree().create_timer(0.6).timeout
 	var coord = SceneManager.active_coordinator
 	if coord != null and not coord.boards.is_empty():

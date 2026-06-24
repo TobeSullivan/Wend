@@ -1,10 +1,5 @@
 extends Node2D
 
-# Throwaway: drive the campaign victory choreography and capture a mid-animation frame + the
-# settled frame, to eyeball the staged reveal (design/JUICE.md). Run WINDOWED:
-#   Godot.exe --path . res://tools/victory_shot.tscn
-# Tween FEEL is a playtest item; this only confirms the composition stages without breaking.
-
 const MapLoaderScript := preload("res://scripts/map_loader.gd")
 const DIR := "C:/dev/Maze Battle TD/"
 
@@ -19,13 +14,11 @@ func _ready() -> void:
 func _run() -> void:
 	for i in range(20):
 		await get_tree().process_frame
-	# M1 opens with a blocking tutorial modal that pauses the tree — clear all tutorial UI and
-	# unpause so the victory choreography (and its timers/tweens) can run for the capture.
 	var doomed: Array = []
 	for cls in ["TutorialCallout", "TutorialDirector", "BuildGuide"]:
 		_find_all(self, cls, doomed)
 	for n in doomed:
-		n.free()  # immediate (queue_free would keep it findable this frame)
+		n.free()
 	get_tree().paused = false
 	await get_tree().process_frame
 	_panel = _find(self, "MatchEndPanel")
@@ -34,13 +27,11 @@ func _run() -> void:
 		get_tree().quit()
 		return
 	var rm = _panel.round_manager
-	rm.total_damage_dealt = int(rm.gold_threshold) + 6000  # earn 3 stars, a round number to tick
+	rm.total_damage_dealt = int(rm.gold_threshold) + 6000
 	_panel._show_campaign_victory()
-	# Mid-animation: hero in, stars cascading (~0.9s into the ~1.7s sequence).
 	await get_tree().create_timer(0.9).timeout
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(DIR + "victory_mid.png")
-	# Settled.
 	await get_tree().create_timer(1.6).timeout
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(DIR + "victory_final.png")

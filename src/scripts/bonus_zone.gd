@@ -3,9 +3,6 @@ class_name BonusZone
 
 const GridScript := preload("res://scripts/grid.gd")
 
-# Color per type. Buff types reuse the tower stat colors for visual coherence
-# (DESIGN: "a red (damage-built) tower on a red (damage zone) reads as obvious
-# doubling-down"). Slow has no tower-stat equivalent — cyan is a working choice.
 const TYPE_COLORS := {
 	"damage":       Color(1.0, 0.25, 0.25, 0.32),
 	"attack_speed": Color(0.25, 0.55, 1.0, 0.32),
@@ -21,13 +18,11 @@ const TYPE_DISPLAY_NAMES := {
 }
 
 var type: String
-var magnitude: int   # 10..100 stepped per DESIGN
-var radius: float    # pixels
+var magnitude: int
+var radius: float
 
 func _ready() -> void:
 	add_to_group("bonus_zones")
-	# On TOP of everything in the world (towers z=0, mobs, obstacles z=-5, road z=-50)
-	# so the translucent fill + label stay readable — props/towers were burying them.
 	z_index = 50
 	_add_label()
 
@@ -48,8 +43,8 @@ func _add_label() -> void:
 
 func _format_label_text() -> String:
 	var display: String = TYPE_DISPLAY_NAMES.get(type, type.to_upper())
-	var sign := "-" if type == "slow" else "+"
-	return "%s %s%d%%" % [display, sign, magnitude]
+	var sign_str := "-" if type == "slow" else "+"
+	return "%s %s%d%%" % [display, sign_str, magnitude]
 
 func _draw() -> void:
 	var fill: Color = TYPE_COLORS.get(type, Color(1, 1, 1, 0.3))
@@ -57,9 +52,6 @@ func _draw() -> void:
 	var outline := Color(fill.r, fill.g, fill.b, 0.75)
 	draw_arc(Vector2.ZERO, radius, 0, TAU, 64, outline, 2.0, true)
 
-# True if a tower placed at `cell` (1x1, centered on cell) touches this zone.
-# Footprint-touch = distance ≤ zone radius + half-tile (treating the tower
-# footprint as a circle inscribed in its tile).
 func touches_tower_cell(cell: Vector2i) -> bool:
 	var tower_center := GridScript.cell_to_world(cell)
 	return position.distance_to(tower_center) <= radius + GridScript.TILE_SIZE / 2.0
@@ -67,12 +59,6 @@ func touches_tower_cell(cell: Vector2i) -> bool:
 func contains_world(pt: Vector2) -> bool:
 	return position.distance_to(pt) <= radius
 
-# Working magnitude → radius formula. Linear inverse: weak effects are wide, strong
-# effects are tight. Scaled for the 20x11 board (half the old 40x22 grid): the widest
-# zone is ~2.25 tiles so an ~4.5-tile diameter still spans only ~20% of the board
-# width — the same screen proportion the 4-tile radius gave on the 40-wide board.
-# 10% mag → ~2.25 tiles (widest), 100% mag → ~0.85 tiles (tightest but most powerful).
-# Exact curve is TBD in STATE.md.
 static func radius_for_magnitude(mag: int) -> float:
 	var t: float = clampf(float(mag - 10) / 90.0, 0.0, 1.0)
 	var r_tiles: float = lerpf(2.25, 0.85, t)

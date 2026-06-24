@@ -1,19 +1,6 @@
 extends Control
 
-# Board-browse — the leaderboard hub (notes/leaderboard_ui_spec.md Surface 3; layout from
-# notes/mockups/leaderboard_ui_pass2.html §B/B2 + ranked_ladder_bands.html). One screen, a
-# category segmented control (Trials / Ranked / Campaign), each with its own selectors:
-#   Trials   — window tabs + reset countdown, group seg, scale pills, then ranked rows.
-#   Ranked   — season seg, your-standing header, one continuous tiered-band ladder.
-#   Campaign — per-mission all-time boards.
-# All rows come from LeaderboardService; offline the LocalBackend yields just your own
-# entries, so the screen renders clean empty states until Nakama lands.
-#
-# Open context (which category/window/scale to land on) is passed via
-# SceneManager.pending_leaderboard — e.g. a select card or "View full board" deep-links here.
-
 const UiStyle := preload("res://scripts/ui_style.gd")
-const LeaderboardService := preload("res://scripts/leaderboard_service.gd")
 const MapResourceScript := preload("res://resources/map_resource.gd")
 
 enum Cat { TRIALS, RANKED, CAMPAIGN }
@@ -22,12 +9,12 @@ var _cat: int = Cat.TRIALS
 var _window: int = MapResourceScript.WindowType.DAILY
 var _group: String = "solo"
 var _tier: int = 3
-var _season: int = SaveData.BUILD_SEASON  # 0 during the closed beta (ranked_s0), 1 at launch
+var _season: int = SaveData.BUILD_SEASON
 var _mission: int = 1
 
 var _cat_buttons: Dictionary = {}
-var _selectors: VBoxContainer   # per-category selector rows (rebuilt on category switch)
-var _list_box: VBoxContainer    # the rows area (rebuilt on any selection change)
+var _selectors: VBoxContainer
+var _list_box: VBoxContainer
 var _countdown: Label
 
 func _ready() -> void:
@@ -39,7 +26,6 @@ func _ready() -> void:
 	_rebuild_selectors()
 	_rebuild_list()
 
-# Deep-link target set by the caller (SceneManager.pending_leaderboard), consumed once.
 func _apply_open_context() -> void:
 	var ctx = SceneManager.pending_leaderboard if SceneManager.get("pending_leaderboard") != null else {}
 	if typeof(ctx) != TYPE_DICTIONARY or ctx.is_empty():
@@ -50,8 +36,6 @@ func _apply_open_context() -> void:
 	_tier = int(ctx.get("tier", _tier))
 	_season = int(ctx.get("season", _season))
 	SceneManager.pending_leaderboard = {}
-
-# --- Top bar: back · title · category segmented ---
 
 func _build_topbar() -> void:
 	var back := Button.new()
@@ -93,9 +77,6 @@ func _build_body() -> void:
 	_selectors.offset_top = 84
 	add_child(_selectors)
 
-	# Scrollable list below the selectors. ScrollContainer → a full-width HBox that centers
-	# the fixed-width column (h-scroll disabled, so the HBox fills width and ALIGNMENT_CENTER
-	# centres the list; vertical scroll kicks in when the board is long).
 	var scroll := ScrollContainer.new()
 	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	scroll.offset_left = 28
@@ -105,19 +86,17 @@ func _build_body() -> void:
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(scroll)
 
-	var wrap := HBoxContainer.new()
-	wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	wrap.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	wrap.alignment = BoxContainer.ALIGNMENT_CENTER
-	scroll.add_child(wrap)
+	var wrapper := HBoxContainer.new()
+	wrapper.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wrapper.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	wrapper.alignment = BoxContainer.ALIGNMENT_CENTER
+	scroll.add_child(wrapper)
 
 	_list_box = VBoxContainer.new()
 	_list_box.add_theme_constant_override("separation", 5)
 	_list_box.custom_minimum_size = Vector2(620, 0)
 	_list_box.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	wrap.add_child(_list_box)
-
-# --- Category / selection switching ---
+	wrapper.add_child(_list_box)
 
 func _set_category(c: int) -> void:
 	_cat = c
@@ -135,7 +114,6 @@ func _rebuild_selectors() -> void:
 		Cat.CAMPAIGN: _build_campaign_selectors()
 
 func _build_trials_selectors() -> void:
-	# Row 1: window tabs + reset countdown.
 	var r1 := HBoxContainer.new()
 	r1.add_theme_constant_override("separation", 8)
 	for wt in [MapResourceScript.WindowType.DAILY, MapResourceScript.WindowType.WEEKLY, MapResourceScript.WindowType.MONTHLY]:
@@ -149,14 +127,12 @@ func _build_trials_selectors() -> void:
 	cd_wrap.add_child(_countdown)
 	r1.add_child(cd_wrap)
 	var sp := Control.new(); sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL; r1.add_child(sp)
-	# group seg on the right
 	for g in LeaderboardService.GROUPS:
 		var gb := _tab(g.capitalize(), func(): _select(func(): _group = g))
 		gb.button_pressed = (g == _group)
 		r1.add_child(gb)
 	_selectors.add_child(r1)
 
-	# Row 2: scale pills.
 	var r2 := HBoxContainer.new()
 	r2.add_theme_constant_override("separation", 8)
 	for t in range(1, 6):
@@ -171,7 +147,7 @@ func _build_ranked_selectors() -> void:
 	r1.add_theme_constant_override("separation", 8)
 	var seasons: Array = data.get("seasons", ["Season %d" % _season])
 	for i in range(seasons.size()):
-		var idx := _season - i  # the seasons list descends from the current (requested) season
+		var idx := _season - i
 		var b := _tab(String(seasons[i]), func(): _select(func(): _season = idx))
 		b.button_pressed = (idx == _season)
 		r1.add_child(b)
@@ -186,13 +162,10 @@ func _build_campaign_selectors() -> void:
 		r1.add_child(b)
 	_selectors.add_child(r1)
 
-# Apply a selection change then refresh selector toggles + the list.
 func _select(setter: Callable) -> void:
 	setter.call()
 	_rebuild_selectors()
 	_rebuild_list()
-
-# --- List rendering ---
 
 func _rebuild_list() -> void:
 	for child in _list_box.get_children():
@@ -233,8 +206,6 @@ func _render_campaign() -> void:
 		return
 	_render_score_rows(entries)
 
-# Score rows (Trials/Campaign): rank · name · score. Inserts a "jump to your position"
-# divider wherever the rank sequence skips (top-N → neighborhood).
 func _render_score_rows(entries: Array) -> void:
 	var prev_rank := 0
 	for e in entries:
@@ -254,13 +225,11 @@ func _render_ranked_rows(rows: Array) -> void:
 		_list_box.add_child(_ranked_row(rank, String(e.get("name", "")),
 			String(e.get("tier", "")), int(e.get("lp", 0)), bool(e.get("is_me", false))))
 
-# --- Row / chrome builders ---
-
-func _score_row(rank: int, name: String, score: int, is_me: bool) -> Control:
+func _score_row(rank: int, display_name: String, score: int, is_me: bool) -> Control:
 	var row := _row_panel(is_me)
 	var hb := _row_hbox(row)
 	hb.add_child(_cell("%d" % rank, 44, _rank_col(is_me), HORIZONTAL_ALIGNMENT_RIGHT))
-	var nm := _cell(name, 0, Color("dffacb") if is_me else Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT)
+	var nm := _cell(display_name, 0, Color("dffacb") if is_me else Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT)
 	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	nm.clip_text = true
 	nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -268,16 +237,15 @@ func _score_row(rank: int, name: String, score: int, is_me: bool) -> Control:
 	hb.add_child(_cell(_commas(score), 0, Color("e8c45a"), HORIZONTAL_ALIGNMENT_RIGHT))
 	return row
 
-func _ranked_row(rank: int, name: String, tier: String, lp: int, is_me: bool) -> Control:
+func _ranked_row(rank: int, display_name: String, tier: String, lp: int, is_me: bool) -> Control:
 	var row := _row_panel(is_me)
 	var hb := _row_hbox(row)
 	hb.add_child(_cell("%d" % rank, 44, _rank_col(is_me), HORIZONTAL_ALIGNMENT_RIGHT))
-	var nm := _cell(name, 0, Color("dffacb") if is_me else Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT)
+	var nm := _cell(display_name, 0, Color("dffacb") if is_me else Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT)
 	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	nm.clip_text = true
 	nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	hb.add_child(nm)
-	# Masters shows raw LP; lower bands show "<Tier> · <LP>".
 	var lp_text := "%s LP" % _commas(lp) if tier == "Masters" else "%s · %d" % [tier, lp]
 	hb.add_child(_cell(lp_text, 0, Color("e8c45a") if is_me else Color("cdd6bf"), HORIZONTAL_ALIGNMENT_RIGHT))
 	return row
@@ -302,7 +270,7 @@ func _ranked_standing(you: Dictionary) -> Control:
 		who.add_child(_label("%d LP to %s" % [int(you.get("to_next", 0)), you.get("next_tier", "")], 12, UiStyle.LABEL_COL))
 	return panel
 
-func _band_header(name: String, tag: String) -> Control:
+func _band_header(display_name: String, tag: String) -> Control:
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 8)
 	hb.custom_minimum_size = Vector2(0, 30)
@@ -312,7 +280,7 @@ func _band_header(name: String, tag: String) -> Control:
 	cm.add_theme_constant_override("margin_left", 9); cm.add_theme_constant_override("margin_right", 9)
 	cm.add_theme_constant_override("margin_top", 2); cm.add_theme_constant_override("margin_bottom", 2)
 	chip.add_child(cm)
-	cm.add_child(_label(name.to_upper(), 12, Color.WHITE))
+	cm.add_child(_label(display_name.to_upper(), 12, Color.WHITE))
 	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	hb.add_child(chip)
 	var line := Control.new()
@@ -343,8 +311,6 @@ func _empty_state(title: String, sub: String) -> Control:
 	var s := _label(sub, 14, UiStyle.LABEL_COL); s.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(s)
 	return panel
-
-# --- Small shared widgets ---
 
 func _row_panel(is_me: bool) -> PanelContainer:
 	var p := PanelContainer.new()
@@ -380,8 +346,8 @@ func _band_color(tag: String) -> Color:
 		"mas": return UiStyle.PILL_GOLD
 		"gold": return Color("9c7c2a")
 		"sil": return Color("5d6a4f")
-		"brz": return UiStyle.SELL_BG  # bronze ~ terracotta
-		_: return Color("6b6f76")  # stone ~ neutral grey
+		"brz": return UiStyle.SELL_BG
+		_: return Color("6b6f76")
 
 func _tab(text: String, on_pressed: Callable) -> Button:
 	var b := Button.new()

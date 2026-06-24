@@ -42,7 +42,7 @@ magnitude = 30
 
 [resource]
 script = ExtResource("3_map")
-seed = 4
+map_seed = 4
 mode = 0
 grid_size = Vector2i(25, 16)
 entry_cell = Vector2i(0, 8)

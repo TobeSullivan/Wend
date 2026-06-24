@@ -1,26 +1,21 @@
 extends CanvasLayer
 class_name WinPanel
 
-# Shown once when total damage crosses the Gold threshold mid-match. Pauses the
-# game and lets the player either stop here (they've "won" the level) or keep
-# playing for a higher leaderboard score.
-
 const UiStyle := preload("res://scripts/ui_style.gd")
 
 const TIER_LABELS := ["1 star", "2 stars", "3 stars"]
 const CLEARED := Color("7fcf5a")
 const GOLD := Color("f2c14e")
 
-var round_manager  # RoundManager — untyped to avoid class-name cycle
+var round_manager
 
 var _panel: PanelContainer
 var _score_label: Label
-var _tier_val: Array = []     # the three value Labels (bronze/silver/gold)
-var _tier_chk: Array = []     # the three checkmark Labels
+var _tier_val: Array = []
+var _tier_chk: Array = []
 
 func _ready() -> void:
 	layer = 21
-	# Must keep processing (and let its buttons work) while the tree is paused.
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_ui()
 	_panel.visible = false
@@ -51,24 +46,20 @@ func _build_ui() -> void:
 	vbox.add_theme_constant_override("separation", 12)
 	margin.add_child(vbox)
 
-	# Stars (they say "three stars" on their own — no redundant text line).
 	var stars := _make_label(40, GOLD)
 	stars.text = "★★★"
 	stars.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(stars)
 
-	# Heading — no em dash.
 	var title := _make_label(30, GOLD)
 	title.text = "You won!"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
 
-	# Comma-formatted score.
 	_score_label = _make_label(18, Color("f4eedb"))
 	_score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(_score_label)
 
-	# Tier strip — the three thresholds, ticked when cleared.
 	var tiers := HBoxContainer.new()
 	tiers.add_theme_constant_override("separation", 10)
 	tiers.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -96,7 +87,6 @@ func _build_ui() -> void:
 	home.pressed.connect(_on_return_home)
 	vbox.add_child(home)
 
-# One tier card: "N star(s)" over the threshold value + a checkmark slot.
 func _tier_card(i: int) -> Control:
 	var card := PanelContainer.new()
 	card.add_theme_stylebox_override("panel", _tier_box())
@@ -165,7 +155,6 @@ func _on_keep_playing() -> void:
 	get_tree().paused = false
 
 func _on_return_home() -> void:
-	# Bowing out after Gold keeps your score (partial scores count).
 	get_tree().paused = false
 	var dmg: int = round_manager.total_damage_dealt if round_manager != null else 0
 	SceneManager.leave_match_to_home(dmg)

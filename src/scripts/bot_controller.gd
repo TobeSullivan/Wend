@@ -1,31 +1,17 @@
 extends Node
 class_name BotController
 
-# A baseline opponent AI for one (non-local) board. Acts only during the build
-# phase, one small action per tick (so it spreads out and reads naturally when
-# spectated). Two behaviours:
-#   1. Maze building — greedily place towers that maximize the mob path length
-#      (bounded candidate sampling near the existing maze/path), up to a target
-#      tower count that grows with the round and the bot's skill.
-#   2. Upgrading — once at the tower target (or when it can't usefully place),
-#      spend remaining gold upgrading towers in a preferred-stat order.
-#
-# Solves the cold-start problem (DESIGN: "bot multiplayer"). Difficulty tiers come
-# later; `difficulty` already scales how aggressively the bot expands its maze.
-# References are untyped to avoid class-name cycles.
-
 const PathfinderScript := preload("res://scripts/pathfinder.gd")
 
-const ACTION_INTERVAL := 0.2   # seconds between actions (run-phase FF speeds this up)
-const SAMPLE_K := 8            # candidate cells evaluated per placement (bounds cost)
-# Upgrade preference order (repeats bias the spend toward damage/attack speed).
+const ACTION_INTERVAL := 0.2
+const SAMPLE_K := 8
 const UPGRADE_PREF := ["damage", "attack_speed", "damage", "range", "crit_chance",
 	"attack_speed", "crit_damage", "damage", "multishot"]
 
-var board        # BoardState (round_manager)
-var ctrl         # BuildController for this board
-var coordinator  # MatchCoordinator
-var difficulty: float = 1.0  # 0..1+ skill; scales maze size
+var board
+var ctrl
+var coordinator
+var difficulty: float = 1.0
 
 var _accum := 0.0
 
@@ -34,15 +20,13 @@ func _process(delta: float) -> void:
 		return
 	if coordinator.phase != "build" or coordinator.match_over:
 		return
-	if not board.is_active():  # eliminated (PVP) — stop playing
+	if not board.is_active():
 		return
 	_accum += delta
 	if _accum < ACTION_INTERVAL:
 		return
-	# Respect the coordinator's per-frame bot budget so all the bots can't run their
-	# pathfinding bursts on the same frame (which caused build-phase spikes/crashes).
 	if not coordinator.try_consume_bot_action():
-		return  # over budget this frame — keep the timer and retry next frame
+		return
 	_accum = 0.0
 	_take_one_action()
 
@@ -51,11 +35,8 @@ func _take_one_action() -> void:
 		var cell = _best_maze_cell()
 		if cell != null and ctrl.bot_place_tower(cell):
 			return
-	# At target, or no useful placement, or out of tower money: invest in upgrades.
 	if _try_upgrade():
 		return
-	# Nothing useful left to do this build phase — vote ready so PVP rounds can start
-	# early once every board (incl. the human) is done.
 	if coordinator.is_pvp:
 		coordinator.set_board_ready(board, true)
 
@@ -63,10 +44,6 @@ func _target_towers() -> int:
 	var t := int((6 + coordinator.round_num * 3) * difficulty)
 	return mini(t, ctrl.max_towers)
 
-# --- Maze placement ---
-
-# Returns the placeable cell that most lengthens the path, or (if none lengthens
-# it) any placeable scaffold cell near the maze, or null.
 func _best_maze_cell():
 	var cands := _candidate_cells()
 	if cands.is_empty():
@@ -80,18 +57,14 @@ func _best_maze_cell():
 	for c in sample:
 		var l := _trial_len(c)
 		if l < 0.0:
-			continue  # would block the path — never allowed
+			continue
 		if first_valid == null:
 			first_valid = c
 		if l > best_len:
 			best_len = l
 			best = c
-	# Prefer a lengthening cell; otherwise lay scaffold so future towers can wall.
 	return best if best != null else first_valid
 
-# Placeable empty cells orthogonally adjacent to the existing maze (towers +
-# obstacles); on an empty board, seed from the entry/exit/checkpoint cells so the
-# maze grows along the corridor the mobs actually walk.
 func _candidate_cells() -> Array:
 	var sources: Array = ctrl.blocked.keys()
 	if sources.is_empty():
@@ -128,7 +101,6 @@ func _current_path_len() -> float:
 		ctrl.entry_cell, ctrl.checkpoint_cells, ctrl.exit_cell, ctrl.blocked)
 	return _polyline_len(path)
 
-# Path length if a tower were placed at `cell`; -1 if that would block the path.
 func _trial_len(cell: Vector2i) -> float:
 	if not _cell_placeable(cell):
 		return -1.0
@@ -145,8 +117,6 @@ func _polyline_len(path: PackedVector2Array) -> float:
 	for i in range(1, path.size()):
 		l += path[i - 1].distance_to(path[i])
 	return l
-
-# --- Upgrades ---
 
 func _try_upgrade() -> bool:
 	if ctrl.towers.is_empty():

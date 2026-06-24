@@ -1,12 +1,5 @@
 extends Node
 
-# A headless client that connects to the LIVE Godot match server over real ENet/UDP and JOIN_ROOMs.
-# Two instances of this (same MBTD_MATCH, MBTD_EXPECTED=2) prove that two real clients land in the
-# SAME room on the deployed server and the match starts (per-peer START_MATCH with distinct seats).
-# Env: MBTD_SERVER (host, default the box), MBTD_MATCH (room id), MBTD_NAME, MBTD_EXPECTED.
-# Launched by the rooms-e2e bash orchestration (2 background processes); main_scene swapped to this.
-
-const NetProtocol := preload("res://net/net_protocol.gd")
 
 func _ready() -> void:
 	var host := OS.get_environment("MBTD_SERVER")

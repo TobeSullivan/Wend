@@ -1,16 +1,6 @@
 extends CanvasLayer
 class_name PauseMenu
 
-# In-match pause menu (DESIGN_MODES "Pause menu"). Owns the Esc priority stack:
-#   1. upgrade panel open  → Esc closes it
-#   2. build mode active   → Esc exits build mode
-#   3. neither             → Esc opens this menu (Esc again resumes)
-# build_controller no longer handles Esc; this is the single arbiter.
-#
-# Single player (campaign / solo PVE) pauses the scene tree while open. Multiplayer
-# (PVP / group PVE) does NOT pause — the match continues — and shows "Quit Match"
-# instead of Restart + Quit to Menu.
-
 const MapResourceScript := preload("res://resources/map_resource.gd")
 const SettingsPanelScript := preload("res://scripts/settings_panel.gd")
 const Motion := preload("res://scripts/motion.gd")
@@ -18,8 +8,8 @@ const UiStyle := preload("res://scripts/ui_style.gd")
 const UiLayout := preload("res://scripts/ui_layout.gd")
 const StarRatingScript := preload("res://scripts/star_rating.gd")
 
-var build_controller  # BuildController — untyped to avoid class-name cycle
-var round_manager     # RoundManager — untyped to avoid class-name cycle
+var build_controller
+var round_manager
 
 var is_multiplayer := false
 var _settings
@@ -32,13 +22,12 @@ var _confirm_panel: PanelContainer
 var _confirm_label: Label
 var _pending_confirm: Callable = Callable()
 
-# Objectives readout (Bronze/Silver/Gold) — Campaign & PVE only; PVP has no medals.
 var _obj_score: Label
-var _obj_rows: Array = []  # [{name, threshold, color, label}]
+var _obj_rows: Array = []
 
 func _ready() -> void:
-	layer = 30  # above HUD/upgrade panel; match-end/win guard prevents stacking
-	process_mode = Node.PROCESS_MODE_ALWAYS  # must work while the tree is paused
+	layer = 30
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	is_multiplayer = SceneManager.current_is_multiplayer
 	_build_ui()
 	_settings = SettingsPanelScript.new()
@@ -52,7 +41,6 @@ func _build_ui() -> void:
 	add_child(_menu_panel)
 	_populate_menu()
 
-	# Confirm overlay sits on top of the menu, with its own click-blocking dim.
 	_confirm_dim = _make_dim()
 	add_child(_confirm_dim)
 	_confirm_panel = _make_centered_panel(Vector2(380, 0))
@@ -116,8 +104,6 @@ func _populate_confirm() -> void:
 	confirm.pressed.connect(_on_confirm_yes)
 	row.add_child(confirm)
 
-# --- Esc arbitration ---
-
 func _input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
@@ -127,7 +113,6 @@ func _input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 func _handle_escape() -> void:
-	# Settings overlay sits on top of everything — Esc closes it first.
 	if _settings != null and _settings.is_open():
 		_settings.close()
 		return
@@ -147,7 +132,6 @@ func _handle_escape() -> void:
 		_open_menu()
 
 func _can_open() -> bool:
-	# Don't open over the match-end / win panels (which already pause in SP).
 	if round_manager != null and round_manager.match_over:
 		return false
 	if not is_multiplayer and get_tree().paused:
@@ -156,10 +140,9 @@ func _can_open() -> bool:
 
 func _open_menu() -> void:
 	_open = true
-	_refresh_objectives()  # reflect the score as of this open (live in group PVE)
+	_refresh_objectives()
 	_dim.visible = true
 	_menu_panel.visible = true
-	# JUICE: dim fades in, panel scale-arrives. Runs under the single-player pause via ALWAYS.
 	Motion.overlay_in(_dim, _menu_panel)
 	if not is_multiplayer:
 		get_tree().paused = true
@@ -169,15 +152,12 @@ func _resume() -> void:
 	_close_confirm()
 	if not is_multiplayer:
 		get_tree().paused = false
-	# JUICE: panel leaves + dim fades, then both hide (in the on_hidden callback).
 	var dim := _dim
 	var panel := _menu_panel
 	Motion.overlay_out(dim, panel, func():
 		dim.visible = false
 		panel.visible = false)
 
-# Public entry for the on-screen Pause button (mobile has no Esc key). Opens the
-# menu, closes the topmost overlay if one is up, or resumes if already paused.
 func toggle_pause() -> void:
 	if _settings != null and _settings.is_open():
 		_settings.close()
@@ -190,10 +170,6 @@ func toggle_pause() -> void:
 	elif _can_open():
 		_open_menu()
 
-# --- Objectives (Bronze / Silver / Gold) ---
-
-# Campaign and PVE carry medal thresholds; PVP leaves them at 0 (last-standing,
-# no medals), so the objectives block is shown only when a Gold threshold exists.
 func _has_objectives() -> bool:
 	return round_manager != null and round_manager.gold_threshold > 0
 
@@ -209,8 +185,6 @@ func _build_objectives(vbox: VBoxContainer) -> void:
 	_obj_score.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(_obj_score)
 
-	# Three star tiers, ascending: 1★ Bronze · 2★ Silver · 3★ Gold, each with the
-	# score-to-beat and a tick when reached (unreached rows dim).
 	_obj_rows = [
 		{"stars": 1, "threshold": int(round_manager.bronze_threshold)},
 		{"stars": 2, "threshold": int(round_manager.silver_threshold)},
@@ -252,8 +226,6 @@ func _refresh_objectives() -> void:
 		row.tick.visible = reached
 		row.hbox.modulate = Color(1, 1, 1, 1.0) if reached else Color(1, 1, 1, 0.45)
 
-# --- Confirm dialog ---
-
 func _ask_confirm(message: String, on_confirm: Callable) -> void:
 	_confirm_label.text = message
 	_pending_confirm = on_confirm
@@ -268,11 +240,8 @@ func _close_confirm() -> void:
 func _on_confirm_yes() -> void:
 	var cb := _pending_confirm
 	_close_confirm()
-	# SceneManager unpauses the tree itself on transition.
 	if cb.is_valid():
 		cb.call()
-
-# --- Menu actions ---
 
 func _on_restart() -> void:
 	_ask_confirm("Restart this mission? Your progress will be lost.",
@@ -286,7 +255,6 @@ func _current_damage() -> int:
 
 func _quit_message() -> String:
 	if not is_multiplayer:
-		# Single-player (campaign / solo PVE): the result so far is recorded on quit.
 		return "Quit to the main menu? Your score so far is saved."
 	if _is_pvp():
 		return "Quit the match? You will be eliminated and your lives will leave the pool."
@@ -296,22 +264,16 @@ func _is_pvp() -> bool:
 	var map = SceneManager.pending_map
 	return map != null and map.mode == MapResourceScript.Mode.PVP
 
-# --- UI helpers ---
-
 func _make_dim() -> ColorRect:
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.55)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	dim.mouse_filter = Control.MOUSE_FILTER_STOP  # block clicks to the match below
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	return dim
 
 func _make_centered_panel(min_size: Vector2) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = min_size * UiLayout.scale_factor()
-	# Anchor to the screen centre and grow in both directions so the panel stays
-	# truly centred as it sizes to its content. PRESET_CENTER froze the offsets
-	# from the panel's size at build time — before any children were added, so
-	# height was 0 — which left the finished menu sitting low and off-centre.
 	panel.anchor_left = 0.5
 	panel.anchor_top = 0.5
 	panel.anchor_right = 0.5

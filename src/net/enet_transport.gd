@@ -1,17 +1,5 @@
 extends "res://net/match_transport.gd"
 class_name EnetTransport
-# extends by PATH not `MatchTransport` — see local_transport.gd / memory note: a fresh
-# checkout hasn't scanned the new class_name into the global cache yet.
-
-# Host-authoritative transport over ENet (UDP). Peer id 1 is the host/authority;
-# clients connect out to it (works through NAT for outbound connections to a host
-# that has the port open / forwarded — see the Phase 4 internet step). Messages move
-# through a single reliable relay RPC (`_recv`) so the wire surface is one method;
-# the protocol lives in the Dictionary payload (NetProtocol).
-#
-# This node must sit at the SAME tree path on host and client for the RPC to resolve
-# — SceneManager owns it as a fixed-name child (/root/SceneManager/<name>), so it
-# persists across the lobby→match scene change and matches on both ends.
 
 const NetProtocolScript := preload("res://net/net_protocol.gd")
 const MAX_PLAYERS := NetProtocolScript.MAX_PLAYERS
@@ -71,13 +59,11 @@ func send_to_authority(msg: Dictionary) -> void:
 
 func broadcast(msg: Dictionary) -> void:
 	if _started:
-		_recv.rpc(msg)  # all connected peers except self; authority applies its own state directly
+		_recv.rpc(msg)
 
 func send_to(id: int, msg: Dictionary) -> void:
 	if _started:
 		_recv.rpc_id(id, msg)
-
-# --- internals ---
 
 func _connect_signals() -> void:
 	multiplayer.peer_connected.connect(func(id): peer_joined.emit(id))

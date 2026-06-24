@@ -1,15 +1,9 @@
 extends Control
 
-# Campaign mission list (design/VISUAL_SYSTEM.md "Campaign select"): a row of 5 mission
-# cards, all unlocked (the curve is guidance, not gating). Each card shows the mission
-# number, its lesson label, and the player's star tier (0–3). Click to drop in.
-
 const UiStyle := preload("res://scripts/ui_style.gd")
 const StarRatingScript := preload("res://scripts/star_rating.gd")
 const Motion := preload("res://scripts/motion.gd")
 
-# Real lesson content per mission (reinforces "this is the tutorial"). Index 1-based.
-# The five-mission curriculum ramps from zero (design/CAMPAIGN.md).
 const LESSONS := {
 	1: "Intro", 2: "Checkpoints", 3: "Switchbacks", 4: "Zones", 5: "Real match",
 }
@@ -48,7 +42,7 @@ func _build_header() -> void:
 func _build_grid() -> void:
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	center.offset_top = 40  # nudge below the header
+	center.offset_top = 40
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(center)
 
@@ -63,8 +57,6 @@ func _build_grid() -> void:
 		var c := _mission_card(i)
 		grid.add_child(c)
 		cards.append(c)
-	# JUICE (meta_menu_mock): the mission cards cascade in, staggered, on load. Scale + fade so
-	# the GridContainer can't stomp them; armed transparent before the first frame.
 	for c in cards:
 		c.modulate.a = 0.0
 	_cascade_cards.call_deferred(cards)

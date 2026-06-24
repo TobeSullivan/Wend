@@ -3,17 +3,14 @@ class_name DamageNumber
 
 const DURATION := 1.5
 const RISE_PX := 64.0
-const FADE_START_FRAC := 0.6  # stays fully opaque for first 60% of lifetime
+const FADE_START_FRAC := 0.6
 
 var _elapsed: float = 0.0
 var _start_y: float = 0.0
 var _label: Label
 
 func setup(amount: float, is_crit: bool, world_pos: Vector2) -> void:
-	# Spawn above the mob sprite (mob sprite is ~40px rendered, centered on mob.position).
 	position = world_pos + Vector2(randf_range(-12.0, 12.0), -36.0)
-	# Capture the anchor y here — _ready may have already fired (if add_child
-	# happened before setup) and seen the wrong default position.
 	_start_y = position.y
 	_label = Label.new()
 	_label.add_theme_color_override("font_outline_color", Color.BLACK)
@@ -33,7 +30,7 @@ func setup(amount: float, is_crit: bool, world_pos: Vector2) -> void:
 	add_child(_label)
 
 func _ready() -> void:
-	z_index = 10  # above towers and mobs
+	z_index = 10
 
 func _process(delta: float) -> void:
 	_elapsed += delta

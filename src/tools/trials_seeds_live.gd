@@ -1,8 +1,5 @@
 extends Node
 
-# Live check of the trials_seeds RPC against the box: returns 5 seeds per window, stable across
-# calls within the same cycle (server-owned, stored). Run: godot --headless --path src res://tools/trials_seeds_live.tscn
-
 const NakamaBackendScript := preload("res://scripts/nakama_backend.gd")
 
 func _ready() -> void:
@@ -23,7 +20,6 @@ func _ready() -> void:
 		print("  ", w, " -> ", sa, "  5? ", ok5, "  stable? ", stable)
 		if not ok5 or not stable:
 			fails += 1
-	# Windows must differ from each other (independent seed sets).
 	if str(a.get("daily")) == str(a.get("monthly")):
 		print("  ❌ daily == monthly (should differ)"); fails += 1
 	print("RESULT ", "✅ TRIALS SEEDS LIVE OK" if fails == 0 else "❌ FAILED (%d)" % fails)
