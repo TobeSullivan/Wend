@@ -275,26 +275,71 @@ func restart_current_match() -> void:
 # best-kept, so calling this with a partial score is always safe — a partial can
 # never beat a full run. PVP records nothing (last-standing, no medals/score).
 func report_match_result(advisory_damage: int) -> void:
+	var snap := _snapshot_match_result(advisory_damage)
+	if not snap.is_empty():
+		await _finish_match_result(snap)
+
+# Capture the just-ended match's identity, score thresholds, match record, and the local board's
+# task stats SYNCHRONOUSLY — so the result can be scored and submitted even after the match scene
+# is freed. The bow-out path (leave_match_to_home) navigates home immediately, then finishes off
+# this snapshot in the background. Mutates the coordinator only to log the bow-out `end` marker so
+# a partial run still scores (resim_contract §8). Returns {} when there's nothing to record.
+func _snapshot_match_result(advisory_damage: int) -> Dictionary:
 	if pending_map == null:
-		return
-	# resim_contract §4/§8: the score we RECORD is the authoritative re-sim of the match
-	# record, never the live client tally (that's advisory/UX). An illegal log (§4.1) is
-	# rejected outright — no score is written. Locally the re-sim runs client-side: a
-	# stand-in for the server, and a continuous determinism self-check.
-	var result := await _authoritative_score(advisory_damage)
+		return {}
+	var snap := {
+		"advisory": advisory_damage,
+		"mode": pending_map.mode,
+		"mission_index": pending_map.mission_index,
+		"window_date": pending_map.window_date,
+		"window_type": pending_map.window_type,
+		"scale_tier": pending_map.scale_tier,
+		"gold": pending_map.gold_threshold,
+		"silver": pending_map.silver_threshold,
+		"bronze": pending_map.bronze_threshold,
+		"record": {},
+		"task": {},
+	}
+	var coord = active_coordinator
+	if coord != null and is_instance_valid(coord) and coord.record_enabled:
+		if not coord.match_over:
+			coord.record_end_marker()  # log the bow-out so the re-sim scores the partial
+		snap["record"] = coord.make_record()
+	var board = _local_board()
+	if board != null and is_instance_valid(board):
+		var towers := 0
+		var zones := 0
+		if board.build_controller != null and is_instance_valid(board.build_controller):
+			towers = board.build_controller.towers.size()
+			zones = _zones_occupied(board)
+		snap["task"] = {"towers": towers, "zones": zones, "kills": board.total_kills}
+	return snap
+
+# Score the snapshot via the authoritative (chunked) re-sim, then write + submit the result. Runs
+# ENTIRELY off the snapshot — no live coordinator/pending_map reads — so it is safe to run in the
+# background after navigating home. resim_contract §4/§8: the score we record is the authoritative
+# re-sim, never the live tally; an illegal log (§4.1) is rejected and no score is written.
+func _finish_match_result(snap: Dictionary) -> void:
+	var record: Dictionary = snap["record"]
+	var result := await _authoritative_score(record, int(snap["advisory"]))
 	if not bool(result["legal"]):
 		push_warning("Match record failed legality check (%s) — no score recorded." % str(result.get("reason", "")))
 		return
 	var damage: int = int(result["score"])
-	if pending_map.mode == MapResourceScript.Mode.CAMPAIGN and pending_map.mission_index > 0:
-		SaveData.record_campaign_medal(pending_map.mission_index, _medal_for(damage))
-		_post_online("campaign", "campaign_m%02d" % pending_map.mission_index, damage)
-	elif pending_map.mode == MapResourceScript.Mode.PVE:
-		SaveData.record_pve_score(pending_map.window_date, pending_map.scale_tier, damage)
+	var record_b64 := ""
+	if not record.is_empty():
+		record_b64 = Marshalls.raw_to_base64(ResimScript.encode_record(record))
+	if snap["mode"] == MapResourceScript.Mode.CAMPAIGN and int(snap["mission_index"]) > 0:
+		SaveData.record_campaign_medal(int(snap["mission_index"]), _medal_for(damage, snap))
+		_post_online("campaign", "campaign_m%02d" % int(snap["mission_index"]), damage, record_b64)
+	elif snap["mode"] == MapResourceScript.Mode.PVE:
+		SaveData.record_pve_score(snap["window_date"], snap["scale_tier"], damage)
 		_post_online("trials", LeaderboardService.trials_board_id(
-			pending_map.window_type, pending_map.scale_tier, "solo"), damage)
+			snap["window_type"], snap["scale_tier"], "solo"), damage, record_b64)
 		# Season tasks count Trials (not campaign). Score = the authoritative re-sim damage.
-		_record_match_tasks(_local_board(), damage)
+		var t: Dictionary = snap["task"]
+		if not t.is_empty():
+			_award_tasks({"towers": t["towers"], "zones": t["zones"], "kills": t["kills"], "score": damage})
 
 # Networked Ranked result: write the player's new authoritative LADDER VALUE (tier_base + LP)
 # to the season board via the submit_score RPC (op "set"; boards reject direct client writes).
@@ -329,10 +374,13 @@ func _record_match_tasks(board, score: int) -> void:
 	if board.build_controller != null and is_instance_valid(board.build_controller):
 		towers = board.build_controller.towers.size()
 		zones = _zones_occupied(board)
-	# Keep the {points, completed} result so the match-end panel can show the season nudge.
-	last_task_award = TaskCatalog.record_match({
-		"towers": towers, "zones": zones, "kills": board.total_kills, "score": score,
-	})
+	_award_tasks({"towers": towers, "zones": zones, "kills": board.total_kills, "score": score})
+
+# Feed completed task stats into the season-task counters; keep the {points, completed} result so
+# the match-end panel can show the season nudge. Task stats NEVER enter the match record (cardinal
+# rule 2) — all reads are client-side.
+func _award_tasks(stats: Dictionary) -> void:
+	last_task_award = TaskCatalog.record_match(stats)
 
 # Distinct bonus zones the player built at least one tower inside ("build inside X zones").
 func _zones_occupied(board) -> int:
@@ -348,15 +396,17 @@ func _zones_occupied(board) -> int:
 # (LocalBackend) this is a no-op — boards are write-gated to the submit_score RPC. The match record
 # is encoded SYNCHRONOUSLY (before the first await) so active_coordinator is read while still valid;
 # the network submit is then fire-and-forget (match-end must not block on the network).
-func _post_online(kind: String, board_id: String, score: int) -> void:
+func _post_online(kind: String, board_id: String, score: int, record_b64 := "") -> void:
 	var be = LeaderboardService.backend()
 	if be == null or not be.has_method("submit"):
 		return
-	var record_b64 := ""
-	var coord = active_coordinator
-	if coord != null and is_instance_valid(coord) and coord.record_enabled:
-		var bytes: PackedByteArray = ResimScript.encode_record(coord.make_record())
-		record_b64 = Marshalls.raw_to_base64(bytes)
+	# A pre-encoded record (the bow-out path captures it before the coordinator is freed) is used
+	# as-is; otherwise encode from the still-live coordinator (the ranked/match-end-panel paths).
+	if record_b64 == "":
+		var coord = active_coordinator
+		if coord != null and is_instance_valid(coord) and coord.record_enabled:
+			var bytes: PackedByteArray = ResimScript.encode_record(coord.make_record())
+			record_b64 = Marshalls.raw_to_base64(bytes)
 	await be.submit(kind, board_id, score, record_b64)
 
 # Derive the local board's authoritative score by re-simming the captured match record.
@@ -365,17 +415,14 @@ func _post_online(kind: String, board_id: String, score: int) -> void:
 # illegal record (§4.1) returns legal=false and the caller writes no score. A mid-match
 # bow-out logs an `end` marker first so the re-sim scores the partial, not the played-out
 # remainder.
-func _authoritative_score(advisory: int) -> Dictionary:
-	var coord = active_coordinator
-	if coord == null or not is_instance_valid(coord) or not coord.record_enabled:
+func _authoritative_score(record: Dictionary, advisory: int) -> Dictionary:
+	if record.is_empty():
 		return {"score": advisory, "legal": true, "reason": ""}
-	if not coord.match_over:
-		coord.record_end_marker()
-	var record: Dictionary = coord.make_record()
 	var host := Node2D.new()
 	add_child(host)
-	# Chunked (awaited) so a long replay doesn't hang the results screen. `coord` (the live match)
-	# is only read above, before any await, so it's safe even if the player navigates away mid-replay.
+	# Chunked (awaited) so a long replay doesn't hang the results screen. The replay runs entirely
+	# off the captured `record` on a throwaway host — independent of the live match, so it's safe
+	# even after the player has navigated home (the bow-out path finishes this in the background).
 	var res: Dictionary = await ResimScript.run(host, record, RESIM_TICKS_PER_FRAME)
 	host.queue_free()
 	if not bool(res.get("legal", true)):
@@ -388,19 +435,19 @@ func _authoritative_score(advisory: int) -> Dictionary:
 		push_warning("Re-sim score %d differs from live %d — determinism check (recording re-sim)." % [score, advisory])
 	return {"score": score, "legal": true, "reason": ""}
 
-func _medal_for(damage: int) -> String:
-	if pending_map == null:
-		return "none"
-	if damage >= pending_map.gold_threshold:
+func _medal_for(damage: int, snap: Dictionary) -> String:
+	if damage >= int(snap["gold"]):
 		return "gold"
-	if damage >= pending_map.silver_threshold:
+	if damage >= int(snap["silver"]):
 		return "silver"
-	if damage >= pending_map.bronze_threshold:
+	if damage >= int(snap["bronze"]):
 		return "bronze"
 	return "none"
 
 # Bow out mid-match: record the (possibly partial) result, then go home. Used by
 # the gold-reached popup and the pause-menu quit. Partial scores count by design.
 func leave_match_to_home(damage: int) -> void:
-	await report_match_result(damage)   # let the chunked re-sim + submit finish before tearing down
-	goto_home()
+	var snap := _snapshot_match_result(damage)  # capture BEFORE goto_home() frees the match scene
+	goto_home()                                 # navigate immediately — never wait on re-sim/network
+	if not snap.is_empty():
+		_finish_match_result(snap)  # intentionally NOT awaited — records while the player is home

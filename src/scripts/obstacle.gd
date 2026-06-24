@@ -19,6 +19,10 @@ const GridScript := preload("res://scripts/grid.gd")
 const OVERHANG_ROWS := 3.0
 
 var cells: Array = []  # Array[Vector2i] this prop occupies (= blocks)
+# Cells the base-anchored art spills UPWARD into, above the footprint. These stay walkable
+# (pathfinding) and unblocked (sim/resim); the LOCAL build UI just forbids placing towers on
+# them so a tower never appears to float on a tall prop. Cosmetic — never enters the record.
+var overhang_cells: Array = []  # Array[Vector2i]
 
 # origin = top-left footprint cell; footprint = cells (w×h) it blocks; overhang =
 # width fudge (≈0.8–1.1). The drawn sprite keeps the texture aspect, so it may
@@ -59,6 +63,17 @@ func setup(tex: Texture2D, origin: Vector2i, footprint: Vector2i, overhang: floa
 	var fp_top_left := GridScript.cell_to_world(origin) - Vector2(tile / 2.0, tile / 2.0)
 	var base_y := fp_top_left.y + fh
 	position = Vector2(fp_top_left.x + fw / 2.0, base_y - draw_h / 2.0)
+
+	# Mark the cells the art overhangs above the footprint as no-build (local UI only). Only
+	# props whose art rises more than half a cell past their footprint contribute — small props
+	# (a bin, a tyre) don't, so this is just the genuinely tall art (e.g. the ruin pillar).
+	overhang_cells = []
+	var overhang_px := draw_h - fh
+	if overhang_px > tile * 0.5:
+		var rows := int(round(overhang_px / tile))
+		for dx in range(fw_cells):
+			for r in range(1, rows + 1):
+				overhang_cells.append(origin + Vector2i(dx, -r))
 
 	# Above background / path overlay, below towers and mobs (z = 0). Sort taller
 	# props by their base row so nearer (lower) ones overlap correctly.

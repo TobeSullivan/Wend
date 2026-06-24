@@ -242,7 +242,7 @@ static func _build_board(container: Node2D, map, coordinator, is_local: bool, us
 
 	var zones := _setup_zones(container, map.bonus_zones)
 	_setup_markers(container, map.checkpoint_cells)
-	var obstacle_blocked := _setup_obstacles(container, map, board_id)
+	var obstacle_setup := _setup_obstacles(container, map, board_id)
 
 	# Each board owns its own mob list (NOT shared — that would cross-contaminate
 	# targeting and run-completion detection across boards).
@@ -262,7 +262,10 @@ static func _build_board(container: Node2D, map, coordinator, is_local: bool, us
 	ctrl.checkpoint_cells = map.checkpoint_cells
 	ctrl.max_towers = map.supply_cap
 	ctrl.grid_size = map.grid_size
-	ctrl.blocked = obstacle_blocked  # obstacles are permanent walls from the start
+	ctrl.blocked = obstacle_setup["blocked"]  # obstacles are permanent walls from the start
+	# Local art overhang: build UI forbids these, but pathfinding + resim ignore them. Only the
+	# interactive (local) board has a human placing towers, so it's the only one that needs them.
+	ctrl.no_build = obstacle_setup["no_build"] if is_local else {}
 
 	var board := RoundManagerScript.new()
 	board.coordinator = coordinator
@@ -430,17 +433,21 @@ static func _setup_obstacles(parent: Node2D, map, board_id: String) -> Dictionar
 	# board (board_id) over that footprint — an authored prop_id (campaign .tres) wins,
 	# else ObstacleProps.art_for picks a board-scoped prop. Falls back to the deprecated
 	# bare-cell list (1×1, board-resolved) if no sized obstacles.
+	#
+	# Returns { blocked, no_build }: `blocked` is the shared/seed footprint (pathfinding +
+	# resim-validated placement); `no_build` is the LOCAL art overhang (build UI only).
 	var blocked := {}
+	var no_build := {}
 	var defs: Array = map.obstacles if map.obstacles != null else []
 	if defs.is_empty() and not map.obstacle_cells.is_empty():
 		for cell in map.obstacle_cells:
-			_spawn_obstacle(parent, board_id, "", cell, Vector2i.ONE, blocked)
+			_spawn_obstacle(parent, board_id, "", cell, Vector2i.ONE, blocked, no_build)
 	else:
 		for d in defs:
-			_spawn_obstacle(parent, board_id, d.prop_id, d.origin, d.footprint, blocked)
-	return blocked
+			_spawn_obstacle(parent, board_id, d.prop_id, d.origin, d.footprint, blocked, no_build)
+	return {"blocked": blocked, "no_build": no_build}
 
-static func _spawn_obstacle(parent: Node2D, board_id: String, prop_id: String, origin: Vector2i, footprint: Vector2i, blocked: Dictionary) -> void:
+static func _spawn_obstacle(parent: Node2D, board_id: String, prop_id: String, origin: Vector2i, footprint: Vector2i, blocked: Dictionary, no_build: Dictionary) -> void:
 	var tex: Texture2D
 	var overhang: float
 	if prop_id != "":
@@ -455,6 +462,8 @@ static func _spawn_obstacle(parent: Node2D, board_id: String, prop_id: String, o
 	obs.setup(tex, origin, footprint, overhang)
 	for c in obs.cells:
 		blocked[c] = true
+	for c in obs.overhang_cells:
+		no_build[c] = true
 
 # Stable per-cell key so a given obstacle origin always draws the same prop (varied
 # across cells). Pure function of the cell — no rng, deterministic, board-scoped.

@@ -52,6 +52,10 @@ var seat: int = 0
 
 var towers: Array = []
 var blocked: Dictionary = {}  # Vector2i -> true
+# Cells a prop's art visually overhangs (set by map_loader, LOCAL board only). The human
+# build UI refuses to place here so a tower never floats on a tall prop; pathfinding and
+# bot_place_tower (bots/remote/resim) ignore it, so it never affects the sim or the record.
+var no_build: Dictionary = {}  # Vector2i -> true
 
 # Equipped cosmetics for THIS board (set by map_loader before add_child, local board only;
 # null/WHITE = defaults). Render-only — applied to placed towers + their projectiles + the ghost.
@@ -157,7 +161,7 @@ func _process(_delta: float) -> void:
 	# Recompute validity + projected path only when the hovered cell changes.
 	if cell != _last_ghost_cell:
 		_last_ghost_cell = cell
-		_last_ghost_valid = _is_valid_placement(cell)
+		_last_ghost_valid = _human_can_place(cell)
 		if _last_ghost_valid:
 			_compute_projected(cell)
 
@@ -220,7 +224,7 @@ func _input(event: InputEvent) -> void:
 		if _build_mode:
 			if not _in_build_phase():
 				return
-			if not _is_valid_placement(cell):
+			if not _human_can_place(cell):
 				return
 			if not round_manager.can_afford(GameConstants.TOWER_COST):
 				return
@@ -290,7 +294,7 @@ func _tap_cell(cell: Vector2i) -> void:
 		return
 	if _pending_cell != _NO_CELL and cell == _pending_cell:
 		confirm_pending_build()
-	elif _is_valid_placement(cell):
+	elif _human_can_place(cell):
 		_clear_selection()
 		_set_pending(cell)
 	else:
@@ -301,7 +305,7 @@ func confirm_pending_build() -> void:
 	if _pending_cell == _NO_CELL or not _in_build_phase():
 		return
 	var cell := _pending_cell
-	if not _is_valid_placement(cell):
+	if not _human_can_place(cell):
 		_clear_pending()
 		return
 	if round_manager == null or not round_manager.can_afford(GameConstants.TOWER_COST):
@@ -335,7 +339,7 @@ func _set_pending(cell: Vector2i) -> void:
 	if _ghost_range != null:
 		_ghost_range.position = world
 		_ghost_range.visible = true
-	var valid := _is_valid_placement(cell)
+	var valid := _human_can_place(cell)
 	if valid:
 		_compute_projected(cell)
 	_apply_ghost_color(valid)
@@ -428,6 +432,12 @@ func _is_valid_placement(cell: Vector2i) -> bool:
 	trial[cell] = true
 	var trial_path := PathfinderScript.compute_full_path(entry_cell, checkpoint_cells, exit_cell, trial)
 	return not trial_path.is_empty()
+
+# Human placement: the shared placement rules PLUS the local-only no-build overhang mask. Used
+# by the interactive UI paths only — bot_place_tower (and therefore resim) deliberately does NOT
+# call this, so an honest log (which never places on a no_build cell) always replays legal.
+func _human_can_place(cell: Vector2i) -> bool:
+	return _is_valid_placement(cell) and not no_build.has(cell)
 
 # Bot/remote driver entry: validate, pay, and place a tower at `cell`. Goes through
 # the same checks as the human input path. Returns true on success.
