@@ -20,27 +20,41 @@ const MOB_HP_FLAT_ROUNDS := 5
 const MOB_HP_GROWTH := 1.12
 const SPAWN_INTERVAL := 1.0
 
+# --- Boss ---
+# Mobs die permanently now; a boss rides among the wave every N rounds and a
+# leak past it costs a heavy chunk of lives. (design_revisions_2026-06-22 §2)
+const BOSS_INTERVAL := 10
+const BOSS_HP_MULT := 8.0
+const BOSS_LEAK_PENALTY := 5
+
+# --- Fail state (lives) ---
+# Trials: leaks cost lives directly; run ends when they hit zero.
+# PvP: 100-life see-saw, transferred on LEAKS (not kills); score is the tiebreak.
+const TRIALS_LIVES := 10
+const LIVES_PER_PLAYER := 100
+
+# --- Tower tier ladder (merge replaces the old free-form upgrades) ---
+# Pure merge: two of tier N -> one tier N+1. Max T10 (2^n base towers).
+# All stats derive from tier. SCALING IS A PLACEHOLDER (mirrors
+# wend_merge_reference.html) -- real balance is deferred, do not treat as final.
+const MIN_TIER := 1
+const MAX_TIER := 10
+
+# Multishot is the dominant lever: unlocks at T3/T6/T10 -> x2/x3/x4 (cap 4).
+const MULTISHOT_T2 := 3
+const MULTISHOT_T3 := 6
+const MULTISHOT_T4 := 10
+const MULTISHOT_HARD_CAP := 4
+
 const TOWER_BASE_RANGE := 160.0
 const TOWER_BASE_DAMAGE := 25.0
 const TOWER_BASE_COOLDOWN := 0.8
 
-const TOWER_DAMAGE_INCREMENT := 0.34
-const TOWER_ATTACK_SPEED_INCREMENT := 0.15
-const TOWER_RANGE_INCREMENT := 0.10
+# Per-tier stat curves (placeholder; balance later).
+const TIER_DAMAGE_GROWTH := 1.20      # dmg = base * growth^(tier-1)
+const TIER_RATE_GROWTH := 1.05        # fire rate scales -> cooldown = base / growth^(tier-1)
+const TIER_RANGE_PER_TIER := 10.0     # range += this per tier above 1
 
-const CRIT_CHANCE_PER_TIER := 0.10
+# Crit is parked under the tier model (no tier grants it yet); plumbing kept.
 const CRIT_CHANCE_HARD_CAP := 0.75
 const CRIT_DAMAGE_BASE := 1.5
-const CRIT_DAMAGE_PER_TIER := 0.20
-const MULTISHOT_HARD_CAP := 3
-
-const UPGRADE_COST_BASE := {
-	"damage": 15,
-	"range": 20,
-	"attack_speed": 20,
-	"crit_chance": 25,
-	"crit_damage": 25,
-	"multishot": 60,
-}
-
-const LIVES_PER_PLAYER := 100

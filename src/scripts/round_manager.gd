@@ -18,6 +18,7 @@ signal phase_changed(phase: String)
 signal round_changed(new_round: int)
 signal build_timer_changed(time_left: float)
 signal match_ended
+signal lives_changed(new_lives: int)
 
 var gold: int = GameConstants.STARTING_GOLD
 var total_damage_dealt: int = 0
@@ -25,6 +26,8 @@ var total_kills: int = 0
 var gold_goal_hit: bool = false
 var lives: int = 0
 var kills_this_round: int = 0
+var leaks_this_round: int = 0
+var total_leaks: int = 0
 var eliminated: bool = false
 var _round_kill_gold: int = 0
 
@@ -116,10 +119,25 @@ func request_start_now() -> void:
 	if coordinator != null:
 		coordinator.request_start_now()
 
-func start_run(_round_num: int, mob_hp: float) -> void:
+func start_run(_round_num: int, mob_hp: float, boss: bool = false, boss_hp: float = 0.0) -> void:
 	clear_projectiles()
+	leaks_this_round = 0
 	var wave_path: PackedVector2Array = build_controller.current_path_world()
-	spawner.start_wave(mob_count, GameConstants.SPAWN_INTERVAL, mob_hp, wave_path)
+	spawner.start_wave(mob_count, GameConstants.SPAWN_INTERVAL, mob_hp, wave_path, boss, boss_hp)
+
+func _on_mob_leaked(mob) -> void:
+	var penalty: int = GameConstants.BOSS_LEAK_PENALTY if (mob != null and mob.is_boss) else 1
+	leaks_this_round += penalty
+	total_leaks += penalty
+	# PvP resolves leaks into the life see-saw at round end; everywhere else a
+	# leak costs lives immediately and a depleted board ends the run.
+	if coordinator != null and not coordinator.is_pvp:
+		lives = maxi(0, lives - penalty)
+		emit_signal("lives_changed", lives)
+		if lives <= 0 and not eliminated:
+			eliminated = true
+			if coordinator.has_method("notify_board_dead"):
+				coordinator.notify_board_dead(self)
 
 func sim_step(dt: float, rng: RandomNumberGenerator) -> void:
 	if spawner != null:
@@ -145,7 +163,14 @@ func sim_step(dt: float, rng: RandomNumberGenerator) -> void:
 		if not is_instance_valid(m):
 			mobs_array.remove_at(j)
 			continue
+		if not m.alive:
+			# Killed this tick (permanent death) -> reap.
+			mobs_array.remove_at(j)
+			m.queue_free()
+			continue
 		if m.sim_step(dt):
+			# Reached the exit -> leak.
+			_on_mob_leaked(m)
 			m.alive = false
 			mobs_array.remove_at(j)
 			m.queue_free()

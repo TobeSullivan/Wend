@@ -24,7 +24,17 @@ near the top of each group; date in parens is when it locked.
 - **No em-dashes in game copy** (user-facing strings). Internal design docs are exempt.
 
 ## Core design (pillars)
-- **Single-tower mazing is a PILLAR** (Steelman B, locked — not re-litigated). One tower type, one mob type; depth from maze geometry + zone placement + upgrade allocation. (2026-06-05)
+- **Single-tower mazing is a PILLAR** (Steelman B, locked — not re-litigated). One tower type; depth from maze geometry + zone placement + the merge tier ladder. One standard mob type **plus a periodic boss** (see Mob model). (2026-06-05, mob-type softened 2026-06-22)
+
+### Mob model & fail state — 2026-06-22 pivot (implemented)
+Reverses two formerly-locked pillars after external playtesting; downstream docs that still encode the old model are stale until rewritten. Full rationale + spec in `notes/design_revisions_2026-06-22.md`.
+- **STRUCK:** ~~mobs respawn in place~~; ~~score-attack replaces survival (no fail state)~~.
+- **Mobs die and stay dead** — conventional permanent kills, to widen the audience past the original custom-map players. (2026-06-22)
+- **Escalation via difficulty scaling.** Difficulty ramps until it outpaces the player; a normal maze caps ~stage 30, a great maze pushes further. Scaling curve deliberately deferred. (2026-06-22)
+- **Fail state = lives.** Leaks cost lives; out of lives ends the run. Trials ~10 lives; leaderboard = round reached + score. (2026-06-22)
+- **Boss every 10 rounds, among the wave** (not solo). Leaking the boss costs a heavy chunk of lives. (2026-06-22)
+- **Merge mechanic.** Same-tier only; two of tier N → one tier N+1. Pure merge to tier (upgrades do NOT raise tier); max **T10** (2ⁿ base towers). Merging **empties the source tile** → hole-in-maze risk (build-timer pressure). Multishot is the dominant lever, unlocking at T3/T6/T10 → ×2/×3/×4 (cap 4). Tower appearance morphs per tier: barrel count = shot count, body colour walks a 10-stop ramp (body stays a skin slot), tier badge shows the number, T10 gets a gold ring. Input: controller/Deck tap-to-arm (cursor → arm → direction); mouse drag onto an adjacent same-tier tower. (2026-06-22)
+- **PvP see-saw transfers on LEAKS, not kills.** 100-life see-saw, last-player-standing wins, **score is the tiebreaker.** (2026-06-22)
 - **PVE (Trials) is the spine; PVP (Ranked) is a real shipping ambition, not optional fluff** (Steelman A). Anti-cheat + queue population are on the launch critical path. (2026-06-05)
 - **No tower specialization or evolution** — permanently removed; anti-goal in DESIGN.md unless players explicitly request post-launch.
 - **Board = 25×16, universal.** Derived once at the 1080p reference with a 280px right rail; other resolutions scale-and-center the same grid. (Supersedes 40×22, then 25×14.) (2026-06-07)

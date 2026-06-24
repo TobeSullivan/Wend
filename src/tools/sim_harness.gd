@@ -21,15 +21,12 @@ func _ready() -> void:
 
 	var ctrl = board.build_controller
 	var placed := _place_flanking(ctrl, 10, [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)])
+	placed += _place_adjacent_pairs(ctrl, 4)
 	var upg := 0
-	for i in range(mini(6, ctrl.towers.size())):
-		var t = ctrl.towers[i]
-		for _k in range(3):
-			if _try_upgrade(board, t, "crit_chance"): upg += 1
-		for _k in range(2):
-			if _try_upgrade(board, t, "damage"): upg += 1
+	for _k in range(8):
+		if _try_merge_any(ctrl): upg += 1
 	print("HARNESS LIVE seed=", map.map_seed, " grid=", map.grid_size,
-		" rounds=", map.round_count, " mob_count=", map.mob_count, " towers=", placed, " upgrades=", upg)
+		" rounds=", map.round_count, " mob_count=", map.mob_count, " towers=", placed, " merges=", upg)
 
 	var ticks := 0
 	var added_r2 := false
@@ -42,10 +39,10 @@ func _ready() -> void:
 		if not added_r2 and coord.round_num == 2 and coord.phase == "build":
 			var extra := _place_flanking(ctrl, 2, [Vector2i(0, -2), Vector2i(0, 2), Vector2i(-2, 0), Vector2i(2, 0)])
 			var extra_upg := 0
-			for i in range(ctrl.towers.size()):
-				if _try_upgrade(board, ctrl.towers[i], "damage"): extra_upg += 1
+			for _k in range(4):
+				if _try_merge_any(ctrl): extra_upg += 1
 			added_r2 = true
-			print("  round 2 build @tick ", coord.sim_tick, ": placed ", extra, " more, upgraded ", extra_upg)
+			print("  round 2 build @tick ", coord.sim_tick, ": placed ", extra, " more, merged ", extra_upg)
 
 	var live_dmg: int = board.total_damage_dealt
 	var live_kills: int = board.total_kills
@@ -127,15 +124,38 @@ func _place_flanking(ctrl, max_n: int, offsets: Array) -> int:
 				placed += 1
 	return placed
 
-func _try_upgrade(board, t, stat: String) -> bool:
-	if not t.can_upgrade(stat):
-		return false
-	var cost: int = t.upgrade_cost(stat)
-	if not board.can_afford(cost):
-		return false
-	board.spend(cost)
-	t.upgrade(stat)
-	return true
+func _place_adjacent_pairs(ctrl, max_pairs: int) -> int:
+	# Place horizontally-adjacent tower pairs on empty cells so the merge action
+	# is exercised through the record/re-sim round-trip.
+	var placed := 0
+	var pairs := 0
+	for y in range(ctrl.grid_size.y):
+		if pairs >= max_pairs:
+			break
+		for x in range(ctrl.grid_size.x - 1):
+			if pairs >= max_pairs:
+				break
+			var a := Vector2i(x, y)
+			var b := Vector2i(x + 1, y)
+			if ctrl.blocked.has(a) or ctrl.blocked.has(b):
+				continue
+			if not ctrl.bot_place_tower(a):
+				continue
+			if not ctrl.bot_place_tower(b):
+				continue
+			placed += 2
+			pairs += 1
+	return placed
+
+func _try_merge_any(ctrl) -> bool:
+	for t in ctrl.towers:
+		if not is_instance_valid(t) or t.tier >= GameConstants.MAX_TIER:
+			continue
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var other = ctrl._tower_at_cell(t.grid_cell + d)
+			if other != null and other.tier == t.tier:
+				return ctrl._try_merge(t.grid_cell, t.grid_cell + d)
+	return false
 
 func _insert_sorted(log: Array, entry: Dictionary) -> void:
 	var t := int(entry["tick"])

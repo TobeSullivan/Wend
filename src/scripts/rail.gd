@@ -21,6 +21,7 @@ var _round_val: Label
 var _phase_val: Label
 var _supply_val: Label
 var _gold_val: Label
+var _lives_status: Label
 
 var _score_hero: Label
 var _rungs: Array = []
@@ -64,6 +65,7 @@ func _ready() -> void:
 		round_manager.build_timer_changed.connect(func(_t): _refresh_phase())
 		round_manager.kills_changed.connect(func(_k): _refresh())
 		round_manager.damage_dealt_changed.connect(func(_d): _refresh_score())
+		round_manager.lives_changed.connect(func(_l): _refresh())
 		if _is_pvp() and round_manager.coordinator != null:
 			round_manager.coordinator.ready_changed.connect(_refresh_buttons)
 			round_manager.coordinator.lives_resolved.connect(_refresh_standing)
@@ -149,6 +151,8 @@ func _build_status_box() -> PanelContainer:
 	_phase_val = _kv(v, "Phase", Color.WHITE)
 	_supply_val = _kv(v, "Supply", Color.WHITE)
 	_gold_val = _kv(v, "Gold", GOLD_VAL)
+	if not _is_pvp():
+		_lives_status = _kv(v, "Lives", Color("ff9a8a"))
 	return box[0]
 
 func _build_score_box() -> PanelContainer:
@@ -283,10 +287,14 @@ func _rail_button(parent: VBoxContainer, text: String, go: bool) -> Button:
 func _refresh() -> void:
 	if round_manager == null:
 		return
-	if _is_pvp():
+	var co = round_manager.coordinator
+	var endless: bool = co != null and co.get("endless")
+	if _is_pvp() or endless:
 		_round_val.text = "%d" % round_manager.round_num
 	else:
 		_round_val.text = "%d / %d" % [round_manager.round_num, round_manager.max_rounds]
+	if _lives_status != null:
+		_lives_status.text = "%d" % maxi(0, round_manager.lives)
 	_supply_val.text = "%d / %d" % [_towers_count, _towers_cap]
 	_gold_val.text = "%d" % round_manager.gold
 	_refresh_phase()

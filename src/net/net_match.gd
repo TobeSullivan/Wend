@@ -81,8 +81,8 @@ func _apply_build_input(msg: Dictionary) -> void:
 			bc.apply_remote_place(msg["cell"])
 		NetProtocol.ACT_SELL:
 			bc.apply_remote_sell(msg["cell"])
-		NetProtocol.ACT_UPGRADE:
-			bc.apply_remote_upgrade(msg["cell"], msg["stat"])
+		NetProtocol.ACT_MERGE:
+			bc.apply_remote_merge(msg["src"], msg["dst"])
 
 func _process(dt: float) -> void:
 	if transport == null or not transport.is_authority() or coordinator.match_over:
@@ -140,7 +140,9 @@ func _apply_resolution(msg: Dictionary) -> void:
 	for k in lives:
 		var b = boards[int(k)]
 		b.lives = int(lives[k])
+		b.leaks_this_round = 0
 		b.kills_this_round = 0
+		b.emit_signal("lives_changed", b.lives)
 	for s in msg.get("eliminated", []):
 		var b = boards[int(s)]
 		if not b.eliminated:

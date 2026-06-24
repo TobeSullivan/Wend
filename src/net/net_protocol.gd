@@ -18,7 +18,7 @@ const MATCH_END := "match_end"
 
 const ACT_PLACE := "place"
 const ACT_SELL := "sell"
-const ACT_UPGRADE := "upgrade"
+const ACT_MERGE := "merge"
 
 const DEFAULT_PORT := 8771
 const MAX_PLAYERS := 8
@@ -29,8 +29,8 @@ static func build_input_place(seat: int, cell: Vector2i) -> Dictionary:
 static func build_input_sell(seat: int, cell: Vector2i) -> Dictionary:
 	return {"t": BUILD_INPUT, "seat": seat, "action": ACT_SELL, "cell": cell}
 
-static func build_input_upgrade(seat: int, cell: Vector2i, stat: String) -> Dictionary:
-	return {"t": BUILD_INPUT, "seat": seat, "action": ACT_UPGRADE, "cell": cell, "stat": stat}
+static func build_input_merge(seat: int, src: Vector2i, dst: Vector2i) -> Dictionary:
+	return {"t": BUILD_INPUT, "seat": seat, "action": ACT_MERGE, "src": src, "dst": dst}
 
 static func ready(seat: int, value: bool) -> Dictionary:
 	return {"t": READY, "seat": seat, "value": value}

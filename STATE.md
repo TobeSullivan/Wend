@@ -1,10 +1,11 @@
 # State — Wend
-Last updated: 2026-06-22
+Last updated: 2026-06-23
 
 ## Current focus
-Two tracks live: (1) Steam Playtest build is **in review**; (2) a significant design
-pivot landed this session — mobs now die permanently — which CC needs to implement and
-which forces cleanup across the design files.
+Two tracks live: (1) Steam Playtest build is **in review**; (2) the 2026-06-22 design
+pivot (mobs die permanently + merge mechanic) is now **implemented in code** by CC and the
+core design docs are reconciled. Remaining pivot work is balance tuning (playtest-gated)
+and a few stale UI/tutorial follow-ups — see `notes/open_items.md` "Design pivot".
 
 ## Last session
 - **Steam:** Playtest build uploaded via SteamPipe, depot pushed, launch option set
@@ -19,10 +20,11 @@ which forces cleanup across the design files.
 - Built an interactive merge/juice reference for CC (`wend_merge_reference.html`).
 
 ## Next step
-**CC implements the design revisions.** Full change set + spec in
-`notes/design_revisions_2026-06-22.md`. Includes mob-model change, merge mechanic +
-juice (per the reference HTML), and the edits to `decisions.md` + `test_case_library.md`
-that the pillar reversal requires.
+**Playtest the pivot and tune.** Code is in (mobs-die, lives, boss, merge ladder + juice,
+per-tier morph). Open: balance the per-tier stat curves + difficulty ramp for the
+~stage-30 cap, tune the lives integers, rewrite the stale tutorial beats (respawn/upgrade
+anchors) and end-panel copy, and apply the §3 `test_case_library.md` edits in the
+repo-cloned design session that owns that file. Detail in `notes/open_items.md`.
 
 ## Recently touched
 - Steam Playtest build/launch config (Steamworks; not repo)
@@ -33,7 +35,7 @@ that the pillar reversal requires.
 - **21-day app-credit gate** (~mid-July) before Playtest can go Playable. Review can pass
   before then.
 - Stat scaling curve deliberately deferred ("deal with that later").
-- `decisions.md` + `test_case_library.md` still encode the OLD pillars (respawn-in-place,
-  score-attack) — must be rewritten per the revisions doc before anything re-enforces them.
+- `decisions.md` + `design/DESIGN.md` now reflect the pivot (done). `test_case_library.md`
+  is not in this checkout — its §3 rewrite is owed by the repo-cloned design session.
 - Real capsule/key art still pending for the public Coming Soon page.
 - Possible second game for Feb 2027 Next Fest — undecided.

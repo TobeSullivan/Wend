@@ -10,13 +10,15 @@ Modes, maps, progression, seasons, and the mission/map resource architecture liv
 
 The design rests on four pillars. Every other decision serves these.
 
-**Simple to learn, hard to master.** One tower type, one mob type. The entire vocabulary of the game can be taught in five minutes. Mastery comes from reading geometry, identifying optimal placement, and committing to where and how you invest — not from memorizing tower charts or wave compositions.
+> **2026-06-22 pivot:** the original "damage milking" pillar (mobs respawn; no fail state) was reversed after external playtesting. Mobs now die permanently and a lives-based fail state returns. See `notes/design_revisions_2026-06-22.md` for the full rationale.
 
-**Damage milking, not survival.** Mobs don't die permanently — they explode and respawn in place. The player isn't trying to stop the wave; they're trying to maximize damage dealt against an effectively infinite resource within a bounded window. This inverts standard TD pressure.
+**Simple to learn, hard to master.** One tower type, one standard mob type (plus a periodic boss). The entire vocabulary of the game can be taught in five minutes. Mastery comes from reading geometry, identifying optimal placement, and committing to where and how you build the merge ladder — not from memorizing tower charts or wave compositions.
+
+**Survive the escalation.** Mobs die and stay dead, like a conventional TD. Difficulty ramps until it outpaces the player: a normal maze caps out around stage 30, a great maze pushes further. The player is climbing as far as their maze can carry them, not milking an infinite resource.
 
 **Learning through defeat.** Multiplayer reveals opponents' mazes during the run phase, by player choice. Watching the leader's maze teaches you how they're winning. Losing is informative, not just punishing.
 
-**Commitment matters.** Towers are atomic — no degrading, no selling partial upgrades. Refund is 30% of total invested. Build decisions are sticky. Bad decisions hurt; good decisions compound.
+**Commitment matters.** Towers merge along a fixed tier ladder; merging empties the source tile and leaves a hole in the maze. Refund is 30% of total invested. Build decisions are sticky and spatial. Bad decisions hurt; good decisions compound.
 
 ---
 
@@ -34,9 +36,9 @@ A match consists of rounds. Each round has two phases:
 
 **Build phase (timed).** Player places towers, upgrades existing towers, sells towers. Other players' mazes are hidden during this phase.
 
-**Run phase (untimed).** A train of mobs spawns at the map's entry point and walks to the exit, hitting required checkpoints in order. Towers fire automatically. Mobs explode and respawn in place when killed. The run phase ends when all mobs in the train have exited the map. During this phase the arena is visible — the player can watch their own maze or any other player's.
+**Run phase (untimed).** A train of mobs spawns at the map's entry point and walks to the exit, hitting required checkpoints in order. Towers fire automatically. Mobs die permanently when killed; a mob that reaches the exit **leaks** and costs lives. Every tenth round a boss rides among the wave (leaking it costs a heavy chunk of lives). The run phase ends when the train is gone (all killed or leaked). During this phase the arena is visible — the player can watch their own maze or any other player's.
 
-After the run phase ends, lives transfer between players based on kill differences (PVP only), then the next build phase begins.
+After the run phase ends, lives transfer between players based on **leak differences** (PVP only — fewer leaks than the field gains lives, more loses them; score breaks ties), then the next build phase begins. In Trials, leaks cost the player lives directly and the run ends when they hit zero.
 
 ---
 
@@ -46,53 +48,55 @@ There is exactly one tower type in the game.
 
 Towers fire automatically at the front of the mob train within range. Default targeting is first-in-line (mob nearest to exit, within range). Targeting behavior is not player-configurable at launch.
 
-### Upgrade stats (six)
+### Merge tier ladder
 
-A tower can be upgraded across six independent stats. The player buys tiers of each stat freely; no branching, no exclusion. Upgrade costs scale per tier.
+> Supersedes the former six-stat free-form upgrade system (2026-06-22 pivot).
 
-- **Damage** — flat damage per hit. Effectively uncapped; cost makes high tiers impractical.
-- **Range** — how far the tower can reach. Soft-capped at a level where additional range serves no practical use given map dimensions.
-- **Attack Speed** — hits per second. Soft-capped; at the cap, further investment rounds to zero and the UI reads "MAX."
-- **Crit Chance** — percentage of hits that crit. Hard-capped at 75%.
-- **Crit Damage** — multiplier on crit hits. Hard-capped (working ~500%, TBD).
-- **Multishot** — additional targets per attack. Hard-capped at +3 additional (4 total).
+A tower's power comes from its **tier**, raised only by merging: two towers of tier N combine into one tier N+1. Pure merge — there is no per-stat upgrade purchase, and nothing other than merging raises tier. Tiers run **T1 → T10**; because each tier doubles the base-tower cost (2ⁿ), high tiers are aspirational and reached only with a strong economy.
+
+**Merging empties the source tile**, leaving a hole in the maze. This is the core tension: climbing the ladder thins your wall, and re-plugging holes competes with the build timer.
+
+All combat stats derive from tier (damage, range, fire rate). **Multishot is the dominant lever**, unlocking at **T3 / T6 / T10 → ×2 / ×3 / ×4** (cap 4). Because DPS = damage × shots × fire rate, multishot tiers compound hardest. Exact per-tier scaling is deliberately deferred (placeholder curves in code mirror `notes/wend_merge_reference.html`); balance comes later.
+
+Crit is parked under the tier model — the plumbing is kept for projectiles/cosmetics but no tier grants crit at launch.
+
+### Merge input
+
+- **Controller / Steam Deck (primary target):** move the cursor to a tower, press action to **arm** it (it lifts), then press a direction to merge that way. Auto-disarms. An invalid direction (empty / wrong tier / maxed) gives a reject nudge.
+- **Mouse:** drag a tower onto an adjacent same-tier tower.
 
 ### No specialization or evolution
 
-Towers do not specialize, evolve, or unlock milestone effects. The upgrade system is free-form across all six stats with no branching outcomes. If players request specialization after launch, it can be revisited. For now: no.
+Towers do not specialize, branch, or unlock milestone effects. The only progression axis is the merge tier ladder. If players request specialization after launch, it can be revisited. For now: no.
 
-### Color modulation (visual identity)
+### Visual identity (per-tier morph)
 
-A tower's visual color encodes its upgrade state at a glance. Each stat has a color assignment (working: damage = red, attack speed = blue, crit chance = yellow, crit damage = orange, range = green, multishot = purple — TBD). As the tower accumulates tiers in a stat, its color shifts toward that stat's hue. Multiple investments blend like physical paint.
+A tower's appearance encodes its tier at a glance:
 
-Consequences of this system, all intentional:
+- **Barrel count = shot count** — the functional read lives in structure, not body colour, so the body stays a pure skin slot (cosmetics decision).
+- **Body colour walks a 10-stop ramp** across tiers (warm → cool) when no skin is equipped.
+- **Tier badge** shows the exact tier number, upright.
+- **T10 gets a gold accent ring.**
 
-- Pale towers are visibly under-invested
-- Vivid mid-tones mean a tower is heavily invested in one or two stats
-- Maxed-everything towers approach black, reading as a silhouette
-- The kill zone of a maze is literally the darkest region of the screen
-- Spectating an opponent's maze reveals their strategy instantly from across the map
-- Tower-zone synergy is visible: a red (damage-built) tower on a red (damage zone) reads as obvious doubling-down
-
-Color modulation is load-bearing for the game's information architecture. It is not polish to add later.
+Tower–zone synergy stays visible, and spectating an opponent's maze still reveals their strongest towers (highest barrel counts / badges) from across the map.
 
 ### Selling
 
-Towers are atomic. The player cannot degrade upgrades, cannot sell individual upgrades, cannot partially refund. Selling a tower refunds **30% of total gold invested**, including the base placement cost and all upgrade tiers.
+Towers are atomic. The player cannot partially refund. Selling a tower refunds **30% of total gold invested**, including the base placement cost of every tower folded into it via merges.
 
 ---
 
 ## Mobs
 
-There is exactly one mob type in the game.
+There is one standard mob type, plus a periodic boss.
 
 Each round, a fixed-size train of mobs spawns at the map's entry point. The train walks in a line toward the exit, passing through each required checkpoint in order.
 
-When a mob is killed, it explodes in place and instantly respawns at that location, continuing along the train's path. The train never stops.
+When a mob is killed, it dies permanently. A mob that reaches the exit **leaks**, costing lives. The round ends when the train is gone — every mob either killed or leaked.
 
-The round ends when the entire train has exited the map.
+**Boss rounds.** Every tenth round, a boss rides among the wave (not a solo encounter). It carries much more HP and leaking it costs a heavy chunk of lives.
 
-**Mob HP scales between rounds.** Working curve: flat for rounds 1-5, then approximately ×1.12/round. This is a global constant, not a per-map variable. Mob count per round (Enemy Supply) is a per-map variable and does not change round-to-round. Mob speed is constant.
+**Mob HP scales between rounds.** Working curve: flat for rounds 1-5, then approximately ×1.12/round. This is a global constant, not a per-map variable, and it is the difficulty ramp that eventually outpaces the player (~stage 30 for a normal maze). Mob count per round (Enemy Supply) is a per-map variable and does not change round-to-round. Mob speed is constant.
 
 ---
 
@@ -133,7 +137,7 @@ Each player's gold income each round:
 
 **Round bonus** — flat gold per round: 25 + round number.
 
-**Kills** — 1 gold per mob killed during the run phase. Because mobs respawn infinitely, kill income scales with tower DPS.
+**Kills** — 1 gold per mob killed during the run phase. Kill income scales with how much of each round's wave your maze can clear.
 
 **Interest** — 1 gold per 10 gold currently saved, awarded at round end. Capped at 50 gold per round (interest flatlines once the player has 500 saved).
 
@@ -163,9 +167,13 @@ Path is recalculated only when the maze changes (tower placed, tower sold). Towe
 
 Untimed. Ends when the mob train fully exits the map. Longer mazes get more time-on-tower per mob — maze length is a temporal weapon.
 
+### Boss rounds
+
+Every tenth round a boss rides among the wave (see Mobs). This is the one scheduled escalation beat; it is deterministic, not random.
+
 ### No mid-match shake-ups
 
-No random events, no special waves, no armor-resistance mobs. Every round is mechanically the same except for mob HP and the player's evolved maze.
+No random events, no special waves, no armor-resistance mobs. Every round is mechanically the same except for mob HP, the scheduled boss every 10 rounds, and the player's evolved maze.
 
 ---
 
@@ -173,11 +181,10 @@ No random events, no special waves, no armor-resistance mobs. Every round is mec
 
 What this game is explicitly NOT:
 
-- **Not a survival TD.** No "don't let any mobs through" mode.
-- **Not a mob-variety TD.** One mob type. Forever.
-- **Not a tower-variety TD.** One tower type. Forever.
-- **Not an RNG TD.** No surprise waves, no random events mid-match. The map is randomized at start; the match is not.
-- **Not a free-flexible upgrade TD.** Towers are atomic.
+- **Not a mob-variety TD.** One standard mob type plus a single periodic boss. No bestiary.
+- **Not a tower-variety TD.** One tower type. Forever. Depth comes from the merge ladder, not a roster.
+- **Not an RNG TD.** No surprise waves, no random events mid-match. The boss cadence is fixed (every 10 rounds). The map is randomized at start; the match is not.
+- **Not a free-flexible upgrade TD.** No per-stat upgrade shopping; power comes only from the merge tier ladder.
 - **Not a specialization/evolution TD.** No milestone effects, no tower evolution. May revisit post-launch if players request it.
 - **Not the SC2 map verbatim.** Inspired by Random TD. We do not reuse tower names, level names, art style, UI layouts, or specific tuning values from Random TD or AMazing TD.
 - **Not Greek-themed.**

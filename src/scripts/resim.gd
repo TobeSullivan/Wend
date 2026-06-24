@@ -91,7 +91,7 @@ static func _apply(boards: Array, entry: Dictionary) -> String:
 	var bc = board.build_controller
 	var a: Dictionary = entry["action"]
 	var atype := String(a["type"])
-	if (atype == "place" or atype == "sell" or atype == "upgrade") and board.coordinator.phase == "run":
+	if (atype == "place" or atype == "sell" or atype == "merge") and board.coordinator.phase == "run":
 		return "phase_gate"
 	match atype:
 		"place":
@@ -100,18 +100,9 @@ static func _apply(boards: Array, entry: Dictionary) -> String:
 		"sell":
 			if not bc._sell_tower_at_cell(a["cell"]):
 				return "illegal_sell"
-		"upgrade":
-			var t = bc._tower_at_cell(a["cell"])
-			if t == null:
-				return "no_tower"
-			var stat := String(a["stat"])
-			if not t.can_upgrade(stat):
-				return "cannot_upgrade"
-			var cost: int = t.upgrade_cost(stat)
-			if not board.can_afford(cost):
-				return "cannot_afford"
-			board.spend(cost)
-			t.upgrade(stat)
+		"merge":
+			if not bc.apply_remote_merge(a["src"], a["dst"]):
+				return "illegal_merge"
 		"start":
 			board.coordinator.request_start_now()
 		"vote_start":

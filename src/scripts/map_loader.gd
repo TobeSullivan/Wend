@@ -45,6 +45,8 @@ static func build_match(host: Node2D, map, num_boards: int = 1, local_index: int
 	var coordinator := MatchCoordinatorScript.new()
 	coordinator.max_rounds = map.round_count
 	coordinator.is_pvp = (map.mode == MapResourceScript.Mode.PVP)
+	# Trials runs until lives deplete; the authored campaign keeps its fixed round cap.
+	coordinator.endless = (map.mode == MapResourceScript.Mode.PVE)
 	coordinator.sim_seed = map.map_seed
 	coordinator.map_ref = _map_ref_for(map)
 	coordinator.record_enabled = true
@@ -59,8 +61,7 @@ static func build_match(host: Node2D, map, num_boards: int = 1, local_index: int
 		host.add_child(container)
 		containers.append(container)
 		var board = _build_board(container, map, coordinator, i == local_index, use_bots)
-		if coordinator.is_pvp:
-			board.lives = GameConstants.LIVES_PER_PLAYER
+		board.lives = GameConstants.LIVES_PER_PLAYER if coordinator.is_pvp else GameConstants.TRIALS_LIVES
 		boards.append(board)
 
 	if local_index < 0:

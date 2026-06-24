@@ -12,7 +12,11 @@ signal ready_changed
 var max_rounds: int = 10
 
 var is_pvp: bool = false
+# Trials runs until difficulty outpaces the player and lives deplete; max_rounds
+# is only a win cap for the authored campaign.
+var endless: bool = false
 const PVP_SAFETY_CAP := 60
+const ENDLESS_SAFETY_CAP := 999
 
 var round_num: int = 1
 var phase: String = "build"
@@ -126,6 +130,12 @@ func mob_hp_for_round() -> float:
 	var growth_rounds := round_num - GameConstants.MOB_HP_FLAT_ROUNDS
 	return GameConstants.MOB_BASE_HP * pow(GameConstants.MOB_HP_GROWTH, growth_rounds)
 
+func is_boss_round() -> bool:
+	return round_num > 0 and round_num % GameConstants.BOSS_INTERVAL == 0
+
+func boss_hp_for_round() -> float:
+	return mob_hp_for_round() * GameConstants.BOSS_HP_MULT
+
 func request_start_now() -> void:
 	if phase != "build" or is_pvp:
 		return
@@ -168,9 +178,11 @@ func _start_run_phase() -> void:
 	phase = "run"
 	emit_signal("phase_changed", phase)
 	var hp := mob_hp_for_round()
+	var boss := is_boss_round()
+	var bhp := boss_hp_for_round()
 	for b in boards:
 		if b.is_active():
-			b.start_run(round_num, hp)
+			b.start_run(round_num, hp, boss, bhp)
 
 func _all_runs_done() -> bool:
 	for b in boards:
@@ -187,12 +199,15 @@ func _end_round() -> void:
 		resolve_lives()
 		var active := active_boards()
 		if active.size() <= 1 or round_num >= PVP_SAFETY_CAP:
-			active.sort_custom(func(a, b): return a.lives < b.lives)
+			active.sort_custom(_standing_worse_first)
 			for b in active:
 				finish_order.append(b)
 			_end_match()
 			return
-	elif round_num >= max_rounds:
+	elif not endless and round_num >= max_rounds:
+		_end_match()
+		return
+	elif endless and round_num >= ENDLESS_SAFETY_CAP:
 		_end_match()
 		return
 
@@ -216,12 +231,14 @@ func resolve_lives() -> void:
 	var n := active.size()
 	if n <= 1:
 		return
-	var total_kills := 0
+	# See-saw transfers on LEAKS, not kills: leaking fewer than the field gains
+	# lives, leaking more loses them. Zero-sum across the active boards.
+	var total_leaks := 0
 	for b in active:
-		total_kills += b.kills_this_round
+		total_leaks += b.leaks_this_round
 	var deltas := {}
 	for b in active:
-		deltas[b] = n * b.kills_this_round - total_kills
+		deltas[b] = total_leaks - n * b.leaks_this_round
 	var shortfall := 0
 	var total_gain := 0
 	for b in active:
@@ -247,19 +264,37 @@ func resolve_lives() -> void:
 		var d: int = deltas[b] - int(reduce.get(b, 0))
 		raw_new[b] = b.lives + d
 		b.lives = max(0, raw_new[b])
+		b.emit_signal("lives_changed", b.lives)
 	for b in active:
-		b.kills_this_round = 0
+		b.leaks_this_round = 0
 	var newly: Array = []
 	for b in active:
 		if b.lives <= 0:
 			newly.append(b)
-	newly.sort_custom(func(a, c): return raw_new[a] < raw_new[c])
+	# Worst standing eliminated first; score breaks ties (lower score = worse).
+	newly.sort_custom(func(a, c):
+		if raw_new[a] != raw_new[c]:
+			return raw_new[a] < raw_new[c]
+		return a.total_damage_dealt < c.total_damage_dealt)
 	for b in newly:
 		b.lives = 0
 		b.eliminated = true
 		finish_order.append(b)
 		emit_signal("board_eliminated", b)
 	emit_signal("lives_resolved")
+
+func _standing_worse_first(a, b) -> bool:
+	if a.lives != b.lives:
+		return a.lives < b.lives
+	return a.total_damage_dealt < b.total_damage_dealt
+
+func notify_board_dead(board) -> void:
+	# Trials/Campaign fail state: a board out of lives ends its run immediately.
+	if is_pvp:
+		return
+	if not finish_order.has(board):
+		finish_order.append(board)
+	_end_match()
 
 func projected_lives(board) -> int:
 	if not is_pvp or phase != "run":
@@ -268,12 +303,12 @@ func projected_lives(board) -> int:
 	var n := active.size()
 	if n <= 1 or not active.has(board):
 		return board.lives
-	var total_kills := 0
+	var total_leaks := 0
 	var pool := 0
 	for b in active:
-		total_kills += b.kills_this_round
+		total_leaks += b.leaks_this_round
 		pool += b.lives
-	return mini(board.lives + n * board.kills_this_round - total_kills, pool)
+	return clampi(board.lives + total_leaks - n * board.leaks_this_round, 0, pool)
 
 func placement_of(board) -> int:
 	var idx := finish_order.find(board)
@@ -291,9 +326,11 @@ func net_enter_run() -> void:
 	phase = "run"
 	emit_signal("phase_changed", phase)
 	var hp := mob_hp_for_round()
+	var boss := is_boss_round()
+	var bhp := boss_hp_for_round()
 	for b in boards:
 		if b.is_active():
-			b.start_run(round_num, hp)
+			b.start_run(round_num, hp, boss, bhp)
 
 func net_enter_build(new_round: int) -> void:
 	for b in boards:

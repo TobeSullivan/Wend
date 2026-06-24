@@ -9,6 +9,7 @@ var path_index: int = 0
 var max_hp: float = GameConstants.MOB_BASE_HP
 var hp: float = GameConstants.MOB_BASE_HP
 var alive: bool = true
+var is_boss: bool = false
 
 var board
 
@@ -16,13 +17,19 @@ var anim: AnimatedSprite2D
 
 static var _walk_frames: SpriteFrames = null
 
+const BOSS_SCALE := 0.14
+const NORMAL_SCALE := 0.08
+
 func _ready() -> void:
 	hp = max_hp
 	anim = AnimatedSprite2D.new()
 	anim.sprite_frames = _shared_walk_frames()
-	anim.scale = Vector2(0.08, 0.08)
+	anim.scale = Vector2(NORMAL_SCALE, NORMAL_SCALE)
 	add_child(anim)
 	anim.play("walk")
+	if is_boss:
+		anim.scale = Vector2(BOSS_SCALE, BOSS_SCALE)
+		anim.modulate = Color(1.0, 0.55, 0.45)
 
 	if path.size() > 0:
 		position = path[0]
@@ -76,6 +83,8 @@ func _current_speed() -> float:
 	return GameConstants.MOB_SPEED * mult
 
 func take_hit(damage: float, is_crit: bool = false, source: Node2D = null) -> void:
+	if not alive:
+		return
 	var credited := minf(damage, hp)
 	hp -= damage
 	_spawn_damage_number(damage, is_crit)
@@ -85,7 +94,7 @@ func take_hit(damage: float, is_crit: bool = false, source: Node2D = null) -> vo
 	if source != null and is_instance_valid(source):
 		source.register_damage(credited, killed)
 	if killed:
-		_explode_and_respawn()
+		_die()
 
 func _spawn_damage_number(amount: float, is_crit: bool) -> void:
 	if not bool(SaveData.get_setting("damage_numbers")):
@@ -96,11 +105,12 @@ func _spawn_damage_number(amount: float, is_crit: bool) -> void:
 	get_parent().add_child(dn)
 	dn.setup(amount, is_crit, position)
 
-func _explode_and_respawn() -> void:
+# Mobs die permanently now: explode once, mark dead, and let the board reap us.
+func _die() -> void:
+	alive = false
 	if is_visible_in_tree():
 		var fx := DeathFxScript.new()
 		get_parent().add_child(fx)
 		fx.setup(position, anim.rotation)
-	hp = max_hp
 	if board != null:
 		board._on_mob_killed()

@@ -8,6 +8,13 @@ Status key: **OPEN** · **BLOCKED-DATA** · **PARKED** (additive, not now) · **
 
 ---
 
+## Design pivot (2026-06-22) — core implemented (CC)
+Mobs-die / lives / boss / merge mechanic landed this session per `notes/design_revisions_2026-06-22.md`. Verified: full project compiles headless; `sim_harness` record/re-sim round-trip green WITH merge actions in the log (place+merge replay bit-identical; tampered logs rejected). Touched: `game_constants`, `mob`, `spawner`, `round_manager`, `match_coordinator`, `tower` (tier model + per-tier morph), `merge_fx` (new), `build_controller` (merge input + drag), `net_protocol`/`net_match`/`resim` (merge action), `bot_controller`, `tower_drawer` (tier panel), `rail` (Trials lives), `map_loader` (endless + lives), `sim_harness`. Docs reconciled: `decisions.md`, `design/DESIGN.md`.
+- **Balance deferred (PARKED):** per-tier stat curves are placeholders mirroring `wend_merge_reference.html` (`TIER_*` in `game_constants.gd`); difficulty ramp reuses the existing ×1.12 HP curve. Tune for the ~stage-30 normal-maze cap in playtest. Lives integers (Trials `TRIALS_LIVES=10`, `BOSS_LEAK_PENALTY=5`, `BOSS_HP_MULT=8`) are stand-ins.
+- **test_case_library.md not in this checkout** — revisions §3 (rewrite the 🔒 respawn/score-attack cases, add merge/leak/boss cases) could NOT be applied here. **Flag for the repo-cloned design session** that owns that file.
+- **Tutorial anchors stale (OPEN):** `tutorial_callout` maps `respawn`/`upgrade_panel` anchors that no longer exist (respawn is gone; the upgrade panel is now a tier/merge panel). Tutorial beats that teach respawn/upgrades need rewriting for mobs-die + merge. Re-check in playtest (extends the rail-anchor note below).
+- **End-panel copy (OPEN):** `match_end_panel`/`win_panel` still carry score-attack/medal framing; Trials is now round-reached + score with a lives fail state. Verify the result screens read correctly in playtest.
+
 ## Steam (ops) — blocked on verification
 - **Identity verification pending** (2–7 biz days from 2026-06-07, third-party Lilaham/TaxIdentity). Blocks finishing account creation + creating the App ID/Playtest. $100 Direct fee paid → 30-day release clock running (earliest ~2026-07-07).
 - **Confirm the entity type** chosen at registration (individual vs company — matters for tax/bank + later restructure).

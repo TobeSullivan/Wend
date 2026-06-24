@@ -5,8 +5,7 @@ const PathfinderScript := preload("res://scripts/pathfinder.gd")
 
 const ACTION_INTERVAL := 0.2
 const SAMPLE_K := 8
-const UPGRADE_PREF := ["damage", "attack_speed", "damage", "range", "crit_chance",
-	"attack_speed", "crit_damage", "damage", "multishot"]
+const MERGE_DIRS := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
 var board
 var ctrl
@@ -35,7 +34,7 @@ func _take_one_action() -> void:
 		var cell = _best_maze_cell()
 		if cell != null and ctrl.bot_place_tower(cell):
 			return
-	if _try_upgrade():
+	if _try_merge():
 		return
 	if coordinator.is_pvp:
 		coordinator.set_board_ready(board, true)
@@ -118,16 +117,20 @@ func _polyline_len(path: PackedVector2Array) -> float:
 		l += path[i - 1].distance_to(path[i])
 	return l
 
-func _try_upgrade() -> bool:
-	if ctrl.towers.is_empty():
+func _try_merge() -> bool:
+	# Climb the tier ladder by merging any adjacent same-tier pair (lowest tier first).
+	var best_src = null
+	var best_dst: Vector2i = Vector2i.ZERO
+	var best_tier := GameConstants.MAX_TIER + 1
+	for t in ctrl.towers:
+		if not is_instance_valid(t) or t.tier >= GameConstants.MAX_TIER:
+			continue
+		for d in MERGE_DIRS:
+			var other = ctrl._tower_at_cell(t.grid_cell + d)
+			if other != null and other.tier == t.tier and t.tier < best_tier:
+				best_tier = t.tier
+				best_src = t
+				best_dst = t.grid_cell + d
+	if best_src == null:
 		return false
-	var tower = ctrl.towers[randi() % ctrl.towers.size()]
-	if not is_instance_valid(tower):
-		return false
-	for stat in UPGRADE_PREF:
-		var cost: int = tower.upgrade_cost(stat)
-		if cost > 0 and board.can_afford(cost):
-			board.spend(cost)
-			tower.upgrade(stat)
-			return true
-	return false
+	return ctrl._try_merge(best_src.grid_cell, best_dst)
