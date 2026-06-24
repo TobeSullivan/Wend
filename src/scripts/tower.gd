@@ -7,13 +7,8 @@ const LOADED_TEX := preload("res://assets/towers/arrow_box_loaded.png")
 const UNLOADED_TEX := preload("res://assets/towers/arrow_box_unloaded.png")
 const ProjectileScript := preload("res://scripts/projectile.gd")
 const Motion := preload("res://scripts/motion.gd")
+const TierAuraScript := preload("res://scripts/tier_aura.gd")
 
-# Body colour walks this 10-stop ramp per tier (wend_merge_reference.html). The
-# functional read lives in barrel count + tier badge so the body stays a skin slot.
-const RAMP := [
-	Color("c2603a"), Color("d0742e"), Color("e0a52e"), Color("b9a82c"), Color("8bb02c"),
-	Color("2c9c86"), Color("1f94a8"), Color("3e78c4"), Color("6a57c9"), Color("8e4fd0"),
-]
 const GOLD_RING := Color("f4cc74")
 
 # Barrel fan angles (degrees) by shot count, mirroring the reference.
@@ -31,6 +26,7 @@ var board
 var skin_tex: Texture2D = null
 var proj_tint: Color = Color.WHITE
 var fx_id: String = ""
+var aura_ramp: Array = []
 
 var tier: int = GameConstants.MIN_TIER
 var cooldown: float = 0.0
@@ -47,6 +43,7 @@ var zone_bonus := {
 }
 
 var sprite: Sprite2D
+var _aura: TierAura
 var _barrels: Node2D
 var _ring: Line2D
 var _selected_range: Line2D
@@ -67,6 +64,9 @@ func _ready() -> void:
 		sprite.texture = LOADED_TEX
 		sprite.scale = Vector2(SPRITE_SCALE, SPRITE_SCALE)
 	add_child(sprite)
+
+	_aura = TierAuraScript.new()
+	add_child(_aura)
 
 	_ring = Line2D.new()
 	_ring.width = 2.5
@@ -167,6 +167,11 @@ func set_selected(value: bool) -> void:
 	if value:
 		_selected_range.points = _circle_points(get_range())
 
+func aura_poof_color() -> Color:
+	if aura_ramp.is_empty():
+		return GOLD_RING
+	return CosmeticsCatalog.aura_sample(aura_ramp, TierAuraScript.tier_ratio(tier))["mid"]
+
 func register_damage(amount: float, killed: bool) -> void:
 	damage_done += amount
 	if killed:
@@ -213,8 +218,8 @@ func _fire_at(target: Node2D, rng: RandomNumberGenerator) -> void:
 # --- Visual morph ---
 
 func _apply_tier_visual() -> void:
-	if skin_tex == null and sprite != null:
-		sprite.modulate = RAMP[clampi(tier - 1, 0, RAMP.size() - 1)]
+	if _aura != null:
+		_aura.set_tier_aura(tier, aura_ramp)
 	_rebuild_barrels()
 	if _ring != null:
 		if tier >= GameConstants.MAX_TIER:

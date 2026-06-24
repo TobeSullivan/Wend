@@ -28,8 +28,10 @@ cosmetics work: a deliberately spare game earns visual richness through paint, n
 
 7 distinct owned tower sprites can't coexist with a "pale → vivid → near-black" tower-body
 upgrade ramp. So:
-- **Tower growth / investment signal lives OFF the body** → a **base aura ring + size step**
-  (multishot + fire-rate + the tower info box already carry legibility).
+- **Tower growth / investment signal lives OFF the body** → a **ground glow under the tower
+  that intensifies with merge tier**, color set per board (warm/cool ramp). Canonical spec:
+  `design/TOWER_AURA.md` (supersedes the earlier "base aura ring + size step" phrasing).
+  Multishot + fire-rate + the tier badge already carry the rest of the legibility.
 - **The tower body is a pure skin slot.**
 - **Zone color is NOT load-bearing as long as the labels stay** → zone recolors are valid.
 

@@ -74,7 +74,7 @@ Towers do not specialize, branch, or unlock milestone effects. The only progress
 A tower's appearance encodes its tier at a glance:
 
 - **Barrel count = shot count** — the functional read lives in structure, not body colour, so the body stays a pure skin slot (cosmetics decision).
-- **Body colour walks a 10-stop ramp** across tiers (warm → cool) when no skin is equipped.
+- **Tier ground glow** — a soft glow pooled at the tower's base that intensifies with merge tier; color is set per board (warm/cool ramp) so it reads on any ground. The body stays a pure skin slot (no per-tier body tint). Canonical spec: `design/TOWER_AURA.md`.
 - **Tier badge** shows the exact tier number, upright.
 - **T10 gets a gold accent ring.**
 

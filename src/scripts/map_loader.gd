@@ -177,6 +177,7 @@ static func _build_board(container: Node2D, map, coordinator, is_local: bool, us
 			tower_skin = CosmeticsCatalog.texture_for(tw, "res://assets/towers/arrow_box_loaded.png")
 		proj_tint = CosmeticsCatalog.tint_for(SaveData.equipped_cosmetic("proj"), Color.WHITE)
 		fx_id = SaveData.equipped_cosmetic("proj")
+	var aura_ramp := CosmeticsCatalog.aura_ramp_for(board_id)
 	_setup_background(container, map.grid_size, board_tex)
 
 	var road := RoadRendererScript.new()
@@ -198,6 +199,7 @@ static func _build_board(container: Node2D, map, coordinator, is_local: bool, us
 	ctrl.tower_skin_tex = tower_skin
 	ctrl.proj_tint = proj_tint
 	ctrl.fx_id = fx_id
+	ctrl.aura_ramp = aura_ramp
 	ctrl.mobs_array = mobs
 	ctrl.entry_cell = map.entry_cell
 	ctrl.exit_cell = map.exit_cell

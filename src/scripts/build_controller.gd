@@ -43,6 +43,7 @@ var blocked: Dictionary = {}
 var tower_skin_tex: Texture2D = null
 var proj_tint: Color = Color.WHITE
 var fx_id: String = ""
+var aura_ramp: Array = []
 
 var _ghost: Sprite2D
 var _ghost_range: Line2D
@@ -324,7 +325,7 @@ func _do_merge(src, dst) -> void:
 	dst.position = GridScript.cell_to_world(dst.grid_cell)
 	dst.absorb(src)
 	dst.play_merge_juice()
-	var ramp_col: Color = TowerScript.RAMP[clampi(dst.tier - 1, 0, TowerScript.RAMP.size() - 1)]
+	var ramp_col: Color = dst.aura_poof_color()
 	MergeFxScript.poof(get_parent(), dst.position, ramp_col)
 	MergeFxScript.hole(get_parent(), GridScript.cell_to_world(src_cell))
 	_remove_tower_node(src)
@@ -530,6 +531,7 @@ func _place_tower(cell: Vector2i) -> void:
 	tower.skin_tex = tower_skin_tex
 	tower.proj_tint = proj_tint
 	tower.fx_id = fx_id
+	tower.aura_ramp = aura_ramp
 	get_parent().add_child(tower)
 	towers.append(tower)
 	blocked[cell] = true

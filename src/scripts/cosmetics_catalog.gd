@@ -121,6 +121,41 @@ const TRACK := [
 	{"tier": 30, "items": ["tower_dark_crystal", "fx_dark"]},
 ]
 
+const AURA_WARM := [
+	{"inner": Color("fff0b8"), "mid": Color("f5c542")},
+	{"inner": Color("ffc488"), "mid": Color("f0832e")},
+	{"inner": Color("ffae7a"), "mid": Color("ff2f24")},
+]
+const AURA_COOL := [
+	{"inner": Color("a6f5d8"), "mid": Color("21c08c")},
+	{"inner": Color("b3c6ff"), "mid": Color("4f7bff")},
+	{"inner": Color("ecbcff"), "mid": Color("c44eff")},
+]
+const AURA_BOARD_RAMP := {
+	"board_suburbia": "warm",
+	"board_summer": "cool",
+	"board_forest": "cool",
+}
+
+static func aura_ramp_for(board_id: String) -> Array:
+	var key := String(AURA_BOARD_RAMP.get(board_id, "cool"))
+	return AURA_WARM if key == "warm" else AURA_COOL
+
+static func aura_sample(ramp: Array, p: float) -> Dictionary:
+	if ramp.is_empty():
+		return {"inner": Color.WHITE, "mid": Color.WHITE}
+	if ramp.size() == 1:
+		return ramp[0]
+	var seg := clampf(p, 0.0, 1.0) * float(ramp.size() - 1)
+	var i := clampi(int(floor(seg)), 0, ramp.size() - 2)
+	var f := seg - float(i)
+	var a: Dictionary = ramp[i]
+	var b: Dictionary = ramp[i + 1]
+	return {
+		"inner": Color(a["inner"]).lerp(b["inner"], f),
+		"mid": Color(a["mid"]).lerp(b["mid"], f),
+	}
+
 static func item(id: String) -> Dictionary:
 	for it in ITEMS:
 		if it["id"] == id:
