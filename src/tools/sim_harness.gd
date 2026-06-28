@@ -92,8 +92,9 @@ func _ready() -> void:
 	var fake_claim := 99999999
 	await SceneManager.report_match_result(fake_claim)
 	var written: int = SaveData.best_pve_score(map.window_date, map.scale_tier)
-	var wire_ok: bool = written == live_dmg and written != fake_claim
-	print("HARNESS WIRING claim=", fake_claim, " written=", written, " (honest re-sim=", live_dmg, ")")
+	var expected_written: int = LeaderboardService.encode_score(int(res["final_round"]), live_dmg)
+	var wire_ok: bool = written == expected_written and written != fake_claim
+	print("HARNESS WIRING claim=", fake_claim, " written=", written, " (honest re-sim composite=", expected_written, ")")
 
 	SaveData.data.pve_best_scores.clear()
 	coord.input_log.insert(1, {"tick": 0, "seat": 0, "action": {"type": "place", "cell": occ_cell}})

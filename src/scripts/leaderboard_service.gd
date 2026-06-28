@@ -14,6 +14,17 @@ const GROUPS := ["solo", "duo", "trio", "quad"]
 
 const BETA := true
 
+const ROUND_SCORE_MULT := 1_000_000_000_000
+
+static func encode_score(rounds: int, score: int) -> int:
+	return maxi(0, rounds) * ROUND_SCORE_MULT + clampi(score, 0, ROUND_SCORE_MULT - 1)
+
+static func round_part(composite: int) -> int:
+	return int(composite / ROUND_SCORE_MULT)
+
+static func score_part(composite: int) -> int:
+	return int(composite % ROUND_SCORE_MULT)
+
 const RANKED_BANDS := [
 	{"name": "Masters", "tag": "mas", "base": 400, "cap": -1},
 	{"name": "Gold", "tag": "gold", "base": 300, "cap": 399},

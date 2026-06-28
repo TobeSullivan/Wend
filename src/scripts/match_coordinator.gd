@@ -130,6 +130,12 @@ func mob_hp_for_round() -> float:
 	var growth_rounds := round_num - GameConstants.MOB_HP_FLAT_ROUNDS
 	return GameConstants.MOB_BASE_HP * pow(GameConstants.MOB_HP_GROWTH, growth_rounds)
 
+func mob_count_for_round(board) -> int:
+	if not (endless or is_pvp):
+		return board.mob_count
+	var n := GameConstants.WAVE_COUNT_BASE + (round_num - 1) * GameConstants.WAVE_COUNT_PER_ROUND
+	return clampi(n, GameConstants.WAVE_COUNT_BASE, GameConstants.WAVE_COUNT_MAX)
+
 func is_boss_round() -> bool:
 	return round_num > 0 and round_num % GameConstants.BOSS_INTERVAL == 0
 
@@ -182,7 +188,7 @@ func _start_run_phase() -> void:
 	var bhp := boss_hp_for_round()
 	for b in boards:
 		if b.is_active():
-			b.start_run(round_num, hp, boss, bhp)
+			b.start_run(round_num, hp, mob_count_for_round(b), boss, bhp)
 
 func _all_runs_done() -> bool:
 	for b in boards:
@@ -330,7 +336,7 @@ func net_enter_run() -> void:
 	var bhp := boss_hp_for_round()
 	for b in boards:
 		if b.is_active():
-			b.start_run(round_num, hp, boss, bhp)
+			b.start_run(round_num, hp, mob_count_for_round(b), boss, bhp)
 
 func net_enter_build(new_round: int) -> void:
 	for b in boards:

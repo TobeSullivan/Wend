@@ -119,11 +119,11 @@ func request_start_now() -> void:
 	if coordinator != null:
 		coordinator.request_start_now()
 
-func start_run(_round_num: int, mob_hp: float, boss: bool = false, boss_hp: float = 0.0) -> void:
+func start_run(_round_num: int, mob_hp: float, count: int, boss: bool = false, boss_hp: float = 0.0) -> void:
 	clear_projectiles()
 	leaks_this_round = 0
 	var wave_path: PackedVector2Array = build_controller.current_path_world()
-	spawner.start_wave(mob_count, GameConstants.SPAWN_INTERVAL, mob_hp, wave_path, boss, boss_hp)
+	spawner.start_wave(count, GameConstants.SPAWN_INTERVAL, mob_hp, wave_path, boss, boss_hp)
 
 func _on_mob_leaked(mob) -> void:
 	var penalty: int = GameConstants.BOSS_LEAK_PENALTY if (mob != null and mob.is_boss) else 1

@@ -317,6 +317,9 @@ func _refresh_score() -> void:
 		return
 	var dmg: int = round_manager.total_damage_dealt
 	_score_hero.text = _commas(dmg)
+	if _endless():
+		_refresh_best_rung()
+		return
 	var rungs: Array = []
 	if _rung_source != null:
 		rungs = _rung_source.rungs_above(dmg, _rungs.size())
@@ -334,6 +337,24 @@ func _refresh_score() -> void:
 			r["val"].text = _commas(int(e["target"]))
 		else:
 			r["star"].text = ""
+			r["key"].text = ""
+			r["val"].text = ""
+
+func _endless() -> bool:
+	var co = round_manager.coordinator if round_manager != null else null
+	return co != null and bool(co.get("endless"))
+
+func _refresh_best_rung() -> void:
+	var best_round := 0
+	if ghost_ladder != null and int(ghost_ladder.own_best) > 0:
+		best_round = LeaderboardService.round_part(int(ghost_ladder.own_best))
+	for i in range(_rungs.size()):
+		var r: Dictionary = _rungs[i]
+		r["star"].text = ""
+		if i == 0 and best_round > 0:
+			r["key"].text = "Best"
+			r["val"].text = "R%d" % best_round
+		else:
 			r["key"].text = ""
 			r["val"].text = ""
 

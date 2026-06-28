@@ -151,10 +151,10 @@ function rpcSubmitScore(ctx, logger, nk, payload) {
 	var req;
 	try { req = JSON.parse(payload); } catch (e) { throw errInvalid("payload must be JSON"); }
 	var boardId = req.board_id;
-	var score = req.score | 0;
-	var subscore = (req.subscore | 0) || 0;
+	var score = Math.floor(Number(req.score));
+	var subscore = Math.floor(Number(req.subscore)) || 0;
 	if (!boardId || typeof boardId !== "string") throw errInvalid("board_id required");
-	if (score < 0) throw errInvalid("score must be >= 0");
+	if (!isFinite(score) || score < 0) throw errInvalid("score must be a non-negative integer");
 
 	// Prefer the account display_name (Steam persona, set by steam_auth) for the record's shown
 	// name; fall back to the auto username (device-auth accounts have no display_name).

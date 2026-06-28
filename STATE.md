@@ -1,44 +1,50 @@
 # State — Wend
-Last updated: 2026-06-23
+Last updated: 2026-06-28
 
 ## Current focus
-Three threads: (1) Steam Playtest build is **in review** (submitted Jun 22, 3–5 biz days);
-(2) the 2026-06-22 pivot (mobs die permanently + merge ladder) is **implemented by CC** and the
-core docs are reconciled — remaining work is balance tuning (playtest-gated) + stale UI/tutorial
-follow-ups; (3) the tower **tier aura** is now **implemented by CC** per `design/TOWER_AURA.md` —
-remaining is the playtest eyeball + the design-session `test_case_library.md` case.
+(1) Steam Playtest build is **in review** (submitted Jun 22); (2) the 2026-06-22 pivot + tier aura
+are implemented; (3) **this session (CC):** balance + endless-leaderboard pass — wave scaling, the
+round-based (rounds-primary / score-tiebreak) Trials leaderboard, and one-and-done tower placement.
+Nakama beta module **deployed** with the score-truncation fix.
 
 ## Last session
-- **Tower tier aura — implemented (CC).** New `tier_aura.gd` (`TierAura`): a radial
-  `GradientTexture2D` ground glow drawn behind the body, offset to the feet, tier-driven
-  (diameter/opacity/period) with a breathing pulse on a looping Tween (visual frame time, respects
-  `Motion.reduced`). Per-board warm/cool ramp resolved on the `is_local` split (opponent→default
-  cool), threaded `map_loader` → `build_controller` → `tower` alongside the skin/tint path.
-  Retired the body-color RAMP tint (body = pure skin slot); merge poof now recolors off the aura
-  ramp. Reconciled `design/COSMETICS.md`, `design/DESIGN.md`, `notes/wend_merge_reference.html`.
-- **Verified:** clean headless import (no parse/shadow warnings); `sim_harness` round-trip
-  bit-identical **with merge actions** + tampered logs rejected (determinism untouched — aura is
-  render-only); `match_shot` runs clean (towers + aura nodes instantiate, no runtime errors).
+- **Scaling.** Waves now grow with the round (`WAVE_COUNT_BASE 14 +2/round, cap 60`); mobs tankier
+  (`MOB_BASE_HP 150`, HP ramp starts R4); denser spawns (`SPAWN_INTERVAL 0.8`). Wave size was
+  previously **fixed at 8 forever** — `mob_count_for_round()` in `match_coordinator` scales it for
+  endless/PvP (campaign keeps authored counts), threaded through `start_run`. Resim-safe (pure fn of
+  round+mode). All values playtest-tunable.
+- **Leaderboard → round-based.** Trials ranks **rounds-reached (primary) + score (tiebreak)** via a
+  composite `rounds*1e12 + score`, computed from the authoritative re-sim (`final_round` + damage) so
+  it stays anti-cheat-safe and needs **no Nakama sort change** (single desc int). End screen now reads
+  **"You reached Round N — Score: Y"**; placement/browse rows show `R# · score`; rail shows best round;
+  Trials star medals retired (campaign keeps its medals). Decode helpers in `LeaderboardService`.
+- **Nakama module fix (REQUIRED + deployed).** `submit_score` did `req.score | 0` → 32-bit truncation
+  (~2.1B), which mangled the ~1.2e13 composite. Changed to `Math.floor(Number(...))`. Deployed to the
+  box (`trials_beta_*` boards are new → no wipe needed). Also fixes latent >2.1B raw-damage truncation.
+- **Building.** Placing a tower now exits build mode; **hold Shift** to chain placements (merge made
+  rapid multi-place feel wrong). Touch tap-to-confirm unaffected.
+- **Verified:** clean headless import (no parse/shadow); `sim_harness` round-trip bit-identical with
+  merges, tampered logs rejected, WIRING confirms the composite is stored authoritatively; `match_shot`
+  runtime clean.
 
 ## Next step
-- **Playtest the aura at real maze density** — eyeball spec §3 values (muddy glows → pull
-  opacity/diameter down); decide whether the optional T3/T6/T10 milestone "notches" are needed.
-- In parallel, **playtest-tune the pivot:** per-tier stat curves + difficulty ramp (~stage-30 cap),
-  lives integers, rewrite stale tutorial/end-panel copy.
-- Apply the `test_case_library.md` §3 edits **plus** the new aura 🔒 case in the repo-cloned design
-  session that owns that file (not in CC's checkout).
+- **Playtest the new scaling at real maze density** — confirm early waves pressure without being
+  impossible and the ~R30 normal-maze cap holds; tune `WAVE_COUNT_*` / `MOB_*` as needed.
+- **Decide campaign medals:** Trials went fully round-based; campaign still uses bronze/silver/gold
+  damage stars — flip to round-based too, or keep (it's fixed-round authored)?
+- Carry-over: playtest the tier aura; rewrite stale tutorial copy; `test_case_library.md` edits owed by
+  the repo-cloned design session.
 
 ## Recently touched
-- src/scripts/tier_aura.gd (new — this session)
-- src/scripts/{tower,build_controller,map_loader,cosmetics_catalog}.gd (aura wiring — this session)
-- design/COSMETICS.md, design/DESIGN.md, notes/wend_merge_reference.html (reconciled — this session)
-- notes/open_items.md (aura → implemented), STATE.md (this file)
+- src/resources/game_constants.gd, src/scripts/{match_coordinator,round_manager,build_controller,
+  scene_manager,leaderboard_service,leaderboard_browse,match_end_panel,rail}.gd, src/tools/sim_harness.gd
+- deploy/nakama/data/modules/index.js (score-truncation fix; deployed)
+- STATE.md, notes/open_items.md
 
 ## Open questions / blocked on
 - **Steam:** review pending (can pass before the **21-day app-credit gate**, ~mid-July, that blocks
   Playtest going Playable). When verification clears: create App ID → confidential Playtest app.
-- Stat scaling curve + lives integers deliberately deferred to playtest.
-- `design/COSMETICS.md` aura line still says "ring" — one-line reconcile owed (tracked in open_items).
+- Per-tier stat curves + lives integers still deferred to playtest (wave scaling now landed).
 - `test_case_library.md` not in CC's checkout — its §3 rewrite + the new aura case are owed by the
   repo-cloned design session.
 - Real capsule/key art still pending for the public Coming Soon page.

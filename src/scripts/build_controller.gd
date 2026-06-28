@@ -194,6 +194,8 @@ func _input(event: InputEvent) -> void:
 			round_manager.spend(GameConstants.TOWER_COST)
 			_place_tower(cell)
 			_relay_place(cell)
+			if not mouse_event.shift_pressed:
+				_set_build_mode(false)
 		else:
 			var tower_at := _tower_at_cell(cell)
 			if tower_at != null:

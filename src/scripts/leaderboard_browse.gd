@@ -181,7 +181,7 @@ func _render_trials() -> void:
 	if entries.is_empty():
 		_list_box.add_child(_empty_state("No scores on this board yet.", "Be the first to post a run."))
 		return
-	_render_score_rows(entries)
+	_render_score_rows(entries, true)
 
 func _render_ranked() -> void:
 	var data: Dictionary = await LeaderboardService.ranked_ladder(_season)
@@ -204,16 +204,16 @@ func _render_campaign() -> void:
 		_list_box.add_child(_empty_state("No times on this mission's board yet.",
 			"Campaign boards are all-time. Set the pace."))
 		return
-	_render_score_rows(entries)
+	_render_score_rows(entries, false)
 
-func _render_score_rows(entries: Array) -> void:
+func _render_score_rows(entries: Array, composite: bool) -> void:
 	var prev_rank := 0
 	for e in entries:
 		var rank := int(e.get("rank", 0))
 		if prev_rank != 0 and rank > prev_rank + 1:
 			_list_box.add_child(_divider("· · · jump to your position · · ·"))
 		prev_rank = rank
-		_list_box.add_child(_score_row(rank, String(e.get("name", "")), int(e.get("score", 0)), bool(e.get("is_me", false))))
+		_list_box.add_child(_score_row(rank, String(e.get("name", "")), int(e.get("score", 0)), bool(e.get("is_me", false)), composite))
 
 func _render_ranked_rows(rows: Array) -> void:
 	var prev_rank := 0
@@ -225,7 +225,7 @@ func _render_ranked_rows(rows: Array) -> void:
 		_list_box.add_child(_ranked_row(rank, String(e.get("name", "")),
 			String(e.get("tier", "")), int(e.get("lp", 0)), bool(e.get("is_me", false))))
 
-func _score_row(rank: int, display_name: String, score: int, is_me: bool) -> Control:
+func _score_row(rank: int, display_name: String, score: int, is_me: bool, composite: bool) -> Control:
 	var row := _row_panel(is_me)
 	var hb := _row_hbox(row)
 	hb.add_child(_cell("%d" % rank, 44, _rank_col(is_me), HORIZONTAL_ALIGNMENT_RIGHT))
@@ -234,7 +234,8 @@ func _score_row(rank: int, display_name: String, score: int, is_me: bool) -> Con
 	nm.clip_text = true
 	nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	hb.add_child(nm)
-	hb.add_child(_cell(_commas(score), 0, Color("e8c45a"), HORIZONTAL_ALIGNMENT_RIGHT))
+	var score_text := "R%d · %s" % [LeaderboardService.round_part(score), _commas(LeaderboardService.score_part(score))] if composite else _commas(score)
+	hb.add_child(_cell(score_text, 0, Color("e8c45a"), HORIZONTAL_ALIGNMENT_RIGHT))
 	return row
 
 func _ranked_row(rank: int, display_name: String, tier: String, lp: int, is_me: bool) -> Control:

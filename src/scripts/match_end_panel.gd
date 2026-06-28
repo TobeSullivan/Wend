@@ -450,35 +450,29 @@ func _show_medal() -> void:
 		_show_campaign_victory()
 		return
 	var damage: int = round_manager.total_damage_dealt
-	var medal: String = round_manager.medal_for(damage)
-	_title_label.text = "Match Complete"
-	for child in _stars_row.get_children():
-		child.queue_free()
-	var stars = StarRatingScript.new()
-	stars.configure(int(STAR_FOR_MEDAL[medal]), 3, 40.0)
-	_stars_row.add_child(stars)
-	_stars_row.visible = true
-	_result_label.text = MEDAL_RESULT[medal]
-	_result_label.add_theme_color_override("font_color", MEDAL_RESULT_COLOR[medal])
-	_detail_label.text = "Total damage: %d  ·  Rounds: %d" % [damage, round_manager.max_rounds]
-	_thresholds_vbox.visible = true
-	_populate_thresholds(damage)
-	var buttons := [
+	var rounds: int = _rounds_reached()
+	_title_label.text = "Run Complete"
+	_stars_row.visible = false
+	_result_label.text = "You reached Round %d" % rounds
+	_result_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	_detail_label.text = "Score: %s  ·  Kills: %d" % [_commas(damage), round_manager.total_kills]
+	_thresholds_vbox.visible = false
+	_set_buttons([
+		{"text": "View full board", "cb": _on_view_board},
 		{"text": "Play Again", "cb": _on_play_again, "role": "go"},
 		{"text": "Return Home", "cb": _on_return_home},
-	]
-	if not lb_ctx.is_empty():
-		buttons.push_front({"text": "View full board", "cb": _on_view_board})
-	else:
-		_lb_vbox.visible = false
-	_set_buttons(buttons)
+	])
 	_panel.visible = true
 	await SceneManager.report_match_result(damage)
 	if not is_instance_valid(self):
 		return
 	_show_season_award()
-	if not lb_ctx.is_empty():
-		await _populate_placement(damage)
+	await _populate_placement(LeaderboardService.encode_score(rounds, damage))
+
+func _rounds_reached() -> int:
+	if round_manager == null:
+		return 1
+	return int(round_manager.round_num)
 
 func _show_campaign_victory() -> void:
 	var damage: int = round_manager.total_damage_dealt
@@ -670,13 +664,13 @@ func _add_threshold_row(star_count: int, threshold: int, achieved: int) -> void:
 	row.modulate = Color(1, 1, 1, 1.0) if reached else Color(1, 1, 1, 0.45)
 	_thresholds_vbox.add_child(row)
 
-func _populate_placement(damage: int) -> void:
+func _populate_placement(my_score: int) -> void:
 	for child in _lb_vbox.get_children():
 		child.queue_free()
 	var window := int(lb_ctx.get("window", 0))
 	var tier := int(lb_ctx.get("tier", 1))
 	var group := String(lb_ctx.get("group", "solo"))
-	var data: Dictionary = await LeaderboardService.trials_placement(window, tier, group, damage)
+	var data: Dictionary = await LeaderboardService.trials_placement(window, tier, group, my_score)
 	if not is_instance_valid(self):
 		return
 
@@ -724,7 +718,7 @@ func _placement_row(rank: int, display_name: String, score: int, is_me: bool) ->
 	nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	hb.add_child(nm)
 	var sc := _make_label(14, Color("e8c45a"))
-	sc.text = _commas(score)
+	sc.text = "R%d · %s" % [LeaderboardService.round_part(score), _commas(LeaderboardService.score_part(score))]
 	sc.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	hb.add_child(sc)
 	return p

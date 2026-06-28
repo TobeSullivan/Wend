@@ -13,12 +13,16 @@ const BUILD_TIME_NORMAL := 25.0
 const BUILD_TIME_LATE := 8.0
 const LATE_ROUND_THRESHOLD := 30
 
-const MOB_BASE_HP := 100.0
+const MOB_BASE_HP := 150.0
 const MOB_SPEED := 80.0
 const MOB_SLOW_FLOOR := 0.10
-const MOB_HP_FLAT_ROUNDS := 5
+const MOB_HP_FLAT_ROUNDS := 3
 const MOB_HP_GROWTH := 1.12
-const SPAWN_INTERVAL := 1.0
+const SPAWN_INTERVAL := 0.8
+
+const WAVE_COUNT_BASE := 14
+const WAVE_COUNT_PER_ROUND := 2
+const WAVE_COUNT_MAX := 60
 
 # --- Boss ---
 # Mobs die permanently now; a boss rides among the wave every N rounds and a

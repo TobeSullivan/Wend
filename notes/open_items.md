@@ -55,7 +55,7 @@ $9.40). Full reasoning in `design/SEASON.md` + `notes/board_obstacle_model.md`. 
   low-contrast ground can shift the path colour instead of needing new art.
 
 ## Deploy / ops (CC)
-- **Deploy the beta module to the box:** the `BETA = true` switch (ranked_s0 + `trials_beta_*` boards + `LOBBY_FLOOR 2`) is implemented in the repo (2026-06-09: `index.js` + mirrored client flags `LeaderboardService.BETA` / `SaveData.BUILD_SEASON`) but the box still runs the old module — `scp deploy/nakama/data/modules/index.js` over + `docker compose restart nakama`. The launch revert (flip all three flags together) is documented at each flag site; the floor-4 lock lives in `notes/decisions.md`.
+- **Beta module — DEPLOYED 2026-06-28 (CC).** `scp index.js` + `docker compose restart nakama` on `5.78.110.182`; verified "runtime loaded" with all 60 `trials_beta_*` boards + `ranked_s0` present, `submit_score`/`trials_seeds` RPCs registered, no errors. This shipped the `BETA = true` switch (ranked_s0 + `trials_beta_*` + `LOBBY_FLOOR 2`, mirrored by client `LeaderboardService.BETA` / `SaveData.BUILD_SEASON`) **and** the score-truncation fix (`req.score | 0` → `Math.floor(Number())`) required by the round-based composite leaderboard. **Launch revert** (flip all three flags together) is documented at each flag site; floor-4 lock lives in `notes/decisions.md`.
 
 ## CC — carried (not blocking; do as items are promoted)
 - Export a **catapult PNG body** (`towers/catapult/` ships SVG only).

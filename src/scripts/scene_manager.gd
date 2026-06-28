@@ -222,6 +222,7 @@ func _snapshot_match_result(advisory_damage: int) -> Dictionary:
 		return {}
 	var snap := {
 		"advisory": advisory_damage,
+		"advisory_round": _final_round(),
 		"mode": pending_map.mode,
 		"mission_index": pending_map.mission_index,
 		"window_date": pending_map.window_date,
@@ -250,11 +251,12 @@ func _snapshot_match_result(advisory_damage: int) -> Dictionary:
 
 func _finish_match_result(snap: Dictionary) -> void:
 	var record: Dictionary = snap["record"]
-	var result := await _authoritative_score(record, int(snap["advisory"]))
+	var result := await _authoritative_score(record, int(snap["advisory"]), int(snap["advisory_round"]))
 	if not bool(result["legal"]):
 		push_warning("Match record failed legality check (%s) — no score recorded." % str(result.get("reason", "")))
 		return
 	var damage: int = int(result["score"])
+	var rounds: int = int(result["rounds"])
 	var record_b64 := ""
 	if not record.is_empty():
 		record_b64 = Marshalls.raw_to_base64(ResimScript.encode_record(record))
@@ -262,9 +264,10 @@ func _finish_match_result(snap: Dictionary) -> void:
 		SaveData.record_campaign_medal(int(snap["mission_index"]), _medal_for(damage, snap))
 		_post_online("campaign", "campaign_m%02d" % int(snap["mission_index"]), damage, record_b64)
 	elif snap["mode"] == MapResourceScript.Mode.PVE:
-		SaveData.record_pve_score(snap["window_date"], snap["scale_tier"], damage)
+		var composite := LeaderboardService.encode_score(rounds, damage)
+		SaveData.record_pve_score(snap["window_date"], snap["scale_tier"], composite)
 		_post_online("trials", LeaderboardService.trials_board_id(
-			snap["window_type"], snap["scale_tier"], "solo"), damage, record_b64)
+			snap["window_type"], snap["scale_tier"], "solo"), composite, record_b64)
 		var t: Dictionary = snap["task"]
 		if not t.is_empty():
 			_award_tasks({"towers": t["towers"], "zones": t["zones"], "kills": t["kills"], "score": damage})
@@ -280,6 +283,11 @@ func _local_board():
 			and not active_coordinator.boards.is_empty():
 		return active_coordinator.boards[0]
 	return null
+
+func _final_round() -> int:
+	if active_coordinator != null and is_instance_valid(active_coordinator):
+		return int(active_coordinator.round_num)
+	return 1
 
 func _record_match_tasks(board, score: int) -> void:
 	if board == null or not is_instance_valid(board):
@@ -314,22 +322,23 @@ func _post_online(kind: String, board_id: String, score: int, record_b64 := "") 
 			record_b64 = Marshalls.raw_to_base64(bytes)
 	await be.submit(kind, board_id, score, record_b64)
 
-func _authoritative_score(record: Dictionary, advisory: int) -> Dictionary:
+func _authoritative_score(record: Dictionary, advisory: int, advisory_round: int) -> Dictionary:
 	if record.is_empty():
-		return {"score": advisory, "legal": true, "reason": ""}
+		return {"score": advisory, "rounds": advisory_round, "legal": true, "reason": ""}
 	var host := Node2D.new()
 	add_child(host)
 	var res: Dictionary = await ResimScript.run(host, record, RESIM_TICKS_PER_FRAME)
 	host.queue_free()
 	if not bool(res.get("legal", true)):
-		return {"score": 0, "legal": false, "reason": str(res.get("illegal", ""))}
+		return {"score": 0, "rounds": 0, "legal": false, "reason": str(res.get("illegal", ""))}
+	var rounds := int(res.get("final_round", advisory_round))
 	var rboards: Array = res.get("boards", [])
 	if rboards.is_empty():
-		return {"score": advisory, "legal": true, "reason": ""}
+		return {"score": advisory, "rounds": rounds, "legal": true, "reason": ""}
 	var score := int(rboards[0]["damage"])
 	if score != advisory:
 		push_warning("Re-sim score %d differs from live %d — determinism check (recording re-sim)." % [score, advisory])
-	return {"score": score, "legal": true, "reason": ""}
+	return {"score": score, "rounds": rounds, "legal": true, "reason": ""}
 
 func _medal_for(damage: int, snap: Dictionary) -> String:
 	if damage >= int(snap["gold"]):
