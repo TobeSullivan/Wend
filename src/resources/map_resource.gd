@@ -19,9 +19,9 @@ enum WindowType { DAILY, WEEKLY, MONTHLY }
 @export var round_count: int = 10
 @export var mob_count: int = 8
 
-@export var bronze_threshold: int = 0
-@export var silver_threshold: int = 0
-@export var gold_threshold: int = 0
+@export var star1_threshold: int = 0
+@export var star2_threshold: int = 0
+@export var star3_threshold: int = 0
 
 @export var mission_index: int = 0
 @export var mission_name: String = ""

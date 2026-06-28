@@ -37,15 +37,12 @@ var _lp_tier_lbl: Label
 var _promo_note: Label
 var _ranked_rows: Array = []
 
-const STAR_FOR_MEDAL := {"gold": 3, "silver": 2, "bronze": 1, "none": 0}
-const MEDAL_RESULT := {
-	"gold": "Three stars!", "silver": "Two stars", "bronze": "One star", "none": "No stars yet",
-}
-const MEDAL_RESULT_COLOR := {
-	"gold":   Color(1.0, 0.85, 0.2),
-	"silver": Color(0.85, 0.85, 0.9),
-	"bronze": Color(0.85, 0.55, 0.25),
-	"none":   Color(0.8, 0.8, 0.8),
+const STAR_RESULT := {3: "Three stars!", 2: "Two stars", 1: "One star", 0: "No stars yet"}
+const STAR_RESULT_COLOR := {
+	3: Color(1.0, 0.85, 0.2),
+	2: Color(0.85, 0.85, 0.9),
+	1: Color(0.85, 0.55, 0.25),
+	0: Color(0.8, 0.8, 0.8),
 }
 
 func _ready() -> void:
@@ -451,12 +448,19 @@ func _show_medal() -> void:
 		return
 	var damage: int = round_manager.total_damage_dealt
 	var rounds: int = _rounds_reached()
+	var star_count: int = round_manager.star_rating(rounds)
 	_title_label.text = "Run Complete"
-	_stars_row.visible = false
+	for child in _stars_row.get_children():
+		child.queue_free()
+	var stars = StarRatingScript.new()
+	stars.configure(star_count, 3, 40.0)
+	_stars_row.add_child(stars)
+	_stars_row.visible = true
 	_result_label.text = "You reached Round %d" % rounds
-	_result_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	_result_label.add_theme_color_override("font_color", STAR_RESULT_COLOR[star_count])
 	_detail_label.text = "Score: %s  ·  Kills: %d" % [_commas(damage), round_manager.total_kills]
-	_thresholds_vbox.visible = false
+	_thresholds_vbox.visible = true
+	_populate_thresholds(rounds)
 	_set_buttons([
 		{"text": "View full board", "cb": _on_view_board},
 		{"text": "Play Again", "cb": _on_play_again, "role": "go"},
@@ -476,8 +480,7 @@ func _rounds_reached() -> int:
 
 func _show_campaign_victory() -> void:
 	var damage: int = round_manager.total_damage_dealt
-	var medal: String = round_manager.medal_for(damage)
-	var stars: int = STAR_FOR_MEDAL[medal]
+	var stars: int = round_manager.star_rating(damage)
 
 	_hero_big.text = "VICTORY" if stars >= 1 else "COMPLETE"
 	var idx := 0
@@ -634,12 +637,12 @@ func _show_season_award() -> void:
 	_season_vbox.add_child(chip)
 	_season_vbox.visible = true
 
-func _populate_thresholds(damage: int) -> void:
+func _populate_thresholds(achieved: int) -> void:
 	for child in _thresholds_vbox.get_children():
 		child.queue_free()
-	_add_threshold_row(1, round_manager.bronze_threshold, damage)
-	_add_threshold_row(2, round_manager.silver_threshold, damage)
-	_add_threshold_row(3, round_manager.gold_threshold,   damage)
+	_add_threshold_row(1, round_manager.star1_threshold, achieved)
+	_add_threshold_row(2, round_manager.star2_threshold, achieved)
+	_add_threshold_row(3, round_manager.star3_threshold, achieved)
 
 func _add_threshold_row(star_count: int, threshold: int, achieved: int) -> void:
 	var reached: bool = achieved >= threshold
@@ -653,7 +656,7 @@ func _add_threshold_row(star_count: int, threshold: int, achieved: int) -> void:
 	row.add_child(stars)
 
 	var text := _make_label(16, Color.WHITE)
-	text.text = "%d" % threshold
+	text.text = "Round %d" % threshold
 	row.add_child(text)
 
 	var tick := UiStyle.icon_rect("tick", 16)

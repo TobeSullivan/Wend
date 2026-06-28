@@ -27,7 +27,7 @@ func _run() -> void:
 		get_tree().quit()
 		return
 	var rm = _panel.round_manager
-	rm.total_damage_dealt = int(rm.gold_threshold) + 6000
+	rm.total_damage_dealt = int(rm.star3_threshold) + 6000
 	_panel._show_campaign_victory()
 	await get_tree().create_timer(0.9).timeout
 	await RenderingServer.frame_post_draw

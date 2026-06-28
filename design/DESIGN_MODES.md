@@ -189,10 +189,11 @@ MapResource (extends Resource)
   round_count: int
   mob_count: int                      # enemy supply, constant per match
 
-  # Scoring — Campaign and PVE only; omitted for PVP
-  bronze_threshold: int
-  silver_threshold: int
-  gold_threshold: int
+  # Star rating (1/2/3 stars) — Campaign and PVE only; omitted for PVP.
+  # PVE/Trials: round milestones (reach round N). Campaign: damage thresholds.
+  star1_threshold: int
+  star2_threshold: int
+  star3_threshold: int
 
   # Campaign-only fields (null/empty for generated maps)
   mission_index: int
@@ -214,19 +215,17 @@ ZoneDefinition (extends Resource)
   magnitude: int   # 10–100, stepped in 10s
 ```
 
-### Threshold derivation
+### Star thresholds (1/2/3 stars)
 
-Thresholds for PVE and Campaign maps are derived algorithmically, not authored by hand. Formula basis:
+The star rating compares a mode-specific metric against three thresholds (`star_rating()` in
+`round_manager`):
 
-```
-base_dps_estimate = average tower damage per second at mid-upgrade
-base_damage_per_round = base_dps_estimate × average run phase duration
-total_base = base_damage_per_round × supply_cap × round_count
-
-silver_threshold = total_base × 1.0   # place all towers, no upgrades
-gold_threshold   = total_base × 1.5   # reasonable upgrade investment
-bronze_threshold = total_base × 0.6   # minimal engagement
-```
+- **PVE / Trials (endless):** the metric is **rounds reached**, and the thresholds are fixed round
+  milestones (`GameConstants.TRIALS_STAR_ROUNDS`, default `[10, 20, 30]`). 1★ = survive to round 10,
+  2★ = round 20, 3★ = round 30. Playtest-tunable.
+- **Campaign (fixed rounds):** the metric is **total damage dealt**, and the thresholds are authored
+  per mission in the `.tres` files (damage values).
+- **PVP:** no stars (standing/lives decide the match).
 
 Gold should be attainable by an engaged player. The leaderboard top scores will sit well above Gold. Thresholds are tuned upward over time as real player scores come in — they're soft targets for season pass milestones, not hard gates.
 

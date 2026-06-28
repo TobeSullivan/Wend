@@ -51,10 +51,10 @@ func _on_match_ended() -> void:
 		"max_rounds": map.round_count,
 		"final_damage": board.total_damage_dealt,
 		"final_kills": board.total_kills,
-		"medal": board.medal_for(board.total_damage_dealt),
-		"bronze": map.bronze_threshold,
-		"silver": map.silver_threshold,
-		"gold": map.gold_threshold,
+		"stars": board.star_rating(board.star_metric()),
+		"star1": map.star1_threshold,
+		"star2": map.star2_threshold,
+		"star3": map.star3_threshold,
 		"placement": placement,
 	})
 

@@ -56,19 +56,21 @@ func mark_first_launch_done() -> void:
 	data.first_launch_done = true
 	save()
 
-const _MEDAL_RANK := {"none": 0, "bronze": 1, "silver": 2, "gold": 3}
+const _OLD_MEDAL_RANK := {"none": 0, "bronze": 1, "silver": 2, "gold": 3}
 
-func best_medal(mission_index: int) -> String:
-	return data.campaign_medals.get(str(mission_index), "none")
+func best_stars(mission_index: int) -> int:
+	return _stars_value(data.campaign_medals.get(str(mission_index), 0))
 
-func record_campaign_medal(mission_index: int, medal: String) -> void:
-	if not _MEDAL_RANK.has(medal):
-		return
+func record_campaign_stars(mission_index: int, stars: int) -> void:
 	var key := str(mission_index)
-	var current: String = data.campaign_medals.get(key, "none")
-	if _MEDAL_RANK[medal] > _MEDAL_RANK[current]:
-		data.campaign_medals[key] = medal
+	if clampi(stars, 0, 3) > best_stars(mission_index):
+		data.campaign_medals[key] = clampi(stars, 0, 3)
 		save()
+
+func _stars_value(v) -> int:
+	if v is String:
+		return int(_OLD_MEDAL_RANK.get(v, 0))
+	return int(v)
 
 func best_pve_score(window_date: String, tier: int) -> int:
 	return int(data.pve_best_scores.get(_pve_key(window_date, tier), 0))

@@ -10,13 +10,6 @@ const GOLD_EDGE := Color("7a5a14")
 const EMPTY := Color(0.0, 0.0, 0.0, 0.28)
 const EMPTY_EDGE := Color(0.0, 0.0, 0.0, 0.45)
 
-static func filled_for_medal(medal: String) -> int:
-	match medal:
-		"gold": return 3
-		"silver": return 2
-		"bronze": return 1
-		_: return 0
-
 func configure(p_filled: int, p_total: int = 3, p_size: float = 22.0) -> Control:
 	filled = clampi(p_filled, 0, p_total)
 	total = p_total

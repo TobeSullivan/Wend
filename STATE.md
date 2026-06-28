@@ -23,15 +23,19 @@ Nakama beta module **deployed** with the score-truncation fix.
   box (`trials_beta_*` boards are new → no wipe needed). Also fixes latent >2.1B raw-damage truncation.
 - **Building.** Placing a tower now exits build mode; **hold Shift** to chain placements (merge made
   rapid multi-place feel wrong). Touch tap-to-confirm unaffected.
+- **Star rating (1/2/3 stars).** Renamed `bronze/silver/gold` → `star1/2/3` across code + `.tres` +
+  docs (`medal_for` → `star_rating(value)→int`, `gold_goal_reached` → `top_star_reached`). Trials
+  stars are now **round milestones** (`TRIALS_STAR_ROUNDS [10,20,30]` — reach round N); campaign keeps
+  authored damage thresholds. `star_metric()` returns rounds (endless) / damage (campaign). Ranked
+  Stone→Masters bands untouched. Old string saves read via a compat shim.
 - **Verified:** clean headless import (no parse/shadow); `sim_harness` round-trip bit-identical with
   merges, tampered logs rejected, WIRING confirms the composite is stored authoritatively; `match_shot`
   runtime clean.
 
 ## Next step
 - **Playtest the new scaling at real maze density** — confirm early waves pressure without being
-  impossible and the ~R30 normal-maze cap holds; tune `WAVE_COUNT_*` / `MOB_*` as needed.
-- **Decide campaign medals:** Trials went fully round-based; campaign still uses bronze/silver/gold
-  damage stars — flip to round-based too, or keep (it's fixed-round authored)?
+  impossible and the ~R30 normal-maze cap holds; tune `WAVE_COUNT_*` / `MOB_*` as needed. Same pass
+  validates the `TRIALS_STAR_ROUNDS [10,20,30]` star cutoffs.
 - Carry-over: playtest the tier aura; rewrite stale tutorial copy; `test_case_library.md` edits owed by
   the repo-cloned design session.
 

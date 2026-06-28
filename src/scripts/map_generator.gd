@@ -162,15 +162,10 @@ static func _zones_overlap(c1: Vector2i, m1: int, c2: Vector2i, m2: int) -> bool
 	var w2 := GridScript.cell_to_world(c2)
 	return w1.distance_to(w2) < BonusZoneScript.radius_for_magnitude(m1) + BonusZoneScript.radius_for_magnitude(m2)
 
-static func _derive_thresholds(map, path_len_px: float) -> void:
-	var base_dps: float = GameConstants.TOWER_BASE_DAMAGE / GameConstants.TOWER_BASE_COOLDOWN
-	var traversal: float = path_len_px / GameConstants.MOB_SPEED
-	var spawn_time: float = float(map.mob_count - 1) * GameConstants.SPAWN_INTERVAL
-	var run_seconds: float = spawn_time + traversal
-	var total_base: float = base_dps * THRESHOLD_COVERAGE * float(map.supply_cap) * run_seconds * float(map.round_count)
-	map.silver_threshold = _round_to(total_base, 50)
-	map.gold_threshold = _round_to(total_base * 1.5, 50)
-	map.bronze_threshold = _round_to(total_base * 0.6, 50)
+static func _derive_thresholds(map, _path_len_px: float) -> void:
+	map.star1_threshold = GameConstants.TRIALS_STAR_ROUNDS[0]
+	map.star2_threshold = GameConstants.TRIALS_STAR_ROUNDS[1]
+	map.star3_threshold = GameConstants.TRIALS_STAR_ROUNDS[2]
 
 static func _round_to(value: float, step: int) -> int:
 	return int(round(value / float(step))) * step

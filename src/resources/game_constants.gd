@@ -24,6 +24,8 @@ const WAVE_COUNT_BASE := 14
 const WAVE_COUNT_PER_ROUND := 2
 const WAVE_COUNT_MAX := 60
 
+const TRIALS_STAR_ROUNDS := [10, 20, 30]
+
 # --- Boss ---
 # Mobs die permanently now; a boss rides among the wave every N rounds and a
 # leak past it costs a heavy chunk of lives. (design_revisions_2026-06-22 §2)

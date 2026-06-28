@@ -20,7 +20,7 @@ func _ready() -> void:
 	_build_ui()
 	_panel.visible = false
 	if round_manager != null:
-		round_manager.gold_goal_reached.connect(_on_gold_goal_reached)
+		round_manager.top_star_reached.connect(_on_top_star_reached)
 
 func _build_ui() -> void:
 	_panel = PanelContainer.new()
@@ -125,13 +125,13 @@ func _tier_box() -> StyleBoxFlat:
 	sb.set_border_width_all(1)
 	return sb
 
-func _on_gold_goal_reached() -> void:
+func _on_top_star_reached() -> void:
 	var dmg: int = round_manager.total_damage_dealt if round_manager != null else 0
 	_score_label.text = "Total damage  %s" % _commas(dmg)
 	var thresholds := [
-		int(round_manager.bronze_threshold) if round_manager != null else 0,
-		int(round_manager.silver_threshold) if round_manager != null else 0,
-		int(round_manager.gold_threshold) if round_manager != null else 0,
+		int(round_manager.star1_threshold) if round_manager != null else 0,
+		int(round_manager.star2_threshold) if round_manager != null else 0,
+		int(round_manager.star3_threshold) if round_manager != null else 0,
 	]
 	for i in range(3):
 		_tier_val[i].text = _commas(thresholds[i])

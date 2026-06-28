@@ -228,9 +228,9 @@ func _snapshot_match_result(advisory_damage: int) -> Dictionary:
 		"window_date": pending_map.window_date,
 		"window_type": pending_map.window_type,
 		"scale_tier": pending_map.scale_tier,
-		"gold": pending_map.gold_threshold,
-		"silver": pending_map.silver_threshold,
-		"bronze": pending_map.bronze_threshold,
+		"star3": pending_map.star3_threshold,
+		"star2": pending_map.star2_threshold,
+		"star1": pending_map.star1_threshold,
 		"record": {},
 		"task": {},
 	}
@@ -261,7 +261,7 @@ func _finish_match_result(snap: Dictionary) -> void:
 	if not record.is_empty():
 		record_b64 = Marshalls.raw_to_base64(ResimScript.encode_record(record))
 	if snap["mode"] == MapResourceScript.Mode.CAMPAIGN and int(snap["mission_index"]) > 0:
-		SaveData.record_campaign_medal(int(snap["mission_index"]), _medal_for(damage, snap))
+		SaveData.record_campaign_stars(int(snap["mission_index"]), _star_for(damage, snap))
 		_post_online("campaign", "campaign_m%02d" % int(snap["mission_index"]), damage, record_b64)
 	elif snap["mode"] == MapResourceScript.Mode.PVE:
 		var composite := LeaderboardService.encode_score(rounds, damage)
@@ -340,14 +340,14 @@ func _authoritative_score(record: Dictionary, advisory: int, advisory_round: int
 		push_warning("Re-sim score %d differs from live %d — determinism check (recording re-sim)." % [score, advisory])
 	return {"score": score, "rounds": rounds, "legal": true, "reason": ""}
 
-func _medal_for(damage: int, snap: Dictionary) -> String:
-	if damage >= int(snap["gold"]):
-		return "gold"
-	if damage >= int(snap["silver"]):
-		return "silver"
-	if damage >= int(snap["bronze"]):
-		return "bronze"
-	return "none"
+func _star_for(damage: int, snap: Dictionary) -> int:
+	if damage >= int(snap["star3"]):
+		return 3
+	if damage >= int(snap["star2"]):
+		return 2
+	if damage >= int(snap["star1"]):
+		return 1
+	return 0
 
 func leave_match_to_home(damage: int) -> void:
 	var snap := _snapshot_match_result(damage)

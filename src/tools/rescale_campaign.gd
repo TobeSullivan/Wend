@@ -54,10 +54,10 @@ func _init() -> void:
 		var new_len := _path_len(new_path)
 		var ratio := (new_len / old_len) if old_len > 0.0 else 1.0
 
-		var old_thr := [map.bronze_threshold, map.silver_threshold, map.gold_threshold]
-		map.bronze_threshold = _round_to(float(map.bronze_threshold) * ratio, 50)
-		map.silver_threshold = _round_to(float(map.silver_threshold) * ratio, 50)
-		map.gold_threshold = _round_to(float(map.gold_threshold) * ratio, 50)
+		var old_thr := [map.star1_threshold, map.star2_threshold, map.star3_threshold]
+		map.star1_threshold = _round_to(float(map.star1_threshold) * ratio, 50)
+		map.star2_threshold = _round_to(float(map.star2_threshold) * ratio, 50)
+		map.star3_threshold = _round_to(float(map.star3_threshold) * ratio, 50)
 
 		var problems := _validate(map, new_path)
 		var status := "PASS" if problems.is_empty() else "FAIL"
@@ -74,7 +74,7 @@ func _init() -> void:
 		print("  %-16s %s  entry %s->%s  exit %s->%s  cps=%d  obs=%d  pathx%.3f  thr %s->[%d,%d,%d]" % [
 			n, status, old_entry, map.entry_cell, old_exit, map.exit_cell,
 			map.checkpoint_cells.size(), map.obstacles.size(), ratio,
-			old_thr, map.bronze_threshold, map.silver_threshold, map.gold_threshold])
+			old_thr, map.star1_threshold, map.star2_threshold, map.star3_threshold])
 		for p in problems:
 			print("        ! %s" % p)
 

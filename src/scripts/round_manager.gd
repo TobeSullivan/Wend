@@ -2,16 +2,16 @@ extends Node
 class_name RoundManager
 
 var mob_count: int = 8
-var bronze_threshold: int = 0
-var silver_threshold: int = 0
-var gold_threshold: int = 0
+var star1_threshold: int = 0
+var star2_threshold: int = 0
+var star3_threshold: int = 0
 
 var coordinator
 
 signal gold_changed(new_gold: int)
 signal damage_dealt_changed(total: int)
 signal kills_changed(total: int)
-signal gold_goal_reached
+signal top_star_reached
 signal round_summary(round_completed: int, kill_gold: int, round_bonus: int, interest: int)
 
 signal phase_changed(phase: String)
@@ -23,7 +23,7 @@ signal lives_changed(new_lives: int)
 var gold: int = GameConstants.STARTING_GOLD
 var total_damage_dealt: int = 0
 var total_kills: int = 0
-var gold_goal_hit: bool = false
+var top_star_hit: bool = false
 var lives: int = 0
 var kills_this_round: int = 0
 var leaks_this_round: int = 0
@@ -102,18 +102,24 @@ func _on_mob_killed() -> void:
 func _on_damage_dealt(amount: float) -> void:
 	total_damage_dealt += int(round(amount))
 	emit_signal("damage_dealt_changed", total_damage_dealt)
-	if gold_threshold > 0 and not gold_goal_hit and not match_over and total_damage_dealt >= gold_threshold:
-		gold_goal_hit = true
-		emit_signal("gold_goal_reached")
+	if not _is_endless() and star3_threshold > 0 and not top_star_hit and not match_over and total_damage_dealt >= star3_threshold:
+		top_star_hit = true
+		emit_signal("top_star_reached")
 
-func medal_for(damage: int) -> String:
-	if damage >= gold_threshold:
-		return "gold"
-	if damage >= silver_threshold:
-		return "silver"
-	if damage >= bronze_threshold:
-		return "bronze"
-	return "none"
+func _is_endless() -> bool:
+	return coordinator != null and coordinator.endless
+
+func star_metric() -> int:
+	return round_num if _is_endless() else total_damage_dealt
+
+func star_rating(value: int) -> int:
+	if star3_threshold > 0 and value >= star3_threshold:
+		return 3
+	if star2_threshold > 0 and value >= star2_threshold:
+		return 2
+	if star1_threshold > 0 and value >= star1_threshold:
+		return 1
+	return 0
 
 func request_start_now() -> void:
 	if coordinator != null:

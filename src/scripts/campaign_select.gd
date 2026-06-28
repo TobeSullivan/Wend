@@ -104,9 +104,8 @@ func _mission_card(index: int) -> Control:
 	vbox.add_child(spacer)
 
 	if authored:
-		var medal: String = SaveData.best_medal(index)
 		var stars = StarRatingScript.new()
-		stars.configure(StarRatingScript.filled_for_medal(medal), 3, 20.0)
+		stars.configure(SaveData.best_stars(index), 3, 20.0)
 		vbox.add_child(stars)
 	else:
 		vbox.add_child(_label("Coming soon", 13, Color(0.7, 0.72, 0.66, 0.7)))

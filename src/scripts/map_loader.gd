@@ -215,9 +215,9 @@ static func _build_board(container: Node2D, map, coordinator, is_local: bool, us
 	board.build_controller = ctrl
 	board.bonus_zones = zones
 	board.mob_count = map.mob_count
-	board.bronze_threshold = map.bronze_threshold
-	board.silver_threshold = map.silver_threshold
-	board.gold_threshold = map.gold_threshold
+	board.star1_threshold = map.star1_threshold
+	board.star2_threshold = map.star2_threshold
+	board.star3_threshold = map.star3_threshold
 
 	spawner.board = board
 	ctrl.round_manager = board
@@ -282,8 +282,8 @@ static func _build_ghost_ladder(map):
 	if map.mode != MapResourceScript.Mode.PVE:
 		return null
 	var ladder = GhostLadderScript.new()
-	var best := SaveData.best_pve_score(map.window_date, map.scale_tier)
-	ladder.setup(int(map.bronze_threshold), int(map.silver_threshold), int(map.gold_threshold),
+	var best := LeaderboardService.round_part(SaveData.best_pve_score(map.window_date, map.scale_tier))
+	ladder.setup(int(map.star1_threshold), int(map.star2_threshold), int(map.star3_threshold),
 		GhostLadderScript.fetch_snapshot(map), best)
 	return ladder
 

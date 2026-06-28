@@ -35,11 +35,11 @@ func _diag() -> void:
 
 func _trigger_win() -> void:
 	for c in get_children():
-		if c.has_method("_on_gold_goal_reached"):
+		if c.has_method("_on_top_star_reached"):
 			var rm = c.round_manager
 			if rm != null:
-				rm.total_damage_dealt = int(rm.gold_threshold) + 5000
-			c._on_gold_goal_reached()
+				rm.total_damage_dealt = int(rm.star3_threshold) + 5000
+			c._on_top_star_reached()
 			return
 
 func _capture() -> void:

@@ -171,7 +171,10 @@ func toggle_pause() -> void:
 		_open_menu()
 
 func _has_objectives() -> bool:
-	return round_manager != null and round_manager.gold_threshold > 0
+	return round_manager != null and round_manager.star3_threshold > 0
+
+func _endless() -> bool:
+	return round_manager != null and round_manager.coordinator != null and round_manager.coordinator.endless
 
 func _build_objectives(vbox: VBoxContainer) -> void:
 	if not _has_objectives():
@@ -186,9 +189,9 @@ func _build_objectives(vbox: VBoxContainer) -> void:
 	vbox.add_child(_obj_score)
 
 	_obj_rows = [
-		{"stars": 1, "threshold": int(round_manager.bronze_threshold)},
-		{"stars": 2, "threshold": int(round_manager.silver_threshold)},
-		{"stars": 3, "threshold": int(round_manager.gold_threshold)},
+		{"stars": 1, "threshold": int(round_manager.star1_threshold)},
+		{"stars": 2, "threshold": int(round_manager.star2_threshold)},
+		{"stars": 3, "threshold": int(round_manager.star3_threshold)},
 	]
 	for row in _obj_rows:
 		var hbox := HBoxContainer.new()
@@ -200,7 +203,7 @@ func _build_objectives(vbox: VBoxContainer) -> void:
 		stars.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		hbox.add_child(stars)
 
-		var num := _label("%d" % int(row.threshold), 16, Color.WHITE)
+		var num := _label(("Round %d" if _endless() else "%d") % int(row.threshold), 16, Color.WHITE)
 		hbox.add_child(num)
 
 		var tick := UiStyle.icon_rect("tick", 18)
@@ -219,10 +222,10 @@ func _build_objectives(vbox: VBoxContainer) -> void:
 func _refresh_objectives() -> void:
 	if not _has_objectives() or _obj_score == null:
 		return
-	var dmg: int = round_manager.total_damage_dealt
-	_obj_score.text = "Your score: %d" % dmg
+	var metric: int = round_manager.star_metric()
+	_obj_score.text = ("Round reached: %d" if _endless() else "Your score: %d") % metric
 	for row in _obj_rows:
-		var reached: bool = dmg >= int(row.threshold)
+		var reached: bool = metric >= int(row.threshold)
 		row.tick.visible = reached
 		row.hbox.modulate = Color(1, 1, 1, 1.0) if reached else Color(1, 1, 1, 0.45)
 

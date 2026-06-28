@@ -54,8 +54,8 @@ func _ready() -> void:
 			_rung_source = ghost_ladder
 		elif round_manager != null:
 			_rung_source = GhostLadderScript.new()
-			_rung_source.setup(int(round_manager.bronze_threshold), int(round_manager.silver_threshold),
-				int(round_manager.gold_threshold), [], 0)
+			_rung_source.setup(int(round_manager.star1_threshold), int(round_manager.star2_threshold),
+				int(round_manager.star3_threshold), [], 0)
 	_build_ui()
 
 	if round_manager != null:
@@ -162,7 +162,7 @@ func _build_score_box() -> PanelContainer:
 	var v: VBoxContainer = box[1]
 	panel.custom_minimum_size = Vector2(0, SCORE_BOX_MIN_H * s)
 	var head := Label.new()
-	head.text = "STANDING" if _is_pvp() else "SCORE"
+	head.text = "STANDING" if _is_pvp() else ("STARS" if _endless() else "SCORE")
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	head.add_theme_font_size_override("font_size", int(11 * s))
 	head.add_theme_color_override("font_color", UiStyle.LABEL_COL)
@@ -175,7 +175,7 @@ func _build_score_box() -> PanelContainer:
 		_rank_val = _kv(v, "Rank", Color.WHITE)
 		_kv(v, "", Color.WHITE)
 	else:
-		_score_hero = _hero(v, "Current")
+		_score_hero = _hero(v, "Round" if _endless() else "Current")
 		for i in range(3):
 			_rungs.append(_rung_row(v))
 	return panel
@@ -315,26 +315,24 @@ func _refresh_phase() -> void:
 func _refresh_score() -> void:
 	if _is_pvp() or _score_hero == null or round_manager == null:
 		return
-	var dmg: int = round_manager.total_damage_dealt
-	_score_hero.text = _commas(dmg)
-	if _endless():
-		_refresh_best_rung()
-		return
+	var metric: int = round_manager.star_metric()
+	_score_hero.text = _commas(metric)
 	var rungs: Array = []
 	if _rung_source != null:
-		rungs = _rung_source.rungs_above(dmg, _rungs.size())
+		rungs = _rung_source.rungs_above(metric, _rungs.size())
 	var first_target: int = int(rungs[0]["target"]) if not rungs.is_empty() else -1
 	if _ladder_init and first_target != _ladder_first_target:
 		Motion.pop(_score_hero, 1.14, Motion.S)
 	_ladder_first_target = first_target
 	_ladder_init = true
+	var endless := _endless()
 	for i in range(_rungs.size()):
 		var r: Dictionary = _rungs[i]
 		if i < rungs.size():
 			var e: Dictionary = rungs[i]
 			r["star"].text = "★" if e["kind"] == "star" else ""
 			r["key"].text = String(e["label"])
-			r["val"].text = _commas(int(e["target"]))
+			r["val"].text = ("R%d" % int(e["target"])) if endless else _commas(int(e["target"]))
 		else:
 			r["star"].text = ""
 			r["key"].text = ""
@@ -343,20 +341,6 @@ func _refresh_score() -> void:
 func _endless() -> bool:
 	var co = round_manager.coordinator if round_manager != null else null
 	return co != null and bool(co.get("endless"))
-
-func _refresh_best_rung() -> void:
-	var best_round := 0
-	if ghost_ladder != null and int(ghost_ladder.own_best) > 0:
-		best_round = LeaderboardService.round_part(int(ghost_ladder.own_best))
-	for i in range(_rungs.size()):
-		var r: Dictionary = _rungs[i]
-		r["star"].text = ""
-		if i == 0 and best_round > 0:
-			r["key"].text = "Best"
-			r["val"].text = "R%d" % best_round
-		else:
-			r["key"].text = ""
-			r["val"].text = ""
 
 func _refresh_standing() -> void:
 	if not _is_pvp() or _lives_hero == null or round_manager == null:
