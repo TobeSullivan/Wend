@@ -147,7 +147,9 @@ jobs:
           content="$PWD/content"; mkdir -p "$content"
           unzip -q dl/Wend-macos.zip -d "$content"
           test -d "$content/Wend.app" || { echo "::error::no Wend.app after unzip"; ls -la "$content"; exit 1; }
-          mkdir -p steamcmd && (cd steamcmd && curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxf -)
+          mkdir -p steamcmd
+          curl -fSL --retry 5 --retry-all-errors -o steamcmd.tar.gz "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz"
+          tar -xzf steamcmd.tar.gz -C steamcmd
           mkdir -p "$HOME/Steam/config"
           echo "$CONFIG_VDF" | base64 -d > "$HOME/Steam/config/config.vdf"
           out="$PWD/steam_out"; mkdir -p "$out"
