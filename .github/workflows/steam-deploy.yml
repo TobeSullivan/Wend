@@ -1,36 +1,70 @@
-name: macOS build → Steam playtest
+name: Build → Steam playtest (Windows + macOS)
 
 on:
   push:
     tags:
       - "playtest-*"
       - "v*"
-  workflow_dispatch:
-    inputs:
-      upload_steam:
-        description: "Upload to the Steam macOS depot"
-        type: boolean
-        default: true
+  workflow_dispatch: {}
 
 env:
   GODOT_VERSION: "4.6.3"
   GODOTSTEAM_URL: "https://codeberg.org/godotsteam/godotsteam/releases/download/v4.19.1-gde/godotsteam-4.19.1-gdextension-plugin-4.4.zip"
 
 jobs:
-  build:
+  windows:
+    name: build Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Godot + export templates
+        shell: pwsh
+        run: |
+          $ver = $env:GODOT_VERSION
+          $base = "https://github.com/godotengine/godot-builds/releases/download/$ver-stable"
+          Invoke-WebRequest "$base/Godot_v${ver}-stable_win64.exe.zip" -OutFile godot.zip
+          Expand-Archive godot.zip godot_bin -Force
+          $bin = (Get-ChildItem godot_bin -Filter *.exe | Select-Object -First 1).FullName
+          "GODOT_BIN=$bin" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          Invoke-WebRequest "$base/Godot_v${ver}-stable_export_templates.tpz" -OutFile templates.tpz
+          $tpl = "$env:APPDATA\Godot\export_templates\$ver.stable"
+          New-Item -ItemType Directory -Force $tpl | Out-Null
+          Expand-Archive templates.tpz tpl_x -Force
+          Move-Item tpl_x\templates\* $tpl
+      - name: Fetch GodotSteam addon
+        shell: pwsh
+        run: |
+          Invoke-WebRequest $env:GODOTSTEAM_URL -OutFile gs.zip
+          Expand-Archive gs.zip gs -Force
+          New-Item -ItemType Directory -Force src\addons | Out-Null
+          Copy-Item -Recurse -Force gs\addons\godotsteam src\addons\
+      - name: Stage preset + export
+        shell: pwsh
+        run: |
+          Copy-Item deploy\steam\export_presets.windows.cfg src\export_presets.cfg -Force
+          & $env:GODOT_BIN --headless --path src --import 2>&1 | Select-Object -Last 10
+          & $env:GODOT_BIN --headless --path src --import 2>&1 | Select-Object -Last 10
+          New-Item -ItemType Directory -Force build\win | Out-Null
+          & $env:GODOT_BIN --headless --path src --export-release "Windows Desktop" "$PWD\build\win\Wend.exe" 2>&1 | Select-Object -Last 40
+          if (-not (Test-Path build\win\Wend.exe)) { Write-Error "no Wend.exe"; exit 1 }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Wend-windows
+          path: build/win
+          if-no-files-found: error
+
+  macos:
+    name: build macOS
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-
       - name: Detect Developer ID creds
         id: flags
         run: |
           devid=false
           [ -n "${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}" ] && devid=true
           echo "devid=$devid" >> "$GITHUB_OUTPUT"
-          echo "developer-id signing: $devid"
-
-      - name: Download Godot ${{ env.GODOT_VERSION }} + export templates
+      - name: Download Godot + export templates
         run: |
           set -euo pipefail
           base="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
@@ -43,7 +77,6 @@ jobs:
           mkdir -p "$tpl"
           unzip -q templates.tpz -d tpl_extract
           mv tpl_extract/templates/* "$tpl/"
-
       - name: Fetch GodotSteam addon
         run: |
           set -euo pipefail
@@ -51,19 +84,15 @@ jobs:
           unzip -q gs.zip -d gs
           mkdir -p src/addons
           cp -R gs/addons/godotsteam src/addons/
-
-      - name: Stage export preset
-        run: cp deploy/steam/export_presets.macos.cfg src/export_presets.cfg
-
-      - name: Import + export
+      - name: Stage preset + export
         run: |
           set -euo pipefail
-          "$GODOT_BIN" --headless --path src --import 2>&1 | tail -20 || true
-          "$GODOT_BIN" --headless --path src --import 2>&1 | tail -20
+          cp deploy/steam/export_presets.macos.cfg src/export_presets.cfg
+          "$GODOT_BIN" --headless --path src --import 2>&1 | tail -10 || true
+          "$GODOT_BIN" --headless --path src --import 2>&1 | tail -10
           mkdir -p build/mac
           "$GODOT_BIN" --headless --path src --export-release "macOS" "$PWD/build/mac/Wend.app" 2>&1 | tail -40
-          test -d build/mac/Wend.app || { echo "::error::export produced no .app"; exit 1; }
-
+          test -d build/mac/Wend.app || { echo "::error::no .app"; exit 1; }
       - name: Import Developer ID certificate
         if: steps.flags.outputs.devid == 'true'
         env:
@@ -81,7 +110,6 @@ jobs:
           security list-keychains -d user -s "$KC" $(security list-keychains -d user | sed s/\"//g)
           ID="$(security find-identity -v -p codesigning "$KC" | grep 'Developer ID Application' | head -1 | sed -E 's/.*"(.*)"/\1/')"
           echo "SIGN_IDENTITY=$ID" >> "$GITHUB_ENV"
-
       - name: Sign (Developer ID, else ad-hoc)
         run: |
           set -euo pipefail
@@ -91,7 +119,6 @@ jobs:
             codesign --force --deep --entitlements deploy/steam/Wend.entitlements --sign - build/mac/Wend.app
           fi
           codesign --verify --deep --strict build/mac/Wend.app || true
-
       - name: Notarize + staple
         if: steps.flags.outputs.devid == 'true'
         env:
@@ -104,10 +131,8 @@ jobs:
           ditto -c -k --keepParent build/mac/Wend.app "$RUNNER_TEMP/Wend.zip"
           xcrun notarytool submit "$RUNNER_TEMP/Wend.zip" --key "$RUNNER_TEMP/notary.p8" --key-id "$KEY_ID" --issuer "$ISSUER" --wait
           xcrun stapler staple build/mac/Wend.app
-
-      - name: Package signed app (preserves perms + signature)
+      - name: Package signed app
         run: ( cd build/mac && ditto -c -k --keepParent Wend.app Wend-macos.zip )
-
       - uses: actions/upload-artifact@v4
         with:
           name: Wend-macos
@@ -115,16 +140,19 @@ jobs:
           if-no-files-found: error
 
   deploy:
-    needs: build
+    name: deploy both depots to Steam
+    needs: [windows, macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
+      - uses: actions/download-artifact@v4
+        with:
+          name: Wend-windows
+          path: win_content
       - uses: actions/download-artifact@v4
         with:
           name: Wend-macos
-          path: dl
-
+          path: mac_zip
       - name: Detect Steam creds
         id: flags
         env:
@@ -133,32 +161,31 @@ jobs:
           steam=false
           [ -n "$CV" ] && steam=true
           echo "steam=$steam" >> "$GITHUB_OUTPUT"
-
-      - name: Upload to Steam macOS depot + set live
-        if: ${{ steps.flags.outputs.steam == 'true' && (github.ref_type == 'tag' || github.event.inputs.upload_steam == 'true') }}
+      - name: Upload both depots as one Steam build
+        if: steps.flags.outputs.steam == 'true'
         env:
           STEAM_USER: ${{ secrets.STEAM_USERNAME }}
           CONFIG_VDF: ${{ secrets.STEAM_CONFIG_VDF }}
           MAC_DEPOT: ${{ vars.STEAM_MACOS_DEPOT_ID }}
-          BRANCH: ${{ vars.STEAM_BETA_BRANCH }}
         run: |
           set -uo pipefail
-          test -n "$MAC_DEPOT" || { echo "::error::set STEAM_MACOS_DEPOT_ID"; exit 1; }
-          content="$PWD/content"; mkdir -p "$content"
-          unzip -q dl/Wend-macos.zip -d "$content"
-          test -d "$content/Wend.app" || { echo "::error::no Wend.app after unzip"; ls -la "$content"; exit 1; }
+          win="$PWD/win_content"
+          mac="$PWD/mac_decoded"; mkdir -p "$mac"
+          unzip -q mac_zip/Wend-macos.zip -d "$mac"
+          test -d "$mac/Wend.app" || { echo "::error::no Wend.app after unzip"; ls -la "$mac"; exit 1; }
           mkdir -p steamcmd
           curl -fSL --retry 5 --retry-all-errors -o steamcmd.tar.gz "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz"
           tar -xzf steamcmd.tar.gz -C steamcmd
           mkdir -p "$HOME/Steam/config"
           echo "$CONFIG_VDF" | base64 -d > "$HOME/Steam/config/config.vdf"
           out="$PWD/steam_out"; mkdir -p "$out"
-          sed -e "s#__BUILDOUTPUT__#$out#g" -e "s#__CONTENTROOT__#$content#g" -e "s#__MACOS_DEPOT_ID__#$MAC_DEPOT#g" deploy/steam/app_build_macos.vdf > "$out/app_build.vdf"
-          sed -e "s#__CONTENTROOT__#$content#g" -e "s#__MACOS_DEPOT_ID__#$MAC_DEPOT#g" deploy/steam/depot_build_macos.vdf > "$out/depot_build_macos.vdf"
+          sed -e "s#__BUILDOUTPUT__#$out#g" -e "s#__MACOS_DEPOT_ID__#$MAC_DEPOT#g" deploy/steam/app_build_combined.vdf > "$out/app_build.vdf"
+          sed -e "s#\"ContentRoot\" \".*\"#\"ContentRoot\" \"$win\"#" deploy/steam/depot_build.vdf > "$out/depot_build.vdf"
+          sed -e "s#__CONTENTROOT__#$mac#g" -e "s#__MACOS_DEPOT_ID__#$MAC_DEPOT#g" deploy/steam/depot_build_macos.vdf > "$out/depot_build_macos.vdf"
           ./steamcmd/steamcmd.sh +login "$STEAM_USER" +run_app_build "$out/app_build.vdf" +quit 2>&1 | tee steam.log
           rc=${PIPESTATUS[0]}
           if [ "$rc" -eq 0 ] && ! grep -qi "Failed to commit" steam.log; then
-            echo "macOS build uploaded + committed. Flip it live in Steamworks -> Wend Playtest -> Builds."
+            echo "One build with BOTH depots uploaded + committed. Flip it live in Steamworks (one row)."
           else
             echo "::error::Steam build failed (rc=$rc)"; tail -60 steam.log; exit 1
           fi
