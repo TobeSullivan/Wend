@@ -1,0 +1,150 @@
+name: macOS build → sign → notarize → Steam
+
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload_steam:
+        description: "Upload to the Steam macOS depot after building"
+        type: boolean
+        default: false
+
+env:
+  GODOT_VERSION: "4.6.3"
+  GODOTSTEAM_URL: "https://codeberg.org/godotsteam/godotsteam/releases/download/v4.19.1-gde/godotsteam-4.19.1-gdextension-plugin-4.4.zip"
+
+jobs:
+  build:
+    name: build macOS
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect available secrets
+        id: flags
+        run: |
+          sign=false; steam=false
+          [ -n "${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}" ] && sign=true
+          [ -n "${{ secrets.STEAM_CONFIG_VDF }}" ] && steam=true
+          echo "sign=$sign"   >> "$GITHUB_OUTPUT"
+          echo "steam=$steam" >> "$GITHUB_OUTPUT"
+          echo "signing enabled: $sign | steam upload available: $steam"
+
+      - name: Download Godot ${{ env.GODOT_VERSION }} + export templates
+        run: |
+          set -euo pipefail
+          base="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+          curl -fL -o godot.zip "${base}/Godot_v${GODOT_VERSION}-stable_macos.universal.zip"
+          unzip -q godot.zip -d godot_bin
+          xattr -dr com.apple.quarantine godot_bin/Godot.app || true
+          echo "GODOT_BIN=$(pwd)/godot_bin/Godot.app/Contents/MacOS/Godot" >> "$GITHUB_ENV"
+          curl -fL -o templates.tpz "${base}/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          tpl="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$tpl"
+          unzip -q templates.tpz -d tpl_extract
+          mv tpl_extract/templates/* "$tpl/"
+
+      - name: Fetch GodotSteam addon (gitignored, ~94MB)
+        run: |
+          set -euo pipefail
+          curl -fL -o gs.zip "$GODOTSTEAM_URL"
+          unzip -q gs.zip -d gs
+          mkdir -p src/addons
+          cp -R gs/addons/godotsteam src/addons/
+
+      - name: Stage macOS export preset
+        run: cp deploy/steam/export_presets.macos.cfg src/export_presets.cfg
+
+      - name: Import project
+        run: |
+          "$GODOT_BIN" --headless --path src --import 2>&1 | tail -20 || true
+          "$GODOT_BIN" --headless --path src --import 2>&1 | tail -20
+
+      - name: Export macOS .app (unsigned)
+        run: |
+          set -euo pipefail
+          mkdir -p build/mac
+          "$GODOT_BIN" --headless --path src --export-release "macOS" "$PWD/build/mac/Wend.app" 2>&1 | tail -40
+          test -d build/mac/Wend.app || { echo "::error::export produced no .app"; exit 1; }
+          echo "exported:"; ls -la build/mac
+
+
+      - name: Import signing certificate
+        if: steps.flags.outputs.sign == 'true'
+        env:
+          CERT_B64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          CERT_PW: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/build.keychain"
+          KPW="$(openssl rand -base64 24)"
+          security create-keychain -p "$KPW" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KPW" "$KEYCHAIN"
+          echo "$CERT_B64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$CERT_PW" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KPW" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | sed s/\"//g)
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | grep 'Developer ID Application' | head -1 | sed -E 's/.*"(.*)"/\1/')"
+          test -n "$IDENTITY" || { echo "::error::no Developer ID Application identity in the imported cert"; exit 1; }
+          echo "SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          echo "signing as: $IDENTITY"
+
+      - name: Codesign (hardened runtime + entitlements)
+        if: steps.flags.outputs.sign == 'true'
+        run: |
+          set -euo pipefail
+          codesign --force --deep --timestamp --options runtime \
+            --entitlements deploy/steam/Wend.entitlements \
+            --sign "$SIGN_IDENTITY" build/mac/Wend.app
+          codesign --verify --deep --strict --verbose=2 build/mac/Wend.app
+
+      - name: Notarize + staple
+        if: steps.flags.outputs.sign == 'true'
+        env:
+          KEY_B64: ${{ secrets.MACOS_NOTARY_KEY_P8_BASE64 }}
+          KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          ISSUER: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          echo "$KEY_B64" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+          ditto -c -k --keepParent build/mac/Wend.app "$RUNNER_TEMP/Wend.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/Wend.zip" \
+            --key "$RUNNER_TEMP/notary.p8" --key-id "$KEY_ID" --issuer "$ISSUER" --wait
+          xcrun stapler staple build/mac/Wend.app
+          spctl --assess --type execute --verbose=4 build/mac/Wend.app || true
+
+      - name: Package .app (zip for artifact / Steam)
+        run: |
+          set -euo pipefail
+          ( cd build/mac && ditto -c -k --keepParent Wend.app Wend-macos.zip )
+          ls -la build/mac
+
+      - name: Upload .app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wend-macos
+          path: build/mac/Wend-macos.zip
+          if-no-files-found: error
+
+
+      - name: Upload to Steam (macOS depot)
+        if: ${{ inputs.upload_steam && steps.flags.outputs.steam == 'true' }}
+        env:
+          STEAM_USER: ${{ secrets.STEAM_USERNAME }}
+          CONFIG_VDF: ${{ secrets.STEAM_CONFIG_VDF }}
+          MAC_DEPOT: ${{ vars.STEAM_MACOS_DEPOT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$MAC_DEPOT" || { echo "::error::set the STEAM_MACOS_DEPOT_ID repo variable (create the depot in Steamworks first)"; exit 1; }
+          brew install --cask steamcmd
+          mkdir -p "$HOME/Library/Application Support/Steam/config"
+          echo "$CONFIG_VDF" | base64 --decode > "$HOME/Library/Application Support/Steam/config/config.vdf"
+          out="$PWD/deploy/steam/output"; root="$PWD/build/mac"; mkdir -p "$out"
+          for f in app_build_macos.vdf depot_build_macos.vdf; do
+            sed -e "s#__BUILDOUTPUT__#$out#g" -e "s#__CONTENTROOT__#$root#g" -e "s#__MACOS_DEPOT_ID__#$MAC_DEPOT#g" \
+              "deploy/steam/$f" > "deploy/steam/.$f.ci"
+            mv "deploy/steam/.$f.ci" "deploy/steam/$f"
+          done
+          steamcmd +login "$STEAM_USER" +run_app_build "$PWD/deploy/steam/app_build_macos.vdf" +quit
+          echo "Uploaded. Set the build live in Steamworks → Wend Playtest → Builds."

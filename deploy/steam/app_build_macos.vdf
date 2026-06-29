@@ -1,0 +1,12 @@
+"appbuild"
+{
+	"appid" "4884650"
+	"desc" "Wend Playtest - macOS (signed + notarized, CI build)"
+	"buildoutput" "__BUILDOUTPUT__"
+	"contentroot" "__CONTENTROOT__"
+	"setlive" ""
+	"depots"
+	{
+		"__MACOS_DEPOT_ID__" "depot_build_macos.vdf"
+	}
+}
