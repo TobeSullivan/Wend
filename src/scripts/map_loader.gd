@@ -47,6 +47,7 @@ static func build_match(host: Node2D, map, num_boards: int = 1, local_index: int
 	coordinator.is_pvp = (map.mode == MapResourceScript.Mode.PVP)
 	# Trials runs until lives deplete; the authored campaign keeps its fixed round cap.
 	coordinator.endless = (map.mode == MapResourceScript.Mode.PVE)
+	coordinator.scale_tier = map.scale_tier
 	coordinator.sim_seed = map.map_seed
 	coordinator.map_ref = _map_ref_for(map)
 	coordinator.record_enabled = true

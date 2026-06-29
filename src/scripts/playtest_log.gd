@@ -1,7 +1,7 @@
 extends Node
 class_name PlaytestLog
 
-const ENABLED := false
+const ENABLED := true
 const PATH := "user://playtest_log.jsonl"
 
 var board

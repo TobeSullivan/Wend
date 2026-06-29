@@ -24,6 +24,7 @@ SteamManager="*res://scripts/steam_manager.gd"
 Nakama="*res://addons/com.heroiclabs.nakama/Nakama.gd"
 NakamaService="*res://scripts/nakama_service.gd"
 SceneManager="*res://scripts/scene_manager.gd"
+DebugOverlay="*res://scripts/debug_overlay.gd"
 
 [display]
 

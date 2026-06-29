@@ -15,6 +15,7 @@ var is_pvp: bool = false
 # Trials runs until difficulty outpaces the player and lives deplete; max_rounds
 # is only a win cap for the authored campaign.
 var endless: bool = false
+var scale_tier: int = 1
 const PVP_SAFETY_CAP := 60
 const ENDLESS_SAFETY_CAP := 999
 
@@ -125,10 +126,17 @@ func _build_ticks_for(rn: int) -> int:
 	return int(round(_build_duration_for(rn) * SIM_HZ))
 
 func mob_hp_for_round() -> float:
-	if round_num <= GameConstants.MOB_HP_FLAT_ROUNDS:
-		return GameConstants.MOB_BASE_HP
-	var growth_rounds := round_num - GameConstants.MOB_HP_FLAT_ROUNDS
-	return GameConstants.MOB_BASE_HP * pow(GameConstants.MOB_HP_GROWTH, growth_rounds)
+	var base := GameConstants.MOB_BASE_HP
+	if round_num > GameConstants.MOB_HP_FLAT_ROUNDS:
+		base *= pow(GameConstants.MOB_HP_GROWTH, round_num - GameConstants.MOB_HP_FLAT_ROUNDS)
+	return base * _scale_hp_mult()
+
+func _scale_hp_mult() -> float:
+	if not (endless or is_pvp):
+		return 1.0
+	var full: float = GameConstants.SCALE_HP_MULT[clampi(scale_tier - 1, 0, GameConstants.SCALE_HP_MULT.size() - 1)]
+	var ramp := clampf(float(round_num) / float(GameConstants.SCALE_HP_RAMP_ROUND), 0.0, 1.0)
+	return lerpf(1.0, full, ramp)
 
 func mob_count_for_round(board) -> int:
 	if not (endless or is_pvp):
@@ -372,6 +380,4 @@ func _clear_all_mobs() -> void:
 func _build_duration_for(rn: int) -> float:
 	if rn == 1:
 		return GameConstants.BUILD_TIME_FIRST
-	if rn >= GameConstants.LATE_ROUND_THRESHOLD:
-		return GameConstants.BUILD_TIME_LATE
 	return GameConstants.BUILD_TIME_NORMAL

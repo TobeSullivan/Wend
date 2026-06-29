@@ -193,6 +193,7 @@ func is_run_done() -> bool:
 	return spawner != null and spawner.is_done() and _alive_mob_count() == 0
 
 func settle_round(round_completed: int) -> void:
+	clear_projectiles()
 	var round_bonus := GameConstants.ROUND_BONUS_BASE + round_completed
 	var interest := mini(int(floor(gold * GameConstants.INTEREST_RATE)), GameConstants.INTEREST_CAP)
 	gold += round_bonus + interest

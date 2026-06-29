@@ -25,7 +25,14 @@ func _ready() -> void:
 	var upg := 0
 	for _k in range(8):
 		if _try_merge_any(ctrl): upg += 1
-	print("HARNESS LIVE seed=", map.map_seed, " grid=", map.grid_size,
+	var build_merges := 0
+	for t in ctrl.towers:
+		if is_instance_valid(t) and t.tier == GameConstants.MIN_TIER:
+			if ctrl._attempt_build_merge(t.grid_cell):
+				ctrl._log_action({"type": "build_merge", "cell": t.grid_cell})
+				build_merges += 1
+			break
+	print("HARNESS LIVE seed=", map.map_seed, " grid=", map.grid_size, " build_merges=", build_merges,
 		" rounds=", map.round_count, " mob_count=", map.mob_count, " towers=", placed, " merges=", upg)
 
 	var ticks := 0

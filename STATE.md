@@ -28,22 +28,39 @@ Nakama beta module **deployed** with the score-truncation fix.
   stars are now **round milestones** (`TRIALS_STAR_ROUNDS [10,20,30]` — reach round N); campaign keeps
   authored damage thresholds. `star_metric()` returns rounds (endless) / damage (campaign). Ranked
   Stone→Masters bands untouched. Old string saves read via a compat shim.
+- **Per-tier difficulty + logging.** `SCALE_HP_MULT [0.45,0.70,1.0,1.45,1.9]` by scale_tier, ramped in
+  over `SCALE_HP_RAMP_ROUND 18` (early near-parity, full spread by ~R18) so ~R30 is the soft wall on
+  every scale; Trials/PvP only (campaign untouched), coordinator reads `scale_tier`, resim-safe. Removed
+  the late-round build-timer drop (`BUILD_TIME_LATE`/`LATE_ROUND_THRESHOLD`) — all rounds now 25s.
+  `PlaytestLog.ENABLED = true` (writes `user://playtest_log.jsonl`). **Starting values — fit to logs.**
+- **QoL.** Build a T1 on a T1 to merge instantly (`build_merge` action — full record/resim/net plumbing,
+  round-trip verified). Path indicator is now a **marching dashed line** (road_renderer `_DashLayer`),
+  replacing the hard-to-follow `>` chevrons. Pressing **B at supply cap is now a no-op**.
+- **Two bug fixes.** Projectiles fired on a round's final tick no longer linger (cleared in
+  `settle_round`). Merge "gap!" text is white+outline (was illegible gold).
+- **Monitoring (catch a future leak).** `DebugOverlay` autoload — F3 live overlay (FPS/nodes/orphans/
+  objects/mem with peaks) + a `[MONITOR]` line to the log every 30s. External `mem_watchdog.ps1` on the
+  Desktop. WER LocalDumps **pending one elevated command** (HKLM) to capture crash minidumps.
+- **Memory-crash diagnosis (NOT Wend).** PC-log forensics: the recurring crash is **ClassicUO** (Ultima
+  Online / Tides of Power), `0xC0000005` access violation, 4+ times, heap-corruption signature. Wend's
+  build/teardown probe was clean (0 orphans, flat counts). Report on Desktop for the UO devs.
 - **Verified:** clean headless import (no parse/shadow); `sim_harness` round-trip bit-identical with
-  merges, tampered logs rejected, WIRING confirms the composite is stored authoritatively; `match_shot`
-  runtime clean.
+  merges **and a build_merge**, tampered logs rejected, WIRING confirms the composite stored.
 
 ## Next step
-- **Playtest the new scaling at real maze density** — confirm early waves pressure without being
-  impossible and the ~R30 normal-maze cap holds; tune `WAVE_COUNT_*` / `MOB_*` as needed. Same pass
-  validates the `TRIALS_STAR_ROUNDS [10,20,30]` star cutoffs.
+- **Playtest each scale at least once, then fit the curves from `playtest_log.jsonl`** — user is doing
+  one run per scale before a balance pass. Fit `SCALE_HP_MULT` so ~R30 is the casual wall on every
+  scale, then set per-scale (or uniform) `TRIALS_STAR_ROUNDS` so gold lands well before 30.
+- Run the elevated WER-LocalDumps command so any future Godot/ClassicUO crash drops a minidump.
 - Carry-over: playtest the tier aura; rewrite stale tutorial copy; `test_case_library.md` edits owed by
   the repo-cloned design session.
 
 ## Recently touched
-- src/resources/game_constants.gd, src/scripts/{match_coordinator,round_manager,build_controller,
-  scene_manager,leaderboard_service,leaderboard_browse,match_end_panel,rail}.gd, src/tools/sim_harness.gd
-- deploy/nakama/data/modules/index.js (score-truncation fix; deployed)
-- STATE.md, notes/open_items.md
+- src/scripts/debug_overlay.gd (new, autoload), road_renderer.gd (dashed path), build_controller.gd
+  (build_merge + B-at-cap), match_coordinator/game_constants (per-tier HP, timer), round_manager/merge_fx
+  (bug fixes), resim/net_protocol/net_match (build_merge plumbing), playtest_log (enabled), project.godot
+- Desktop (not in repo): ClassicUO_crash_report.txt, mem_watchdog.ps1
+- STATE.md
 
 ## Open questions / blocked on
 - **Steam:** review pending (can pass before the **21-day app-credit gate**, ~mid-July, that blocks

@@ -102,4 +102,6 @@ func _draw_hole(p: float) -> void:
 	var txt := "gap!"
 	var fs := 11
 	var w := _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, -1, fs).x
-	draw_string(_font, Vector2(-w * 0.5, -half - 4.0), txt, HORIZONTAL_ALIGNMENT_CENTER, -1, fs, col)
+	var lbl_pos := Vector2(-w * 0.5, -half - 4.0)
+	draw_string_outline(_font, lbl_pos, txt, HORIZONTAL_ALIGNMENT_CENTER, -1, fs, 4, Color(0, 0, 0, a))
+	draw_string(_font, lbl_pos, txt, HORIZONTAL_ALIGNMENT_CENTER, -1, fs, Color(1, 1, 1, a))

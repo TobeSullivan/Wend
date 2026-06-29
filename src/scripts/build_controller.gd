@@ -187,6 +187,14 @@ func _input(event: InputEvent) -> void:
 		if _build_mode:
 			if not _in_build_phase():
 				return
+			var existing := _tower_at_cell(cell)
+			if existing != null:
+				if existing.tier == GameConstants.MIN_TIER and _attempt_build_merge(cell):
+					_relay_build_merge(cell)
+					_log_action({"type": "build_merge", "cell": cell})
+					if not mouse_event.shift_pressed:
+						_set_build_mode(false)
+				return
 			if not _is_valid_placement(cell):
 				return
 			if not round_manager.can_afford(GameConstants.TOWER_COST):
@@ -322,6 +330,33 @@ func _try_merge(src_cell: Vector2i, dst_cell: Vector2i) -> bool:
 	_log_action({"type": "merge", "src": src_cell, "dst": dst_cell})
 	return true
 
+func _attempt_build_merge(cell: Vector2i) -> bool:
+	var t := _tower_at_cell(cell)
+	if t == null or not is_instance_valid(t) or t.tier != GameConstants.MIN_TIER:
+		return false
+	if round_manager == null or not round_manager.can_afford(GameConstants.TOWER_COST):
+		return false
+	round_manager.spend(GameConstants.TOWER_COST)
+	_apply_build_merge(t)
+	return true
+
+func _apply_build_merge(t) -> void:
+	t.total_invested += GameConstants.TOWER_COST
+	t.set_tier(t.tier + 1)
+	t.play_merge_juice()
+	MergeFxScript.poof(get_parent(), t.position, t.aura_poof_color())
+	_select_tower(t)
+	emit_signal("towers_changed", towers.size(), max_towers)
+
+func apply_remote_build_merge(cell: Vector2i) -> bool:
+	var t := _tower_at_cell(cell)
+	if t == null or not is_instance_valid(t) or t.tier != GameConstants.MIN_TIER:
+		return false
+	if round_manager != null:
+		round_manager.net_spend(GameConstants.TOWER_COST)
+	_apply_build_merge(t)
+	return true
+
 func _do_merge(src, dst) -> void:
 	var src_cell: Vector2i = src.grid_cell
 	dst.position = GridScript.cell_to_world(dst.grid_cell)
@@ -348,7 +383,7 @@ func _remove_tower_node(t) -> void:
 	_last_ghost_cell = _NO_CELL
 
 func _set_build_mode(value: bool) -> void:
-	if value and not _in_build_phase():
+	if value and (not _in_build_phase() or _supply_full()):
 		return
 	_build_mode = value
 	var show_ghost: bool = value and not _touch_mode and not _supply_full()
@@ -579,6 +614,10 @@ func _relay_sell(cell: Vector2i) -> void:
 func _relay_merge(src: Vector2i, dst: Vector2i) -> void:
 	if net != null:
 		net.submit_local_input(NetProtocolScript.build_input_merge(seat, src, dst))
+
+func _relay_build_merge(cell: Vector2i) -> void:
+	if net != null:
+		net.submit_local_input(NetProtocolScript.build_input_build_merge(seat, cell))
 
 func apply_remote_place(cell: Vector2i) -> void:
 	if not _is_valid_placement(cell):

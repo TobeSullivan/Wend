@@ -10,8 +10,6 @@ const SELL_REFUND_RATE := 0.30
 
 const BUILD_TIME_FIRST := 30.0
 const BUILD_TIME_NORMAL := 25.0
-const BUILD_TIME_LATE := 8.0
-const LATE_ROUND_THRESHOLD := 30
 
 const MOB_BASE_HP := 150.0
 const MOB_SPEED := 80.0
@@ -25,6 +23,9 @@ const WAVE_COUNT_PER_ROUND := 2
 const WAVE_COUNT_MAX := 60
 
 const TRIALS_STAR_ROUNDS := [10, 20, 30]
+
+const SCALE_HP_MULT := [0.45, 0.70, 1.0, 1.45, 1.9]
+const SCALE_HP_RAMP_ROUND := 18
 
 # --- Boss ---
 # Mobs die permanently now; a boss rides among the wave every N rounds and a
