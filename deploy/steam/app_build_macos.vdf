@@ -1,0 +1,21 @@
+"appbuild"
+{
+	// Wend Playtest app ID (same app as Windows; macOS just gets its own depot).
+	"appid" "4884650"
+
+	"desc" "Wend Playtest - macOS (signed + notarized, CI build)"
+
+	// __TOKEN__ values are substituted by the CI workflow at upload time.
+	"buildoutput" "__BUILDOUTPUT__"
+	"contentroot" "__CONTENTROOT__"
+
+	// Empty = don't auto-publish; set the build live manually in Steamworks first.
+	"setlive" ""
+
+	"depots"
+	{
+		// Create a NEW macOS depot under app 4884650 in Steamworks, then set its id
+		// as the STEAM_MACOS_DEPOT_ID repo variable (the workflow fills it in here).
+		"__MACOS_DEPOT_ID__" "depot_build_macos.vdf"
+	}
+}

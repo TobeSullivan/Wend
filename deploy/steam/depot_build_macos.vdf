@@ -1,0 +1,20 @@
+"DepotBuildConfig"
+{
+	// macOS content depot under Wend Playtest (4884650). Set via CI substitution.
+	"DepotID" "__MACOS_DEPOT_ID__"
+
+	// Root folder uploaded: the signed, notarized, stapled Wend.app bundle.
+	"ContentRoot" "__CONTENTROOT__"
+
+	// Map everything under ContentRoot to the depot root, recursively (the .app
+	// bundle and its contents).
+	"FileMapping"
+	{
+		"LocalPath" "*"
+		"DepotPath" "."
+		"recursive" "1"
+	}
+
+	// Never ship the intermediate notarization zip if it lingers in the dir.
+	"FileExclusion" "*.zip"
+}
