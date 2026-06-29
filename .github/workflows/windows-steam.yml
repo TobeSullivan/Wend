@@ -75,6 +75,15 @@ jobs:
           name: Wend-windows
           path: build/win
 
+      - name: Detect Steam creds
+        id: flags
+        env:
+          CV: ${{ secrets.STEAM_CONFIG_VDF }}
+        run: |
+          steam=false
+          [ -n "$CV" ] && steam=true
+          echo "steam=$steam" >> "$GITHUB_OUTPUT"
+
       - name: Resolve release branch
         id: rb
         run: |
@@ -84,7 +93,7 @@ jobs:
           echo "release branch: '${br:-<upload only>}'"
 
       - name: Deploy to Steam (depot 4884651, set live)
-        if: ${{ secrets.STEAM_CONFIG_VDF != '' }}
+        if: steps.flags.outputs.steam == 'true'
         uses: game-ci/steam-deploy@v3
         with:
           username: ${{ secrets.STEAM_USERNAME }}

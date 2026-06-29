@@ -27,8 +27,11 @@ jobs:
         run: |
           devid=false
           [ -n "${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}" ] && devid=true
+          steam=false
+          [ -n "${{ secrets.STEAM_CONFIG_VDF }}" ] && steam=true
           echo "devid=$devid" >> "$GITHUB_OUTPUT"
-          echo "developer-id signing: $devid"
+          echo "steam=$steam" >> "$GITHUB_OUTPUT"
+          echo "developer-id signing: $devid | steam: $steam"
 
       - name: Download Godot ${{ env.GODOT_VERSION }} + export templates
         run: |
@@ -115,7 +118,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload to Steam macOS depot + set live
-        if: ${{ secrets.STEAM_CONFIG_VDF != '' && (github.ref_type == 'tag' || inputs.upload_steam) }}
+        if: ${{ steps.flags.outputs.steam == 'true' && (github.ref_type == 'tag' || github.event.inputs.upload_steam == 'true') }}
         env:
           STEAM_USER: ${{ secrets.STEAM_USERNAME }}
           CONFIG_VDF: ${{ secrets.STEAM_CONFIG_VDF }}
