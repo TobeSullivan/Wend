@@ -1,0 +1,11 @@
+!Loop
+Assistant.Macros.IfAction|4|0|quietly
+Assistant.Macros.UseSkillAction|47
+Assistant.Macros.ElseAction
+Assistant.Macros.IfAction|4|0|well
+Assistant.Macros.UseSkillAction|47
+Assistant.Macros.ElseAction
+Assistant.Macros.UseSkillAction|21
+Assistant.Macros.EndIfAction
+Assistant.Macros.EndIfAction
+Assistant.Macros.PauseAction|00:00:10.0100000

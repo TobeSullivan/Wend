@@ -180,7 +180,8 @@ func _map_card(map) -> Control:
 		star.configure(1, 1, 16.0)
 		star.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		best_row.add_child(star)
-	best_row.add_child(_label("Best: %d" % best if best > 0 else "No score yet", 14, Color(1.0, 0.9, 0.5)))
+	var best_text := "Best: R%d · %s" % [LeaderboardService.round_part(best), _commas(LeaderboardService.score_part(best))] if best > 0 else "No score yet"
+	best_row.add_child(_label(best_text, 14, Color(1.0, 0.9, 0.5)))
 	info.add_child(best_row)
 
 	if rank > 0:
@@ -209,6 +210,17 @@ func _map_card(map) -> Control:
 
 func _tier_color(tier: int) -> Color:
 	return Color(0.45, 0.85, 0.5).lerp(Color(1.0, 0.45, 0.35), (tier - 1) / 4.0)
+
+func _commas(n: int) -> String:
+	var s := str(n)
+	var out := ""
+	var c := 0
+	for i in range(s.length() - 1, -1, -1):
+		out = s[i] + out
+		c += 1
+		if c % 3 == 0 and i > 0:
+			out = "," + out
+	return out
 
 func _label(text: String, font_size: int, color: Color) -> Label:
 	var l := Label.new()

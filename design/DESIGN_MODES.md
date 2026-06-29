@@ -47,7 +47,7 @@ Philosophy (reworked 2026-06-06, replacing the 2026-05-31 lock): complexity **ra
 
 ### Structure
 
-1–4 players, invite-only lobby. No random matchmaking. Players bring friends or play solo.
+1–4 players, invite-only lobby. No random matchmaking. Players bring friends or play solo. **Solo plays one board as below; co-op (2–4) is a damage relay — see "Co-op = damage relay (2026-06-29)" below.** Full spec + CC handoff: `notes/coop_relay_and_boards_handoff.md`.
 
 Five curated seeded maps are available per time window. Time windows: daily, weekly, monthly. Maps are distinct per window — today's daily maps are different from yesterday's.
 
@@ -75,17 +75,45 @@ Boards are organized as: **Daily / Weekly / Monthly** × **Solo / Duo / Trio / Q
 
 Group size determines the board, with no vote: a solo player posts to the Solo board, a duo to the Duo board, a trio to Trio, a quad to Quad. The only way to a Solo score is to play solo. The seed is the seed regardless of how many friends you bring.
 
-### Scoring
+### Co-op = damage relay (2026-06-29)
 
-A group always posts **team score** (sum of all players' damage) to its group-size board. There is no individual-while-grouped option — group size *is* the board, settled at lobby composition, nothing to vote on.
+Co-op is **not** parallel boards summed; it's a **damage relay**. Locked shape (numbers TBD,
+playtest):
 
-> **Deferred:** a future "vote for individual scoring while grouped" (each player posts to Solo despite being in a group) is parked, not in the near-term design. See `notes/open_items.md`.
+- **Separate boards, one shared spawn stream, in lockstep** (everyone same round, builds and
+  runs together).
+- **Mobs flow board 1 → 2 → … → N**, carrying **remaining HP** across boards (board 1 softens,
+  middle chips, last finishes). A **life is lost only when a mob exits the FINAL board** —
+  intermediate handoffs are not leaks.
+- **Shared lives, shared supply, shared symmetric gold.** Supply is one pool spread across N
+  boards → every board is deliberately under-towered vs solo, so mobs survive downstream *by
+  design* (no single board can solo a late wave). A kill anywhere pays **every player the same
+  gold** (kills, not damage; killer identity irrelevant) — this kills the upstream-snowball.
+  Gold accrues whether or not you personally build (banking + coaching is a real line).
+- **Independent boards + independent building** out of your own gold. Seats are asymmetric:
+  board 1 softener, middle relay, last goalkeeper.
 
-### Arena
+**Seed = base + position.** Position *p* plays `base + (p-1)`; the group's map set is fixed and
+ordered, so every Duo/Trio/Quad of a window+scale is the same maps in the same order, each a
+distinct map within the scale's authored range. Leaderboard-fair + re-simmable.
 
-All players play simultaneously on their own maze. The arena is a 2-column grid of boards, up to 8 slots. Only filled slots are shown — no empty gray placeholders.
+```
+duo:  123,124   trio: 123,124,125   quad: 123,124,125,126
+```
 
-Boards are **hidden during build phase**. Boards are **visible during run phase**. This is the same layout used in PVP.
+**Scoring:** team shares rounds-reached (they die together) → **rounds-reached is the team
+primary, summed damage the tiebreak**, posted to the group-size board (Solo/Duo/Trio/Quad, no
+vote). Consistent with the shipped round-based Trials leaderboard.
+
+**Resim flag:** carried-HP requires a deterministic **cross-board mob handoff** in the record/
+re-sim. **Ranked is not a relay** (independent competitive boards, unchanged).
+
+### Arena / board-viewing
+
+All players play simultaneously on their own maze. In-match you see **one board at a time**
+(camera focus), and switch via the **Boards picker / `1`–`8` hotkeys** — see
+`design/INMATCH_HUD.md`. (Supersedes the earlier "2-column grid of boards" arena concept.)
+Boards are **hidden during build phase**, viewable during run phase. Same model in PVP.
 
 ---
 

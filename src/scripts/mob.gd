@@ -2,7 +2,6 @@ extends Node2D
 class_name Mob
 
 const DamageNumberScript := preload("res://scripts/damage_number.gd")
-const DeathFxScript := preload("res://scripts/death_fx.gd")
 
 var path: PackedVector2Array
 var path_index: int = 0
@@ -105,12 +104,9 @@ func _spawn_damage_number(amount: float, is_crit: bool) -> void:
 	get_parent().add_child(dn)
 	dn.setup(amount, is_crit, position)
 
-# Mobs die permanently now: explode once, mark dead, and let the board reap us.
+# Mobs die permanently now: mark dead and let the board reap us. No death
+# animation for now — a clean disappear reads better than the zombie-die clip.
 func _die() -> void:
 	alive = false
-	if is_visible_in_tree():
-		var fx := DeathFxScript.new()
-		get_parent().add_child(fx)
-		fx.setup(position, anim.rotation)
 	if board != null:
 		board._on_mob_killed()

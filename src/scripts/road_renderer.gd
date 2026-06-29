@@ -125,7 +125,7 @@ func _paint_dashes(c: CanvasItem) -> void:
 	var dash_len: float = DASH_LEN_TILES * _cell
 	var period: float = (DASH_LEN_TILES + DASH_GAP_TILES) * _cell
 	var width: float = DASH_WIDTH_FRAC * _cell
-	var s: float = -fposmod(_arc_offset, period)
+	var s: float = fposmod(_arc_offset, period) - period
 	while s < _total_len:
 		var a: float = maxf(s, 0.0)
 		var b: float = minf(s + dash_len, _total_len)

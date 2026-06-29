@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wend — Tower Merge / Juice Reference</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.1.0/tabler-icons.min.css">
+<style>
+:root{
+ --font-sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+ --color-background-primary:#ffffff;--color-background-secondary:#f3f1ea;
+ --color-text-primary:#23261a;--color-text-secondary:#5f5e5a;--color-text-tertiary:#8a8980;
+ --color-border-tertiary:rgba(0,0,0,.12);--color-border-info:#378ADD;
+ --color-background-info:#E6F1FB;--color-text-info:#185FA5;
+ --border-radius-md:8px;--border-radius-lg:12px;
+}
+body{background:#e9e7df;margin:0;padding:28px 16px;font-family:var(--font-sans);color:var(--color-text-primary)}
+.wrap{max-width:620px;margin:0 auto}
+h1{font-size:22px;font-weight:600;margin:0 0 4px}
+.sub{color:var(--color-text-secondary);font-size:14px;margin:0 0 18px}
+.spec{background:#fff;border:.5px solid var(--color-border-tertiary);border-radius:12px;padding:14px 16px;margin-bottom:22px;font-size:13.5px;line-height:1.65}
+.spec b{font-weight:600}
+.spec ul{margin:8px 0 0;padding-left:18px}
+button{font-family:inherit;font-size:14px;background:#fff;border:.5px solid rgba(0,0,0,.2);border-radius:8px;padding:8px 12px;cursor:pointer}
+button:hover{background:#f3f1ea}
+button:active{transform:scale(.98)}
+.dpad button{padding:0;height:40px}
+input[type=range]{accent-color:#639922}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+#wm{padding:0}
+#board{position:relative;background:#232619;border-radius:14px;padding:16px;width:max-content;margin:0 auto;outline:none;touch-action:none;user-select:none}
+#board:focus-visible{box-shadow:0 0 0 2px #F4CC74}
+#inner{position:relative}
+.cell{position:absolute;border-radius:9px;background:#2f3422;box-shadow:inset 0 0 0 1px #3a4030}
+.tower{position:absolute;z-index:5;cursor:grab;transform-origin:center bottom;will-change:transform}
+#cursor{position:absolute;border:3px solid #F4CC74;border-radius:11px;z-index:8;pointer-events:none;box-sizing:border-box;transition:left .09s ease,top .09s ease,transform .12s ease}
+#cursor.armed{border-color:#FFE7A8;box-shadow:0 0 0 2px #23261944,0 0 0 4px #F4CC74}
+.fx{position:absolute;pointer-events:none;z-index:20}
+.controls{max-width:360px;margin:14px auto 0;text-align:center}
+.status{font-size:13px;color:var(--color-text-secondary);min-height:18px;margin:0 0 10px}
+.dpad{display:inline-grid;grid-template-columns:repeat(3,40px);grid-template-rows:repeat(3,40px);gap:6px}
+.row2{display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+.legend{font-size:12.5px;color:var(--color-text-tertiary);margin-top:12px;line-height:1.6}
+.legend b{font-weight:500;color:var(--color-text-secondary)}
+.pcard{max-width:520px;margin:18px auto 0;background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:1rem 1.1rem}
+.prow{display:flex;align-items:center;gap:16px}
+.pview{width:96px;height:96px;flex:0 0 96px;background:#232619;border-radius:12px;padding:6px;box-sizing:border-box}
+.pmeta{flex:1;min-width:0}
+.sliderrow{display:flex;align-items:center;gap:10px;margin-top:4px}
+.sliderrow input{flex:1}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px;margin-top:14px}
+.stat{background:var(--color-background-primary);border-radius:var(--border-radius-md);padding:8px 10px;border:.5px solid var(--color-border-tertiary)}
+.stat .l{font-size:11px;color:var(--color-text-tertiary)}
+.stat .v{font-size:18px;font-weight:500;margin-top:2px}
+.stat.dps{border-color:var(--color-border-info)}
+.stat.dps .v{color:var(--color-text-info)}
+.msbadge{display:inline-block;font-size:11px;font-weight:500;padding:3px 9px;border-radius:var(--border-radius-md);background:var(--color-background-info);color:var(--color-text-info);margin-top:8px;visibility:hidden}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Wend — tower merge / juice reference</h1>
+<p class="sub">Animation + interaction target for the merge mechanic. Built for CC. Placeholder art and stat numbers.</p>
+<div class="spec">
+<b>Feel:</b> cartoon and fun, not impactful. No screen shake. The merge result wobbles with a gummy jelly squash-and-stretch that settles; impact is a soft pastel poof, not a hard flash.
+<ul>
+<li><b>Input — controller / Steam Deck (primary):</b> move cursor → press action to <b>arm</b> the tower (it lifts) → press a direction to merge that way → auto-disarms. Invalid direction (empty / wrong tier / maxed) = reject nudge.</li>
+<li><b>Input — mouse:</b> drag a tower onto an adjacent same-tier tower.</li>
+<li><b>Merge rule:</b> same tier only. Two of tier N → one tier N+1. Pure merge, max <b>T10</b> (2ⁿ cost; high tiers are aspirational).</li>
+<li><b>Risk:</b> merging <b>empties the source tile</b> → leaves a hole in the maze. Build-timer pressure.</li>
+<li><b>Appearance morph:</b> per tier the body color walks a ramp and a tier badge shows the exact tier. <b>Barrel count = multishot count</b> — the functional read lives in barrels/structure, not body color, so the body stays a skin slot.</li>
+<li><b>Multishot:</b> ×2 at T3, ×3 at T6, ×4 at T10 (cap 4). Other stats scale per tier — numbers TBD, balance later. DPS = damage × shots × fire rate, so multishot is the dominant lever.</li>
+</ul>
+</div>
+<div id="wm">
+  <div id="board" tabindex="0" aria-label="Tower merge board. Click then use arrow keys and space.">
+    <div id="inner"></div>
+  </div>
+  <div class="controls">
+    <p class="status" id="status">Click the board, then move with arrow keys.</p>
+    <div class="dpad">
+      <span></span><button data-dir="up" aria-label="up"><i class="ti ti-chevron-up" aria-hidden="true"></i></button><span></span>
+      <button data-dir="left" aria-label="left"><i class="ti ti-chevron-left" aria-hidden="true"></i></button>
+      <button id="armbtn" aria-label="arm or merge"><i class="ti ti-target" aria-hidden="true"></i></button>
+      <button data-dir="right" aria-label="right"><i class="ti ti-chevron-right" aria-hidden="true"></i></button>
+      <span></span><button data-dir="down" aria-label="down"><i class="ti ti-chevron-down" aria-hidden="true"></i></button><span></span>
+    </div>
+    <div class="row2">
+      <button id="demo">Auto-merge demo</button>
+      <button id="reset">Reset board</button>
+    </div>
+    <p class="legend"><b>Mouse:</b> drag a tower onto an adjacent same-tier tower. &nbsp;<b>Controller:</b> arm with action, press a direction.</p>
+  </div>
+  <div class="pcard">
+    <div class="prow">
+      <div class="pview" id="pview"></div>
+      <div class="pmeta">
+        <div style="font-size:13px;color:var(--color-text-secondary)">Tier preview</div>
+        <div class="sliderrow">
+          <input type="range" min="1" max="10" step="1" value="1" id="tslider">
+          <span style="font-size:18px;font-weight:500;min-width:60px" id="tout">Tier 1</span>
+        </div>
+        <span class="msbadge" id="msb"></span>
+      </div>
+    </div>
+    <div class="stats" id="stats"></div>
+  </div>
+</div>
+</div>
+<script>
+(function(){
+  const RAMP=['#C2603A','#D0742E','#E0A52E','#B9A82C','#8BB02C','#2C9C86','#1F94A8','#3E78C4','#6A57C9','#8E4FD0'];
+  const MAX=10,COLS=5,ROWS=5,CELL=54,GAP=8,STEP=CELL+GAP;
+  const START=[[1,1,1],[2,1,1],[1,3,1],[2,3,1],[0,0,1],[4,4,1],[0,4,1],[3,1,2],[3,2,2]];
+  const board=document.getElementById('board'),inner=board.querySelector('#inner'),status=document.getElementById('status');
+  let grid,towerEls,cursor,armed,busy,cursorEl;
+  const xy=(c,r)=>({x:c*STEP,y:r*STEP}),delay=ms=>new Promise(r=>setTimeout(r,ms));
+  const shotsOf=t=>t>=10?4:t>=6?3:t>=3?2:1;
+  const dmgOf=t=>Math.round(8*Math.pow(1.20,t-1));
+  const rateOf=t=>1.0*Math.pow(1.05,t-1);
+  const rngOf=t=>100+(t-1)*6;
+  const dpsOf=t=>Math.round(dmgOf(t)*shotsOf(t)*rateOf(t));
+  function barrels(s){const A={1:[0],2:[-13,13],3:[-20,0,20],4:[-27,-9,9,27]}[s];return A.map(a=>`<rect x="21.5" y="3" width="5" height="15" rx="2.5" fill="#33372a" transform="rotate(${a} 24 22)"/>`).join('');}
+  function towerSVG(t){const s=shotsOf(t),col=RAMP[t-1];const ring=t===10?'<rect x="11" y="15" width="26" height="24" rx="8" fill="none" stroke="#F4CC74" stroke-width="2.5"/>':'';
+    return `<svg viewBox="0 0 48 48" width="100%" height="100%"><rect x="7" y="33" width="34" height="11" rx="4" fill="#1c2014"/>${barrels(s)}<rect x="12" y="16" width="24" height="22" rx="7" fill="${col}" stroke="rgba(255,255,255,.5)" stroke-width="1.5"/>${ring}<circle cx="38" cy="13" r="7.5" fill="#fff"/><text x="38" y="16.4" text-anchor="middle" font-size="9" font-weight="700" fill="#23261a" font-family="sans-serif">${t}</text></svg>`;}
+  function build(){
+    inner.innerHTML='';inner.style.width=(COLS*STEP-GAP)+'px';inner.style.height=(ROWS*STEP-GAP)+'px';
+    grid=Array.from({length:ROWS},()=>Array(COLS).fill(0));towerEls=Array.from({length:ROWS},()=>Array(COLS).fill(null));
+    armed=false;busy=false;cursor={c:1,r:1};
+    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const d=document.createElement('div');d.className='cell';const p=xy(c,r);d.style.cssText+=`left:${p.x}px;top:${p.y}px;width:${CELL}px;height:${CELL}px`;inner.appendChild(d);}
+    cursorEl=document.createElement('div');cursorEl.id='cursor';cursorEl.style.width=CELL+'px';cursorEl.style.height=CELL+'px';inner.appendChild(cursorEl);
+    START.forEach(([c,r,t])=>place(c,r,t));moveCursor(1,1);setStatus();
+  }
+  function place(c,r,tier){const t=document.createElement('div');t.className='tower';const p=xy(c,r);t.style.cssText+=`left:${p.x}px;top:${p.y}px;width:${CELL}px;height:${CELL}px`;t.innerHTML=towerSVG(tier);inner.appendChild(t);towerEls[r][c]=t;grid[r][c]=tier;t.addEventListener('pointerdown',onDragStart);return t;}
+  function setTier(el,tier){el.innerHTML=towerSVG(tier);}
+  function moveCursor(c,r){cursor={c,r};const p=xy(c,r);cursorEl.style.left=p.x+'px';cursorEl.style.top=p.y+'px';if(grid[r][c])setPreview(grid[r][c]);}
+  function setStatus(){if(busy)return;const on=grid[cursor.r][cursor.c];status.textContent=armed?'Armed — press a direction to merge.':on?'Tower selected — press action to arm.':'Empty tile — move to a tower.';}
+  function setArmed(v){armed=v&&!!grid[cursor.r][cursor.c];cursorEl.classList.toggle('armed',armed);cursorEl.style.transform=armed?'translateY(-5px) scale(1.06)':'none';setStatus();}
+  const DIRS={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
+  function tryMerge(dir){if(busy)return;const[dc,dr]=DIRS[dir];const c=cursor.c,r=cursor.r,tc=c+dc,tr=r+dr;if(tc<0||tc>=COLS||tr<0||tr>=ROWS)return reject();const s=grid[r][c],t=grid[tr][tc];if(!s||!t||s!==t||s>=MAX)return reject();doMerge(c,r,tc,tr);}
+  function reject(){cursorEl.animate([{transform:cursorEl.style.transform||'none'},{transform:'translateX(-5px)'},{transform:'translateX(5px)'},{transform:cursorEl.style.transform||'none'}],{duration:220});status.textContent='Only same-tier towers can merge.';}
+  function jelly(el){el.animate([{transform:'scale(.5,.5)'},{transform:'scale(1.16,1.3)',offset:.24},{transform:'scale(1.26,.8)',offset:.42},{transform:'scale(.9,1.12)',offset:.6},{transform:'scale(1.07,.95)',offset:.76},{transform:'scale(.98,1.02)',offset:.9},{transform:'scale(1,1)'}],{duration:680,easing:'ease-out'});}
+  function poof(c,r,tier){const p=xy(c,r),cx=p.x+CELL/2,cy=p.y+CELL/2;
+    const ring=document.createElement('div');ring.className='fx';ring.style.cssText=`left:${cx}px;top:${cy}px;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;border:3px solid ${RAMP[tier-1]}`;inner.appendChild(ring);
+    ring.animate([{transform:'scale(.4)',opacity:.8},{transform:'scale(5)',opacity:0}],{duration:520,easing:'ease-out'}).finished.then(()=>ring.remove());
+    const cols=['#ffffff',RAMP[tier-1],'#F6CE73'];
+    for(let i=0;i<9;i++){const d=document.createElement('div');d.className='fx';const s=6+Math.random()*5;d.style.cssText=`left:${cx}px;top:${cy}px;width:${s}px;height:${s}px;border-radius:50%;background:${cols[i%3]}`;inner.appendChild(d);const ang=-0.4-Math.random()*2.3,dist=22+Math.random()*22;d.animate([{transform:'translate(-50%,-50%) scale(1)',opacity:1},{transform:`translate(${Math.cos(ang)*dist-4}px,${Math.sin(ang)*dist+14}px) scale(.3)`,opacity:0}],{duration:560+Math.random()*200,easing:'cubic-bezier(.3,.8,.4,1)'}).finished.then(()=>d.remove());}
+  }
+  function holeFlash(c,r){const p=xy(c,r),h=document.createElement('div');h.className='fx';h.style.cssText=`left:${p.x}px;top:${p.y}px;width:${CELL}px;height:${CELL}px;border-radius:9px;border:2px dashed #E8B84B;box-sizing:border-box`;inner.appendChild(h);const lbl=document.createElement('div');lbl.className='fx';lbl.textContent='gap!';lbl.style.cssText=`left:${p.x}px;top:${p.y-14}px;width:${CELL}px;text-align:center;font-size:11px;font-weight:700;color:#E8B84B`;inner.appendChild(lbl);const o={duration:1050,easing:'ease-out'};h.animate([{opacity:0},{opacity:1,offset:.15},{opacity:1,offset:.6},{opacity:0}],o).finished.then(()=>h.remove());lbl.animate([{opacity:0,transform:'translateY(4px)'},{opacity:1,transform:'translateY(0)',offset:.2},{opacity:1,offset:.6},{opacity:0}],o).finished.then(()=>lbl.remove());}
+  async function finishMerge(srcEl,c,r,tc,tr){const newTier=grid[tr][tc]+1;poof(tc,tr,newTier);srcEl.remove();towerEls[r][c]=null;grid[r][c]=0;const tgt=towerEls[tr][tc];setTier(tgt,newTier);grid[tr][tc]=newTier;jelly(tgt);setPreview(newTier);holeFlash(c,r);await delay(560);moveCursor(tc,tr);busy=false;setStatus();}
+  async function doMerge(c,r,tc,tr){busy=true;setArmed(false);status.textContent='Merging…';const src=towerEls[r][c];const a=xy(c,r),b=xy(tc,tr),ddx=Math.sign(a.x-b.x)*7,ddy=Math.sign(a.y-b.y)*7;
+    await src.animate([{transform:'scale(1,1)'},{transform:`translate(${ddx}px,${ddy}px) scale(1.1,.9)`}],{duration:150,easing:'cubic-bezier(.3,1.4,.6,1)',fill:'forwards'}).finished;
+    src.style.zIndex=9;
+    await src.animate([{transform:`translate(${ddx}px,${ddy}px) scale(1.1,.9)`},{transform:`translate(${b.x-a.x}px,${b.y-a.y}px) scale(1.05,1.1)`}],{duration:180,easing:'cubic-bezier(.4,0,.5,1)',fill:'forwards'}).finished;
+    finishMerge(src,c,r,tc,tr);}
+  let drag=null;
+  function onDragStart(e){if(busy)return;const el=e.currentTarget;let c=-1,r=-1;for(let rr=0;rr<ROWS;rr++)for(let cc=0;cc<COLS;cc++)if(towerEls[rr][cc]===el){c=cc;r=rr;}if(c<0)return;moveCursor(c,r);setArmed(false);board.focus();drag={el,c,r,sx:e.clientX,sy:e.clientY};el.setPointerCapture(e.pointerId);el.style.zIndex=12;el.style.cursor='grabbing';el.addEventListener('pointermove',onDragMove);el.addEventListener('pointerup',onDragEnd);}
+  function onDragMove(e){if(!drag)return;drag.el.style.transform=`translate(${e.clientX-drag.sx}px,${e.clientY-drag.sy}px) scale(1.06)`;}
+  async function onDragEnd(e){if(!drag)return;const d=drag;drag=null;d.el.removeEventListener('pointermove',onDragMove);d.el.removeEventListener('pointerup',onDragEnd);d.el.style.cursor='grab';const rect=inner.getBoundingClientRect();const tc=Math.floor((e.clientX-rect.left)/STEP),tr=Math.floor((e.clientY-rect.top)/STEP);const adj=(Math.abs(tc-d.c)+Math.abs(tr-d.r))===1;const valid=adj&&tr>=0&&tr<ROWS&&tc>=0&&tc<COLS&&grid[tr][tc]&&grid[tr][tc]===grid[d.r][d.c]&&grid[d.r][d.c]<MAX;
+    if(valid){const a=xy(d.c,d.r),b=xy(tc,tr);await d.el.animate([{transform:d.el.style.transform},{transform:`translate(${b.x-a.x}px,${b.y-a.y}px) scale(1.05,1.1)`}],{duration:150,easing:'cubic-bezier(.4,0,.5,1)',fill:'forwards'}).finished;d.el.style.transform=`translate(${b.x-a.x}px,${b.y-a.y}px)`;busy=true;status.textContent='Merging…';finishMerge(d.el,d.c,d.r,tc,tr);}
+    else{d.el.animate([{transform:d.el.style.transform},{transform:'translate(0,0) scale(1)'}],{duration:300,easing:'cubic-bezier(.34,1.5,.55,1)'});d.el.style.transform='none';d.el.style.zIndex=5;setStatus();}}
+  board.addEventListener('keydown',e=>{const m={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right'};if(m[e.key]){e.preventDefault();if(busy)return;if(armed)tryMerge(m[e.key]);else{const[dc,dr]=DIRS[m[e.key]];moveCursor(Math.max(0,Math.min(COLS-1,cursor.c+dc)),Math.max(0,Math.min(ROWS-1,cursor.r+dr)));setStatus();}}else if(e.key===' '||e.key==='Enter'){e.preventDefault();if(!busy)setArmed(!armed);}else if(e.key==='Escape')setArmed(false);});
+  document.querySelectorAll('.dpad button[data-dir]').forEach(b=>b.addEventListener('click',()=>{if(busy)return;const dir=b.dataset.dir;board.focus();if(armed)tryMerge(dir);else{const[dc,dr]=DIRS[dir];moveCursor(Math.max(0,Math.min(COLS-1,cursor.c+dc)),Math.max(0,Math.min(ROWS-1,cursor.r+dr)));setStatus();}}));
+  document.getElementById('armbtn').addEventListener('click',()=>{if(!busy){board.focus();setArmed(!armed);}});
+  document.getElementById('reset').addEventListener('click',build);
+  document.getElementById('demo').addEventListener('click',async()=>{if(busy)return;build();await delay(150);moveCursor(1,1);setArmed(true);await delay(380);tryMerge('right');await delay(900);moveCursor(3,1);setArmed(true);await delay(380);tryMerge('down');});
+  const pview=document.getElementById('pview'),slider=document.getElementById('tslider'),tout=document.getElementById('tout'),statsEl=document.getElementById('stats'),msb=document.getElementById('msb');
+  function setPreview(t){t=Math.max(1,Math.min(MAX,t));slider.value=t;tout.textContent='Tier '+t;pview.innerHTML=towerSVG(t);pview.firstChild.animate([{transform:'scale(.8)'},{transform:'scale(1.08)',offset:.6},{transform:'scale(1)'}],{duration:300,easing:'cubic-bezier(.34,1.5,.6,1)'});
+    const s=shotsOf(t);
+    statsEl.innerHTML=`<div class="stat"><div class="l">Multishot</div><div class="v">×${s}</div></div><div class="stat"><div class="l">Damage</div><div class="v">${dmgOf(t)}</div></div><div class="stat"><div class="l">Fire rate</div><div class="v">${rateOf(t).toFixed(2)}/s</div></div><div class="stat"><div class="l">Range</div><div class="v">${rngOf(t)}</div></div><div class="stat dps"><div class="l">DPS</div><div class="v">${dpsOf(t)}</div></div>`;
+    if(t===3||t===6||t===10){msb.textContent='Multishot unlocked → ×'+s;msb.style.visibility='visible';}else msb.style.visibility='hidden';}
+  slider.addEventListener('input',()=>setPreview(+slider.value));
+  build();setPreview(1);
+})();
+</script>
+</body>
+</html>

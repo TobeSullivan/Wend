@@ -28,7 +28,7 @@ Fixed width. Every element justified (label left / value right). Fixed-width con
 | Gold | `n` (gold-colored) |
 
 ### 2. Second box — content swaps by mode, frame fixed
-The box never resizes; both modes fill the same fixed frame so the Buttons box anchors at the same Y.
+The box never resizes; both modes fill the same fixed frame so the Buttons box anchors at the same Y. **2026-06-29: drop the box header label** (`"STANDING"/"STARS"/"SCORE"`, `rail.gd:165`) on all screens — it wastes vertical space and "STARS" was inaccurate (it's the Trials board, which merely *starts* with 1–3 star milestones). The rows are self-evident without it. (Ranked open option: the box is low-value mid-run since Standing resolves at round end — drop it entirely or host the picker inline; not blocking, default keeps the box header-less.)
 
 **Trials → SCORE (a climbing display).** Hero row `Current n`, then up to three **rungs** = whatever targets remain *above* current score, ascending:
 - Below 1★: `Current` · 1★ · 2★ · 3★
@@ -47,16 +47,16 @@ Passed stars fall off the top; the next leaderboard ghost climbs in from the bot
 ### 3. Buttons box — same footprint every button
 Top to bottom; primary is the green slot.
 
-| Slot | Trials | Ranked |
-|---|---|---|
-| Primary (green) | Start Round | Ready `N/8` (live vote count) |
-| Secondary | Speed `3×` | Leaderboard (pop-out toggle) |
-| — | Build `[B]` | Build `[B]` |
-| — | Menu | Menu |
+| Slot | Co-op Trials | Ranked | Solo Trials / Campaign |
+|---|---|---|---|
+| Primary (green) | Start Round | Ready `N/8` | Start Round |
+| Secondary | Speed `3×` | Boards (picker) | Speed `3×` |
+| — | Boards (picker) | — | — |
 
-- **Speed** changes only in run phase (locked rule). During build it is present-but-disabled (greyed). *(Open: empty-until-run instead? — only loose end.)* In run, Start Round is gone (round already running) and Speed is active.
-- **Leaderboard** (Ranked) takes Speed's slot and is active in all phases; it toggles the contextual 8-player pop-out.
-- **Menu**, not “Pause.” Esc is the universal pause and everyone knows it; the button is a convenience that opens the pause/menu overlay (leave match, see elements). It's labeled Menu because **Ranked cannot be paused** — calling it Pause would be inaccurate.
+- **Cut 2026-06-29:** `Menu` is removed — Esc already opens the pause menu (the standard, and why it was "Menu" not "Pause"); the button was pure redundancy. `Build [B]` is removed — the `B` key opens build and nobody used the button. Discoverability for both lives under pause → Options → **Controls** (`Esc = menu`, `B = build`, `left = place`, `hold Shift = chain-place`, `right = sell`, `1–8 = jump to board`); tutorial players already know them.
+- The freed slot becomes **Boards** — the board-viewing picker (multiplayer only; see *Board-viewing* below). Solo Trials / Campaign show no Boards button (nobody to watch).
+- **Ranked:** Boards **replaces and absorbs** the old never-built `Leaderboard` pop-out — same 8-player surface, one button.
+- **Speed** changes only in run phase (locked). During build it is present-but-disabled (greyed); in run, Start Round is gone and Speed is active.
 
 ---
 
@@ -93,7 +93,30 @@ Identical to the current in-game tower panel, with three changes: it's a **conte
 
 ---
 
+## Board-viewing — picker + spectate (LOCKED 2026-06-29)
+
+How you watch other players' boards in multiplayer. Model = **single-board camera focus + a
+picker** (not a grid). Most of it is already coded in `game_view.gd` (`focus_board(i)`,
+`_focus`, green frame / "Spectating {name}" banner / back button); this locks the entry + nav.
+Full CC handoff + mocks: `notes/coop_relay_and_boards_handoff.md`.
+
+- **Picker = a names list** (mock `notes/mockups/wend_boards_popout_names_final.png`). Pop-out
+  drawer toggled by the `Boards` button, centered over the board, dims the play area, Esc/tap-
+  off closes. **Never persistent** over the board (persistent-over-board failed — occludes
+  building even with click-through). One row per player = **number badge (= hotkey) + avatar +
+  name + chevron**, no status (pure navigation). **You are always row 1** (green); others 2–N
+  (Trials 2–4, Ranked 2–8). Row tap → `focus_board(i)`.
+- **Hotkeys (PC/Mac):** `1`–`8` jump straight to a board via `focus_board` (no picker needed);
+  `1` = your board. Deck/console/mobile handled at port time.
+- **Jumped-to board** (mock `notes/mockups/wend_spectate_overlay.png`): existing green frame +
+  "Spectating {name}" banner + back pill — **restyle to tokens** (`START_BG`/`START_BORDER`,
+  back pill `PILL_BG`/`PILL_BORDER`, Fredoka SemiBold + outline). When `_spectate_index !=
+  local_index`, suppress tower inspector + build + sell and don't route taps to
+  `build_controller` (read-only).
+- **Build phase:** boards hidden; picker/hotkeys run-phase only; build auto-returns home.
+- **Parked:** a 4×2 live-thumbnail grid (mock `wend_boards_popout_B_thumbnails.png`) — reads
+  fine but lots of code for minimal gain; revisit later.
+
 ## Deferred / next in this area
-- **Board overlays** — pop-out 8-player leaderboard (Ranked; no current capture, needs the PVP scene launched for reference) and the spectate banner / green inset frame (per `VISUAL_SYSTEM.md` PVP section).
 - **Campaign map editor** — now unblocked by the 25×16 lock; hand-authoring grid (board / obstacle / tower-ghost / checkpoint cells + resizable zone circle). See `notes/polish_punchlist.md` item 9.
 - Speed-during-build: present-but-disabled (current) vs empty-until-run — only open detail on the rail.

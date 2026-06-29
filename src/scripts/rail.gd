@@ -374,15 +374,25 @@ func _refresh_buttons() -> void:
 		var coord = round_manager.coordinator
 		var readied: bool = coord.is_board_ready(round_manager)
 		_start_button.text = "%s Ready (%d/%d)" % ["✓" if readied else "○", coord.ready_count(), coord.active_boards().size()]
-		_start_button.visible = building
+		_reserve_hide(_start_button, building)
 	else:
 		_start_button.text = "▶ Start Round"
-		_start_button.visible = building
+		_reserve_hide(_start_button, building)
 		if _ff_button != null:
 			_ff_button.disabled = building
 			_ff_button.text = "Speed %d×" % int(FF_MULTS[_ff_index])
 	if _build_button != null:
 		_build_button.disabled = not building
+
+# Hide a rail button WITHOUT collapsing its layout slot, so the buttons box keeps
+# a constant height across phases and the tower panel anchored below it stays put
+# (leaves a gap where the button was instead of shifting everything up).
+func _reserve_hide(btn: Button, shown: bool) -> void:
+	btn.visible = true
+	btn.modulate.a = 1.0 if shown else 0.0
+	btn.disabled = not shown
+	btn.focus_mode = Control.FOCUS_ALL if shown else Control.FOCUS_NONE
+	btn.mouse_filter = Control.MOUSE_FILTER_STOP if shown else Control.MOUSE_FILTER_IGNORE
 
 func _on_phase_changed() -> void:
 	_refresh()

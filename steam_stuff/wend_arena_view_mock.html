@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wend — In-match board view (Ranked / Trials)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --panel:#323d2c; --panel-bd:#1a2012;
+    --chip:#39402c; --chip-bd:#23170d;
+    --dock:#2a3322; --dock-bd:#161c0f;
+    --gold:#b38e2c; --gold-bd:#5e4710;
+    --green:#5fbe38; --green-bd:#2c5a18;
+    --terra:#b04a2a; --terra-bd:#5e2310;
+    --label:#b9c7a4; --ink:#1a2012;
+    --grass1:#7d9a55; --grass2:#86a35c; --path:#caa46a; --path-bd:#8a6e3f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Fredoka",system-ui,sans-serif;font-weight:600;
+    background:#1c2417;color:#fff;
+    display:flex;flex-direction:column;align-items:center;
+    padding:18px 14px 40px;gap:14px;min-height:100vh;
+  }
+  .txt-out{text-shadow:0 1px 0 var(--ink),0 0 2px var(--ink)}
+
+  /* mock-only control bar */
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center}
+  .seg{display:inline-flex;background:var(--dock);border:2px solid var(--dock-bd);border-bottom-width:4px;border-radius:16px;overflow:hidden}
+  .seg button{font:inherit;font-size:14px;color:var(--label);background:transparent;border:0;padding:8px 16px;cursor:pointer}
+  .seg button.on{background:var(--panel);color:#fff}
+  .hint{font-size:12.5px;color:var(--label);font-weight:500}
+
+  /* the game screen frame */
+  .screen-outer{position:relative;width:1180px;max-width:96vw}
+  .screen-outer::before{content:"";display:block;padding-bottom:56.25%}
+  .screen{
+    position:absolute;top:0;left:0;right:0;bottom:0;
+    background:linear-gradient(180deg,#7e9a57,#6f8a4c);
+    border-radius:14px;overflow:hidden;
+    box-shadow:0 14px 40px rgba(0,0,0,.5);
+    display:flex;
+  }
+  /* faint grass texture */
+  .screen::before{content:"";position:absolute;top:0;left:0;right:0;bottom:0;
+    background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1px),
+      radial-gradient(rgba(0,0,0,.05) 1px,transparent 1px);
+    background-size:22px 22px,22px 22px;background-position:0 0,11px 11px;
+    /* darkening vignette */
+    box-shadow:inset 0 0 160px rgba(0,0,0,.42);pointer-events:none}
+
+  /* play area (left of rail) */
+  .play{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px}
+
+  /* board */
+  .boardwrap{position:relative}
+  .board{position:relative;border-radius:8px;overflow:hidden;
+    box-shadow:0 6px 16px rgba(0,0,0,.42);outline:3px solid rgba(0,0,0,.25)}
+  .row{display:flex}
+  .cell{width:34px;height:34px}
+  .cell.g0{background:var(--grass1)} .cell.g1{background:var(--grass2)}
+  .cell.p{background:var(--path);box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+  .zone{position:absolute;border-radius:50%;border:2px dashed rgba(255,255,255,.5);
+    background:rgba(255,255,255,.07);pointer-events:none}
+  /* marching dashed path line */
+  .dash{position:absolute;height:0;border-top:3px dashed rgba(40,28,12,.7);
+    transform-origin:0 0;pointer-events:none;animation:march 1s linear infinite}
+  @keyframes march{to{background-position:18px 0}}
+  /* tower */
+  .tower{position:absolute;width:26px;height:26px;border-radius:7px;
+    background:#d8c79a;border:2px solid rgba(0,0,0,.35);
+    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#231;
+    box-shadow:0 2px 4px rgba(0,0,0,.4)}
+  .tower .aura{position:absolute;width:42px;height:42px;border-radius:50%;
+    left:50%;top:60%;transform:translate(-50%,-50%);z-index:-1;filter:blur(3px)}
+  .mob{position:absolute;width:13px;height:13px;border-radius:50%;
+    border:2px solid rgba(0,0,0,.4);box-shadow:0 1px 2px rgba(0,0,0,.4)}
+
+  /* spectate chrome (mirrors game_view.gd) */
+  .spec-frame{position:absolute;top:-6px;left:-6px;right:-6px;bottom:-6px;border:6px solid var(--green);pointer-events:none;display:none}
+  .spec-banner{position:absolute;top:14px;left:50%;transform:translateX(-50%);
+    background:var(--green);border:2px solid var(--green-bd);border-radius:14px;
+    padding:7px 18px;font-size:16px;display:none;z-index:6;
+    box-shadow:0 4px 10px rgba(0,0,0,.4)}
+  .spec-back{position:absolute;top:56px;left:50%;transform:translateX(-50%);
+    background:var(--panel);border:2px solid var(--panel-bd);border-bottom-width:4px;border-radius:14px;
+    color:#fff;font:inherit;font-weight:600;font-size:14px;padding:8px 16px;cursor:pointer;display:none;z-index:6}
+  .spectating .spec-frame,.spectating .spec-banner,.spectating .spec-back{display:block}
+
+  /* roster strip (run-phase navigation) */
+  .roster{position:absolute;left:14px;right:298px;bottom:12px;
+    display:flex;align-items:center;gap:8px;justify-content:center;z-index:5}
+  .arrow{flex:0 0 auto;width:30px;height:46px;border-radius:12px;background:var(--panel);
+    border:2px solid var(--panel-bd);border-bottom-width:4px;color:#fff;font:inherit;font-size:18px;cursor:pointer}
+  .chips{display:flex;gap:7px;overflow:hidden}
+  .chip{flex:0 0 auto;display:flex;align-items:center;gap:7px;
+    background:rgba(42,51,34,.92);border:2px solid var(--dock-bd);border-radius:13px;
+    padding:5px 9px 5px 6px;cursor:pointer;min-width:96px}
+  .chip.me{border-color:var(--green)}
+  .chip.active{outline:2px solid #fff;outline-offset:1px;background:var(--panel)}
+  .chip .av{width:24px;height:24px;border-radius:7px;flex:0 0 auto;border:2px solid rgba(0,0,0,.35)}
+  .chip .nm{font-size:12.5px;line-height:1;white-space:nowrap}
+  .chip .st{font-size:11px;color:var(--label);font-weight:500;line-height:1;margin-top:2px}
+  .chip.out{opacity:.45;filter:grayscale(.6)}
+  .chip.out .st{color:var(--terra)}
+
+  /* right rail */
+  .rail{width:284px;flex:0 0 284px;height:100%;padding:14px;display:flex;flex-direction:column;gap:12px;z-index:4}
+  .box{background:var(--panel);border:2px solid var(--panel-bd);border-bottom-width:4px;border-radius:18px;padding:12px 13px}
+  .box .ttl{font-size:11px;letter-spacing:.12em;color:var(--label);font-weight:600;text-transform:uppercase;margin-bottom:8px}
+  .kv{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;font-size:15px}
+  .kv .k{color:var(--label);font-weight:500}
+  .kv .v{font-weight:600}
+  .kv .v.gold{color:var(--gold)}
+  .hero{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .hero .hl{color:var(--label);font-size:13px;font-weight:500}
+  .hero .hv{font-size:30px;font-weight:700}
+  .hero .hv.gold{color:var(--gold)}
+  .rung{display:flex;justify-content:space-between;font-size:14px;padding:3px 0;border-top:1px solid rgba(0,0,0,.25)}
+  .rung .rk{color:var(--label);font-weight:500} .rung .rv{font-weight:600}
+  .rung.ghost .rk{color:#cdb6e0}
+  .froze{font-size:10.5px;color:var(--label);font-weight:500;margin-top:6px;opacity:.85}
+  .btns{display:flex;flex-direction:column;gap:9px;margin-top:auto}
+  .btn{font:inherit;font-weight:600;font-size:15px;color:#fff;border-radius:16px;padding:11px 12px;cursor:pointer;
+    border:2px solid var(--panel-bd);border-bottom-width:4px;background:var(--panel);text-align:center}
+  .btn.primary{background:var(--green);border-color:var(--green-bd)}
+  .btn.idle{opacity:.4;cursor:default}
+  .btn .key{font-size:12px;color:var(--label);font-weight:500;margin-left:4px}
+
+  .caption{font-size:12.5px;color:var(--label);font-weight:500;text-align:center;max-width:1180px}
+  b{font-weight:600;color:#dfe8cf}
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <div class="seg" id="mode">
+    <button data-mode="ranked" class="on">Ranked</button>
+    <button data-mode="trials">Trials (Trio)</button>
+  </div>
+  <div class="seg" id="phase">
+    <button data-phase="run" class="on">Run phase</button>
+    <button data-phase="build">Build phase</button>
+  </div>
+  <span class="hint">Tap a player chip to spectate their board · arrows cycle · green chrome = you're watching someone else</span>
+</div>
+
+<div class="screen-outer">
+<div class="screen" id="screen">
+  <div class="play">
+    <div class="boardwrap" id="boardwrap">
+      <div class="board" id="board"></div>
+      <div class="spec-frame"></div>
+      <div class="spec-banner txt-out" id="banner">Spectating Maple</div>
+      <button class="spec-back" id="back">← Back to your board</button>
+    </div>
+  </div>
+
+  <div class="roster" id="roster">
+    <button class="arrow" id="prev">‹</button>
+    <div class="chips" id="chips"></div>
+    <button class="arrow" id="next">›</button>
+  </div>
+
+  <div class="rail" id="rail"></div>
+</div>
+</div>
+
+<div class="caption" id="caption"></div>
+
+<script>
+var C = { mode:'ranked', phase:'run', focus:0 };
+
+var MAZE_A = [
+ "S############",
+ ".....t.....t.",
+ ".###.#####.#.",
+ ".#t#.....#.#.",
+ ".#.#####.#.#.",
+ ".#.....#t#.#.",
+ ".#####.#.#.#.",
+ ".t...#.#.#.t.",
+ "#####.#.###.E"
+];
+var MAZE_B = [
+ "S....t.......",
+ "####.######t.",
+ "...#.....#..#",
+ ".#.#####.#.##",
+ ".#t....#.#...",
+ ".######.#.##.",
+ ".#....#.#.#t.",
+ ".#.##.#.#.#..",
+ "#.t#####.###E"
+];
+var CELL=34;
+var PLAYERS = [
+ {nm:'You',   av:'#b8923a', lives:112, score:'84.2k', me:true,  aura:'warm', maze:MAZE_A},
+ {nm:'Maple', av:'#6fae3a', lives:97,  score:'79.8k', aura:'cool', maze:MAZE_B},
+ {nm:'Koi',   av:'#3a86ae', lives:131, score:'91.0k', aura:'cool', maze:MAZE_A},
+ {nm:'Birch', av:'#ae3a86', lives:54,  score:'66.3k', aura:'cool', maze:MAZE_B},
+ {nm:'Fern',  av:'#9b59b6', lives:0,   score:'-',     out:true, aura:'cool', maze:MAZE_A},
+ {nm:'Sol',   av:'#c0653a', lives:88,  score:'73.1k', aura:'cool', maze:MAZE_B},
+ {nm:'Vale',  av:'#3aaea0', lives:105, score:'81.4k', aura:'cool', maze:MAZE_A},
+ {nm:'Wren',  av:'#7a8a3a', lives:69,  score:'70.0k', aura:'cool', maze:MAZE_B}
+];
+var WARM=['#7a3a1a','#a85a22','#d68a2c','#f0b94a'];
+var COOL=['#234a6e','#2c6fae','#3aa0c8','#7ed0e8'];
+
+function buildBoard(p){
+  var b=document.getElementById('board'); b.innerHTML='';
+  var m=p.maze, cols=m[0].length, rows=m.length, towers=[];
+  for(var r=0;r<rows;r++){
+    var row=document.createElement('div'); row.className='row';
+    for(var c=0;c<cols;c++){
+      var ch=m[r].charAt(c);
+      var cell=document.createElement('div');
+      var isPath=(ch==='#'||ch==='S'||ch==='E');
+      cell.className='cell '+(isPath?'p':(((r+c)%2)?'g1':'g0'));
+      row.appendChild(cell);
+      if(ch==='t') towers.push([r,c]);
+    }
+    b.appendChild(row);
+  }
+  b.style.width=(cols*CELL)+'px'; b.style.height=(rows*CELL)+'px';
+  var z=document.createElement('div'); z.className='zone';
+  z.style.left=(4.0*CELL)+'px'; z.style.top=(4.2*CELL)+'px';
+  z.style.width=(2.6*CELL)+'px'; z.style.height=(2.6*CELL)+'px'; b.appendChild(z);
+  var ramp = p.aura==='warm'?WARM:COOL;
+  var tiers=[3,6,8,5,9,4];
+  for(var i=0;i<towers.length;i++){
+    var tr=towers[i][0], tc=towers[i][1], tier=tiers[i%6];
+    var el=document.createElement('div'); el.className='tower';
+    el.style.left=(tc*CELL+(CELL-26)/2)+'px'; el.style.top=(tr*CELL+(CELL-26)/2)+'px';
+    el.textContent='T'+Math.min(10,Math.ceil(tier/1.2));
+    var a=document.createElement('div'); a.className='aura';
+    var col=ramp[Math.min(3,Math.floor(tier/3))];
+    a.style.background='radial-gradient(circle,'+col+'cc,'+col+'00 70%)';
+    a.style.width=(28+tier*3)+'px'; a.style.height=(28+tier*3)+'px';
+    a.style.opacity=(0.35+tier*0.05); el.appendChild(a); b.appendChild(el);
+  }
+  var mobCells=[[0,3],[0,6],[0,9],[1,11]];
+  var mc=['#7ec850','#6fbf48','#86d05a','#9bd76a'];
+  for(var k=0;k<mobCells.length;k++){
+    var e2=document.createElement('div'); e2.className='mob';
+    e2.style.left=(mobCells[k][1]*CELL+CELL/2-6)+'px'; e2.style.top=(mobCells[k][0]*CELL+CELL/2-6)+'px';
+    e2.style.background=mc[k]; b.appendChild(e2);
+  }
+}
+
+function chipHTML(p,active){
+  var cls='chip'+(p.me?' me':'')+(p.out?' out':'')+(active?' active':'');
+  var stat = C.mode==='ranked' ? (p.out?'eliminated':('\u2665 '+p.lives)) : (p.me?'your run':p.score);
+  return {cls:cls, html:'<div class="av" style="background:'+p.av+'"></div>'+
+    '<div><div class="nm txt-out">'+p.nm+'</div><div class="st">'+stat+'</div></div>'};
+}
+function buildChips(){
+  var wrap=document.getElementById('chips'); wrap.innerHTML='';
+  var n = C.mode==='trials'?3:8;
+  for(var i=0;i<n;i++){
+    var p=PLAYERS[i]; var h=chipHTML(p, i===C.focus);
+    var c=document.createElement('div'); c.className=h.cls; c.innerHTML=h.html;
+    (function(idx){ c.onclick=function(){ setFocus(idx); }; })(i);
+    wrap.appendChild(c);
+  }
+}
+
+function buildRail(){
+  var rail=document.getElementById('rail'); var run=(C.phase==='run'); var box2;
+  if(C.mode==='ranked'){
+    box2='<div class="box"><div class="ttl">Standing</div>'+
+      '<div class="hero"><span class="hl txt-out">Lives</span><span class="hv txt-out">112</span></div>'+
+      '<div class="rung"><span class="rk">Kills</span><span class="rv">47</span></div>'+
+      '<div class="rung"><span class="rk">Rank</span><span class="rv">2 / 8</span></div>'+
+      '<div class="rung" style="visibility:hidden"><span>.</span><span>.</span></div>'+
+      '<div class="froze">frozen mid-run - resolves at round end</div></div>';
+  } else {
+    box2='<div class="box"><div class="ttl">Score</div>'+
+      '<div class="hero"><span class="hl txt-out">Current</span><span class="hv gold txt-out">84,200</span></div>'+
+      '<div class="rung"><span class="rk">2\u2605</span><span class="rv">95,000</span></div>'+
+      '<div class="rung"><span class="rk">3\u2605</span><span class="rv">140,000</span></div>'+
+      '<div class="rung ghost"><span class="rk">\u2039 Aspen \u203a</span><span class="rv">88,640</span></div>'+
+      '<div class="froze">team total - Trio board</div></div>';
+  }
+  var primary = C.mode==='ranked'
+    ? '<button class="btn primary '+(run?'idle':'')+'">Ready <span class="key">6/8</span></button>'
+    : '<button class="btn primary '+(run?'idle':'')+'">Start Round</button>';
+  var secondary = C.mode==='ranked'
+    ? '<button class="btn">Leaderboard</button>'
+    : '<button class="btn '+(run?'':'idle')+'">Speed <span class="key">3\u00d7</span></button>';
+  rail.innerHTML=
+    '<div class="box"><div class="ttl">Status</div>'+
+      '<div class="kv"><span class="k">Round</span><span class="v">'+(C.mode==='ranked'?'7':'12 / 18')+'</span></div>'+
+      '<div class="kv"><span class="k">Phase</span><span class="v">'+(run?'Run':'Build - 0:22')+'</span></div>'+
+      '<div class="kv"><span class="k">Supply</span><span class="v">28 / 40</span></div>'+
+      '<div class="kv"><span class="k">Gold</span><span class="v gold">'+(run?'120':'0')+'</span></div>'+
+    '</div>'+ box2 +
+    '<div class="btns">'+ primary + secondary +
+      '<button class="btn">Build <span class="key">[B]</span></button>'+
+      '<button class="btn">Menu</button></div>';
+}
+
+function setFocus(i){ C.focus=i; render(); }
+
+function render(){
+  var mb=document.querySelectorAll('#mode button');
+  for(var i=0;i<mb.length;i++){ mb[i].className = (mb[i].getAttribute('data-mode')===C.mode)?'on':''; }
+  var pb=document.querySelectorAll('#phase button');
+  for(var j=0;j<pb.length;j++){ pb[j].className = (pb[j].getAttribute('data-phase')===C.phase)?'on':''; }
+
+  if(C.phase==='build') C.focus=0;
+  if(C.mode==='trials' && C.focus>2) C.focus=0;
+
+  var p=PLAYERS[C.focus];
+  buildBoard(p); buildRail();
+
+  var spectating = (!p.me && C.phase==='run');
+  var bw=document.getElementById('boardwrap');
+  bw.className = 'boardwrap'+(spectating?' spectating':'');
+  document.getElementById('banner').textContent='Spectating '+p.nm;
+
+  var roster=document.getElementById('roster');
+  roster.style.display = (C.phase==='run')?'flex':'none';
+  if(C.phase==='run') buildChips();
+
+  var cap=document.getElementById('caption');
+  if(C.phase==='build'){
+    cap.innerHTML='<b>Build phase.</b> Opponent boards are hidden and the roster is gone - building is private. You only see your own maze. Spectating turns on the moment the run starts.';
+  } else if(C.mode==='ranked'){
+    cap.innerHTML='<b>Ranked, run phase.</b> Your board fills the screen (camera-zoom, one board at a time - matches game_view.gd). Tap any of the 8 player chips to spectate that board: a <b style="color:#9fe07a">green frame + "Spectating {name}" banner + back pill</b> appears. Standing is frozen until round end, so opponent boards show maze/towers/mobs, never a live rank. Eliminated players (Fern) stay watchable, greyed.';
+  } else {
+    cap.innerHTML='<b>Trials, Trio party, run phase.</b> Same single-board + spectate chrome - but the strip only holds your party (here 3), spectating reads as friendly, and the rail shows the climbing <b>Score</b> ladder feeding the Trio board. <b>Solo Trials hides the roster entirely</b> (no one to watch).';
+  }
+}
+
+(function(){
+  var mb=document.querySelectorAll('#mode button');
+  for(var i=0;i<mb.length;i++){ (function(btn){ btn.onclick=function(){ C.mode=btn.getAttribute('data-mode'); C.focus=0; render(); }; })(mb[i]); }
+  var pb=document.querySelectorAll('#phase button');
+  for(var j=0;j<pb.length;j++){ (function(btn){ btn.onclick=function(){ C.phase=btn.getAttribute('data-phase'); render(); }; })(pb[j]); }
+  document.getElementById('back').onclick=function(){ setFocus(0); };
+  document.getElementById('prev').onclick=function(){ var n=(C.mode==='trials')?3:8; setFocus((C.focus-1+n)%n); };
+  document.getElementById('next').onclick=function(){ var n=(C.mode==='trials')?3:8; setFocus((C.focus+1)%n); };
+  C.focus=1; render();
+})();
+</script>
+</body>
+</html>

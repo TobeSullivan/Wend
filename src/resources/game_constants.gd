@@ -62,6 +62,10 @@ const TIER_DAMAGE_GROWTH := 1.20      # dmg = base * growth^(tier-1)
 const TIER_RATE_GROWTH := 1.05        # fire rate scales -> cooldown = base / growth^(tier-1)
 const TIER_RANGE_PER_TIER := 10.0     # range += this per tier above 1
 
-# Crit is parked under the tier model (no tier grants it yet); plumbing kept.
+# Crit scales with merge tier (placeholder curve; balance later). Secondary to
+# multishot -- crit = (tier-1) * PER_TIER, clamped to the hard cap.
+const CRIT_CHANCE_PER_TIER := 0.05    # T1=0%, T2=5% ... T10=45% (cap is a rail)
 const CRIT_CHANCE_HARD_CAP := 0.75
-const CRIT_DAMAGE_BASE := 1.5
+# Crit damage multiplier scales linearly with tier, BASE at T1 -> MAX at MAX_TIER.
+const CRIT_DAMAGE_BASE := 1.5         # T1 multiplier
+const CRIT_DAMAGE_MAX := 2.5          # T10 multiplier

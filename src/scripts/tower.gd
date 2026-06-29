@@ -136,12 +136,14 @@ func get_shots() -> int:
 		s = 4
 	return mini(s, GameConstants.MULTISHOT_HARD_CAP)
 
-# Crit is parked under the tier model (plumbing kept for projectiles/cosmetics).
+# Crit scales with merge tier (secondary to multishot). Higher-tier towers crit
+# more; clamped to the hard cap.
 func get_crit_chance() -> float:
-	return 0.0
+	return minf((tier - 1) * GameConstants.CRIT_CHANCE_PER_TIER, GameConstants.CRIT_CHANCE_HARD_CAP)
 
 func get_crit_damage_mult() -> float:
-	return GameConstants.CRIT_DAMAGE_BASE
+	var t := float(tier - GameConstants.MIN_TIER) / float(GameConstants.MAX_TIER - GameConstants.MIN_TIER)
+	return lerpf(GameConstants.CRIT_DAMAGE_BASE, GameConstants.CRIT_DAMAGE_MAX, t)
 
 # --- Merge ---
 

@@ -21,10 +21,10 @@ var _dmg_lab: Label
 
 var _selected
 
-const STAT_ROWS := ["multishot", "damage", "attack_speed", "range", "dps"]
+const STAT_ROWS := ["multishot", "damage", "attack_speed", "range", "crit_chance", "crit_damage", "dps"]
 const STAT_LABELS := {
 	"multishot": "Multishot", "damage": "Damage", "attack_speed": "Fire rate",
-	"range": "Range", "dps": "DPS",
+	"range": "Range", "crit_chance": "Crit", "crit_damage": "Crit dmg", "dps": "DPS",
 }
 
 func _ready() -> void:
@@ -203,6 +203,10 @@ func _stat_text(stat: String) -> String:
 			return "%.2f/s" % (1.0 / t.get_cooldown())
 		"range":
 			return "%.1f" % (t.get_range() / TILE_PX)
+		"crit_chance":
+			return "%d%%" % round(t.get_crit_chance() * 100.0)
+		"crit_damage":
+			return "x%.1f" % t.get_crit_damage_mult()
 		"dps":
 			return "%.0f" % (t.get_damage() * t.get_shots() / t.get_cooldown())
 	return "-"
