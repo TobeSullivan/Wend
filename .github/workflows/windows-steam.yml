@@ -5,11 +5,7 @@ on:
     tags:
       - "playtest-*"
       - "v*"
-  workflow_dispatch:
-    inputs:
-      release_branch:
-        description: "Steam branch to set live (blank = use STEAM_BETA_BRANCH var; blank both = upload only)"
-        default: ""
+  workflow_dispatch: {}
 
 env:
   GODOT_VERSION: "4.6.3"
@@ -37,7 +33,7 @@ jobs:
           Expand-Archive templates.tpz tpl_x -Force
           Move-Item tpl_x\templates\* $tpl
 
-      - name: Fetch GodotSteam addon (gitignored, ~94MB)
+      - name: Fetch GodotSteam addon
         shell: pwsh
         run: |
           Invoke-WebRequest $env:GODOTSTEAM_URL -OutFile gs.zip
@@ -70,10 +66,12 @@ jobs:
     needs: export
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           name: Wend-windows
-          path: build/win
+          path: content
 
       - name: Detect Steam creds
         id: flags
@@ -84,22 +82,25 @@ jobs:
           [ -n "$CV" ] && steam=true
           echo "steam=$steam" >> "$GITHUB_OUTPUT"
 
-      - name: Resolve release branch
-        id: rb
-        run: |
-          br="${{ github.event.inputs.release_branch }}"
-          [ -z "$br" ] && br="${{ vars.STEAM_BETA_BRANCH }}"
-          echo "branch=$br" >> "$GITHUB_OUTPUT"
-          echo "release branch: '${br:-<upload only>}'"
-
-      - name: Deploy to Steam (depot 4884651, set live)
+      - name: Upload to Steam Windows depot + set live
         if: steps.flags.outputs.steam == 'true'
-        uses: game-ci/steam-deploy@v3
-        with:
-          username: ${{ secrets.STEAM_USERNAME }}
-          configVdf: ${{ secrets.STEAM_CONFIG_VDF }}
-          appId: 4884650
-          buildDescription: "Wend Playtest Windows ${{ github.ref_name }}"
-          rootPath: build
-          depot1Path: win
-          releaseBranch: ${{ steps.rb.outputs.branch }}
+        env:
+          STEAM_USER: ${{ secrets.STEAM_USERNAME }}
+          CONFIG_VDF: ${{ secrets.STEAM_CONFIG_VDF }}
+          BRANCH: ${{ vars.STEAM_BETA_BRANCH }}
+        run: |
+          set -uo pipefail
+          content="$PWD/content"
+          mkdir -p steamcmd && (cd steamcmd && curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxf -)
+          mkdir -p "$HOME/Steam/config"
+          echo "$CONFIG_VDF" | base64 -d > "$HOME/Steam/config/config.vdf"
+          out="$PWD/steam_out"; mkdir -p "$out"
+          sed -e "s#\"buildoutput\" \".*\"#\"buildoutput\" \"$out\"#" -e "s#\"contentroot\" \".*\"#\"contentroot\" \"$content\"#" -e "s#\"setlive\" \"\"#\"setlive\" \"$BRANCH\"#" deploy/steam/app_build.vdf > "$out/app_build.vdf"
+          sed -e "s#\"ContentRoot\" \".*\"#\"ContentRoot\" \"$content\"#" deploy/steam/depot_build.vdf > "$out/depot_build.vdf"
+          ./steamcmd/steamcmd.sh +login "$STEAM_USER" +run_app_build "$out/app_build.vdf" +quit 2>&1 | tee steam.log
+          rc=${PIPESTATUS[0]}
+          if [ "$rc" -eq 0 ] && ! grep -qi "Failed to commit" steam.log; then
+            echo "Windows build committed + set live on '$BRANCH'."
+          else
+            echo "::error::Steam build failed (rc=$rc)"; tail -60 steam.log; exit 1
+          fi
