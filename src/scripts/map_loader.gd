@@ -26,6 +26,7 @@ const PlaytestLogScript := preload("res://scripts/playtest_log.gd")
 const ObstacleScript := preload("res://scripts/obstacle.gd")
 const ZoneDefinitionScript := preload("res://resources/zone_definition.gd")
 const MapResourceScript := preload("res://resources/map_resource.gd")
+const MapGeneratorScript := preload("res://scripts/map_generator.gd")
 const BuildGuideScript := preload("res://scripts/build_guide.gd")
 const TutorialDirectorScript := preload("res://scripts/tutorial_director.gd")
 const TutorialCalloutScript := preload("res://scripts/tutorial_callout.gd")
@@ -52,6 +53,15 @@ static func build_match(host: Node2D, map, num_boards: int = 1, local_index: int
 	coordinator.record_enabled = true
 	host.add_child(coordinator)
 
+	var is_coop_relay: bool = (map.mode == MapResourceScript.Mode.PVE and num_boards > 1)
+	var board_maps: Array = []
+	for i in range(num_boards):
+		if is_coop_relay and i > 0:
+			board_maps.append(MapGeneratorScript.generate(
+				map.map_seed + i, map.scale_tier, map.mode, map.window_type, map.window_date))
+		else:
+			board_maps.append(map)
+
 	var boards: Array = []
 	var containers: Array = []
 	for i in range(num_boards):
@@ -60,12 +70,11 @@ static func build_match(host: Node2D, map, num_boards: int = 1, local_index: int
 		container.position = _board_offset(i, map.grid_size, local_index)
 		host.add_child(container)
 		containers.append(container)
-		var board = _build_board(container, map, coordinator, i == local_index, use_bots)
+		var board = _build_board(container, board_maps[i], coordinator, i == local_index, use_bots)
 		board.lives = GameConstants.LIVES_PER_PLAYER if coordinator.is_pvp else GameConstants.TRIALS_LIVES
 		board.relay_position = i
 		boards.append(board)
 
-	var is_coop_relay: bool = (map.mode == MapResourceScript.Mode.PVE and num_boards > 1)
 	if is_coop_relay:
 		coordinator.setup_shared_pools(num_boards, map.supply_cap)
 		for b in boards:
@@ -80,7 +89,8 @@ static func build_match(host: Node2D, map, num_boards: int = 1, local_index: int
 
 	var local_board = boards[local_index]
 	var local_ctrl = local_board.build_controller
-	var ui = _build_match_ui(host, local_board, local_ctrl, map, _build_ghost_ladder(map))
+	var local_map = board_maps[local_index]
+	var ui = _build_match_ui(host, local_board, local_ctrl, local_map, _build_ghost_ladder(local_map))
 	var rail = ui[0]
 	var drawer = ui[1]
 

@@ -161,6 +161,8 @@ func _apply_match_end(msg: Dictionary) -> void:
 func _on_peer_left(id: int) -> void:
 	if not transport.is_authority() or coordinator.match_over:
 		return
+	if coordinator.is_coop_relay:
+		return
 	var s: int = int(seat_by_peer.get(id, -1))
 	if s < 0 or s >= boards.size():
 		return

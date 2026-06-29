@@ -43,6 +43,9 @@ func _join_room(peer: int, msg: Dictionary) -> void:
 		room.match_id = mid
 		room.expected = maxi(2, int(msg.get("expected", 2)))
 		room.tier = int(msg.get("tier", 1))
+		room.mode_name = String(msg.get("mode", "pvp"))
+		room.seed_override = int(msg.get("seed", 0))
+		room.window_type = int(msg.get("window", 0))
 		room.finished.connect(_on_room_finished)
 		add_child(room)
 		room.setup(_t)

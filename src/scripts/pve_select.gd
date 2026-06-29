@@ -197,14 +197,27 @@ func _map_card(map) -> Control:
 	else:
 		info.add_child(_label("unplayed", 12, UiStyle.LABEL_COL))
 
+	var actions := VBoxContainer.new()
+	actions.add_theme_constant_override("separation", 6)
+	actions.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+
 	var play := Button.new()
 	play.text = "Play"
-	play.custom_minimum_size = Vector2(120, 52)
+	play.custom_minimum_size = Vector2(120, 44)
 	play.add_theme_font_size_override("font_size", 18)
-	play.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	UiStyle.style_go_button(play)
 	play.pressed.connect(func(): SceneManager.start_pve_map(map))
-	row.add_child(play)
+	actions.add_child(play)
+
+	var coop := Button.new()
+	coop.text = "Co-op"
+	coop.custom_minimum_size = Vector2(120, 36)
+	coop.add_theme_font_size_override("font_size", 15)
+	UiStyle.style_menu_button(coop)
+	coop.pressed.connect(func(): SceneManager.goto_coop_party({"window": _current, "tier": tier}))
+	actions.add_child(coop)
+
+	row.add_child(actions)
 
 	return panel
 

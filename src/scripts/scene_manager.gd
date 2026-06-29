@@ -15,7 +15,9 @@ const PVP_BOARD_COUNT := 8
 const HOME_SCENE := "res://scenes/home_screen.tscn"
 const CAMPAIGN_SELECT_SCENE := "res://scenes/campaign_select.tscn"
 const PVE_SELECT_SCENE := "res://scenes/pve_select.tscn"
+const COOP_PARTY_SCENE := "res://scenes/coop_party.tscn"
 const LOBBY_SCENE := "res://scenes/lobby.tscn"
+const MATCH_SERVER_HOST := "5.78.110.182"
 const LEADERBOARD_SCENE := "res://scenes/leaderboard_browse.tscn"
 const COLLECTION_SCENE := "res://scenes/collection.tscn"
 const SEASON_SCENE := "res://scenes/season.tscn"
@@ -47,6 +49,31 @@ var pending_leaderboard := {}
 var pending_map = null
 var pending_board_count := 1
 var current_is_multiplayer := false
+
+var pending_coop_window := 0
+var pending_coop_tier := 1
+var _coop_go := {}
+
+func _ready() -> void:
+	SteamManager.party_joined.connect(_on_party_joined)
+	SteamManager.party_launch.connect(_on_party_launch)
+
+func _on_party_joined(ok: bool) -> void:
+	if ok and get_tree().current_scene != null \
+			and not (get_tree().current_scene.get_script() == load("res://scripts/coop_party.gd")):
+		goto_coop_party()
+
+func _on_party_launch(info: Dictionary) -> void:
+	start_coop_match(info)
+
+func goto_coop_party(ctx := {}) -> void:
+	if ctx.has("window"):
+		pending_coop_window = int(ctx["window"])
+	if ctx.has("tier"):
+		pending_coop_tier = int(ctx["tier"])
+	get_tree().paused = false
+	Engine.time_scale = 1.0
+	_menu_change(COOP_PARTY_SCENE)
 
 func goto_home() -> void:
 	pending_map = null
@@ -195,6 +222,54 @@ func start_networked_pvp(map_seed: int, tier: int, board_count: int, seat: int, 
 	get_tree().paused = false
 	get_tree().change_scene_to_file(MATCH_SCENE)
 
+func start_coop_match(info: Dictionary) -> void:
+	_coop_go = info
+	current_is_multiplayer = true
+	pending_is_ranked = false
+	var err := net_join(String(info.get("host", MATCH_SERVER_HOST)))
+	if err != OK:
+		push_warning("Co-op: could not reach match server (%d)" % err)
+		goto_home()
+		return
+	var t = transport
+	t.received.connect(_coop_on_msg)
+	t.connection_succeeded.connect(_coop_send_join)
+	t.connection_failed.connect(func(): push_warning("Co-op: match server unreachable"); goto_home())
+
+func _coop_send_join() -> void:
+	var nm := SteamManager.get_persona_name()
+	if nm == "":
+		nm = last_player_name
+	transport.send_to_authority({
+		"t": NetProtocol.JOIN_ROOM,
+		"match_id": String(_coop_go.get("match_id", "")),
+		"name": nm,
+		"expected": int(_coop_go.get("count", 2)),
+		"tier": int(_coop_go.get("tier", 1)),
+		"seed": int(_coop_go.get("seed", 0)),
+		"mode": "coop",
+		"window": int(_coop_go.get("window", 0))})
+
+func _coop_on_msg(_from: int, msg: Dictionary) -> void:
+	if String(msg.get("t", "")) != NetProtocol.START_MATCH:
+		return
+	if transport != null and transport.received.is_connected(_coop_on_msg):
+		transport.received.disconnect(_coop_on_msg)
+	start_networked_coop(int(msg["seed"]), int(msg["tier"]), int(msg["count"]),
+		int(msg["seat"]), msg.get("names", []), int(msg.get("window", 0)))
+
+func start_networked_coop(map_seed: int, tier: int, board_count: int, seat: int, names: Array, window: int) -> void:
+	pending_map = MapGeneratorScript.generate(map_seed, tier, MapResourceScript.Mode.PVE, window, "")
+	pending_board_count = board_count
+	pending_local_index = seat
+	pending_player_names = names
+	pending_seat_by_peer = {}
+	pending_coop_window = window
+	pending_coop_tier = tier
+	current_is_multiplayer = true
+	get_tree().paused = false
+	get_tree().change_scene_to_file(MATCH_SCENE)
+
 func has_campaign_mission(index: int) -> bool:
 	return CAMPAIGN_MISSIONS.has(index)
 
@@ -231,6 +306,8 @@ func _snapshot_match_result(advisory_damage: int) -> Dictionary:
 		"star3": pending_map.star3_threshold,
 		"star2": pending_map.star2_threshold,
 		"star1": pending_map.star1_threshold,
+		"coop": current_is_multiplayer and pending_map.mode == MapResourceScript.Mode.PVE,
+		"group_size": pending_board_count,
 		"record": {},
 		"task": {},
 	}
@@ -264,10 +341,17 @@ func _finish_match_result(snap: Dictionary) -> void:
 		SaveData.record_campaign_stars(int(snap["mission_index"]), _star_for(damage, snap))
 		_post_online("campaign", "campaign_m%02d" % int(snap["mission_index"]), damage, record_b64)
 	elif snap["mode"] == MapResourceScript.Mode.PVE:
-		var composite := LeaderboardService.encode_score(rounds, damage)
-		SaveData.record_pve_score(snap["window_date"], snap["scale_tier"], composite)
+		var is_coop := bool(snap.get("coop", false))
+		var group := "solo"
+		var score_val := damage
+		if is_coop:
+			group = LeaderboardService.GROUPS[clampi(int(snap.get("group_size", 1)) - 1, 0, 3)]
+			score_val = int(result.get("team_score", damage))
+		var composite := LeaderboardService.encode_score(rounds, score_val)
+		if not is_coop:
+			SaveData.record_pve_score(snap["window_date"], snap["scale_tier"], composite)
 		_post_online("trials", LeaderboardService.trials_board_id(
-			snap["window_type"], snap["scale_tier"], "solo"), composite, record_b64)
+			snap["window_type"], snap["scale_tier"], group), composite, record_b64)
 		var t: Dictionary = snap["task"]
 		if not t.is_empty():
 			_award_tasks({"towers": t["towers"], "zones": t["zones"], "kills": t["kills"], "score": damage})
@@ -334,11 +418,14 @@ func _authoritative_score(record: Dictionary, advisory: int, advisory_round: int
 	var rounds := int(res.get("final_round", advisory_round))
 	var rboards: Array = res.get("boards", [])
 	if rboards.is_empty():
-		return {"score": advisory, "rounds": rounds, "legal": true, "reason": ""}
+		return {"score": advisory, "rounds": rounds, "team_score": advisory, "legal": true, "reason": ""}
 	var score := int(rboards[0]["damage"])
+	var team := 0
+	for rb in rboards:
+		team += int(rb["damage"])
 	if score != advisory:
 		push_warning("Re-sim score %d differs from live %d — determinism check (recording re-sim)." % [score, advisory])
-	return {"score": score, "rounds": rounds, "legal": true, "reason": ""}
+	return {"score": score, "rounds": rounds, "team_score": team, "legal": true, "reason": ""}
 
 func _star_for(damage: int, snap: Dictionary) -> int:
 	if damage >= int(snap["star3"]):

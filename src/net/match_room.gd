@@ -12,6 +12,9 @@ const RoomTransportScript := preload("res://net/room_transport.gd")
 var match_id: String = ""
 var expected: int = 2
 var tier: int = 1
+var mode_name: String = "pvp"
+var seed_override: int = 0
+var window_type: int = 0
 var started: bool = false
 
 var _roster: Array = []
@@ -47,7 +50,7 @@ func start() -> void:
 		return
 	started = true
 	var count := _roster.size()
-	var match_seed := absi(hash(match_id))
+	var match_seed := seed_override if seed_override != 0 else absi(hash(match_id))
 	var names: Array = []
 	names.resize(count)
 	var seat_by_peer := {}
@@ -56,7 +59,8 @@ func start() -> void:
 		seat_by_peer[int(m["peer"])] = int(m["seat"])
 		_transport.add_peer(int(m["peer"]))
 
-	var map = MapGeneratorScript.generate(match_seed, tier, MapResourceScript.Mode.PVP)
+	var godot_mode := MapResourceScript.Mode.PVE if mode_name == "coop" else MapResourceScript.Mode.PVP
+	var map = MapGeneratorScript.generate(match_seed, tier, godot_mode, window_type, "")
 	_host = Node2D.new()
 	_host.name = "MatchHost"
 	add_child(_host)
@@ -72,8 +76,9 @@ func start() -> void:
 	for m in _roster:
 		_transport.send_to(int(m["peer"]), {
 			"t": NetProtocol.START_MATCH, "seed": match_seed, "tier": tier,
-			"count": count, "seat": int(m["seat"]), "names": names})
-	print("[room %s] started: %d boards, seed=%d tier=%d" % [match_id, count, match_seed, tier])
+			"count": count, "seat": int(m["seat"]), "names": names,
+			"mode": mode_name, "window": window_type})
+	print("[room %s] started: %d boards, seed=%d tier=%d mode=%s" % [match_id, count, match_seed, tier, mode_name])
 
 func deliver(from_id: int, msg: Dictionary) -> void:
 	if _transport != null:

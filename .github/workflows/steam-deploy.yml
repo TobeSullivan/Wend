@@ -38,6 +38,20 @@ jobs:
           Expand-Archive gs.zip gs -Force
           New-Item -ItemType Directory -Force src\addons | Out-Null
           Copy-Item -Recurse -Force gs\addons\godotsteam src\addons\
+      - name: Write backend config
+        shell: pwsh
+        env:
+          NAKAMA_SERVER_KEY: ${{ secrets.NAKAMA_SERVER_KEY }}
+          NAKAMA_HOST: ${{ vars.NAKAMA_HOST }}
+          NAKAMA_PORT: ${{ vars.NAKAMA_PORT }}
+          NAKAMA_SCHEME: ${{ vars.NAKAMA_SCHEME }}
+        run: |
+          if (-not $env:NAKAMA_SERVER_KEY) { Write-Error "NAKAMA_SERVER_KEY secret not set — shipped build would have the backend disabled (PvP/co-op/leaderboards broken)."; exit 1 }
+          $nkHost = if ($env:NAKAMA_HOST) { $env:NAKAMA_HOST } else { "5.78.110.182" }
+          $nkPort = if ($env:NAKAMA_PORT) { $env:NAKAMA_PORT } else { "7350" }
+          $nkScheme = if ($env:NAKAMA_SCHEME) { $env:NAKAMA_SCHEME } else { "http" }
+          $lines = @("[nakama]", "host=`"$nkHost`"", "port=$nkPort", "scheme=`"$nkScheme`"", "server_key=`"$($env:NAKAMA_SERVER_KEY)`"")
+          [System.IO.File]::WriteAllText((Join-Path $PWD 'src/nakama_local.cfg'), (($lines -join "`n") + "`n"), (New-Object System.Text.UTF8Encoding $false))
       - name: Stage preset + export
         shell: pwsh
         run: |
@@ -84,6 +98,16 @@ jobs:
           unzip -q gs.zip -d gs
           mkdir -p src/addons
           cp -R gs/addons/godotsteam src/addons/
+      - name: Write backend config
+        env:
+          NAKAMA_SERVER_KEY: ${{ secrets.NAKAMA_SERVER_KEY }}
+          NAKAMA_HOST: ${{ vars.NAKAMA_HOST }}
+          NAKAMA_PORT: ${{ vars.NAKAMA_PORT }}
+          NAKAMA_SCHEME: ${{ vars.NAKAMA_SCHEME }}
+        run: |
+          set -euo pipefail
+          : "${NAKAMA_SERVER_KEY:?NAKAMA_SERVER_KEY secret not set — shipped build would have the backend disabled (PvP/co-op/leaderboards broken).}"
+          printf '[nakama]\nhost="%s"\nport=%s\nscheme="%s"\nserver_key="%s"\n' "${NAKAMA_HOST:-5.78.110.182}" "${NAKAMA_PORT:-7350}" "${NAKAMA_SCHEME:-http}" "$NAKAMA_SERVER_KEY" > src/nakama_local.cfg
       - name: Stage preset + export
         run: |
           set -euo pipefail
