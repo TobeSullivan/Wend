@@ -153,12 +153,12 @@ jobs:
           mkdir -p "$HOME/Steam/config"
           echo "$CONFIG_VDF" | base64 -d > "$HOME/Steam/config/config.vdf"
           out="$PWD/steam_out"; mkdir -p "$out"
-          sed -e "s#__BUILDOUTPUT__#$out#g" -e "s#__CONTENTROOT__#$content#g" -e "s#__MACOS_DEPOT_ID__#$MAC_DEPOT#g" -e "s#\"setlive\" \"\"#\"setlive\" \"$BRANCH\"#g" deploy/steam/app_build_macos.vdf > "$out/app_build.vdf"
+          sed -e "s#__BUILDOUTPUT__#$out#g" -e "s#__CONTENTROOT__#$content#g" -e "s#__MACOS_DEPOT_ID__#$MAC_DEPOT#g" deploy/steam/app_build_macos.vdf > "$out/app_build.vdf"
           sed -e "s#__CONTENTROOT__#$content#g" -e "s#__MACOS_DEPOT_ID__#$MAC_DEPOT#g" deploy/steam/depot_build_macos.vdf > "$out/depot_build_macos.vdf"
           ./steamcmd/steamcmd.sh +login "$STEAM_USER" +run_app_build "$out/app_build.vdf" +quit 2>&1 | tee steam.log
           rc=${PIPESTATUS[0]}
           if [ "$rc" -eq 0 ] && ! grep -qi "Failed to commit" steam.log; then
-            echo "macOS build committed + set live on '$BRANCH'."
+            echo "macOS build uploaded + committed. Flip it live in Steamworks -> Wend Playtest -> Builds."
           else
             echo "::error::Steam build failed (rc=$rc)"; tail -60 steam.log; exit 1
           fi

@@ -97,12 +97,12 @@ jobs:
           mkdir -p "$HOME/Steam/config"
           echo "$CONFIG_VDF" | base64 -d > "$HOME/Steam/config/config.vdf"
           out="$PWD/steam_out"; mkdir -p "$out"
-          sed -e "s#\"buildoutput\" \".*\"#\"buildoutput\" \"$out\"#" -e "s#\"contentroot\" \".*\"#\"contentroot\" \"$content\"#" -e "s#\"setlive\" \"\"#\"setlive\" \"$BRANCH\"#" deploy/steam/app_build.vdf > "$out/app_build.vdf"
+          sed -e "s#\"buildoutput\" \".*\"#\"buildoutput\" \"$out\"#" -e "s#\"contentroot\" \".*\"#\"contentroot\" \"$content\"#" deploy/steam/app_build.vdf > "$out/app_build.vdf"
           sed -e "s#\"ContentRoot\" \".*\"#\"ContentRoot\" \"$content\"#" deploy/steam/depot_build.vdf > "$out/depot_build.vdf"
           ./steamcmd/steamcmd.sh +login "$STEAM_USER" +run_app_build "$out/app_build.vdf" +quit 2>&1 | tee steam.log
           rc=${PIPESTATUS[0]}
           if [ "$rc" -eq 0 ] && ! grep -qi "Failed to commit" steam.log; then
-            echo "Windows build committed + set live on '$BRANCH'."
+            echo "Windows build uploaded + committed. Flip it live in Steamworks -> Wend Playtest -> Builds."
           else
             echo "::error::Steam build failed (rc=$rc)"; tail -60 steam.log; exit 1
           fi
