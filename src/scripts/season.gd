@@ -252,6 +252,20 @@ func _task_card(t: Dictionary) -> Control:
 	return card
 
 func _refresh() -> void:
+	_refresh_header()
+	var points: int = SaveData.season_points()
+	var claimed: Array = SaveData.claimed_season_tiers()
+	for c in _track.get_children():
+		c.queue_free()
+	var cards: Array = []
+	for t in Catalog.TRACK:
+		var col := _tier_column(t, points, claimed)
+		_track.add_child(col)
+		cards.append(col)
+	Motion.cascade(cards, func(c, _i, d): Motion.fade_in(c, Motion.S, d))
+	_track.queue_redraw()
+
+func _refresh_header() -> void:
 	var points: int = SaveData.season_points()
 	var claimed: Array = SaveData.claimed_season_tiers()
 	var unlocked := Catalog.unlocked_tier(points)
@@ -276,16 +290,6 @@ func _refresh() -> void:
 		_next_art.add_child(_art_inner(first, true, 48))
 	else:
 		_next_name.text = "all claimed"
-
-	for c in _track.get_children():
-		c.queue_free()
-	var cards: Array = []
-	for t in Catalog.TRACK:
-		var col := _tier_column(t, points, claimed)
-		_track.add_child(col)
-		cards.append(col)
-	Motion.cascade(cards, func(c, _i, d): Motion.fade_in(c, Motion.S, d))
-	_track.queue_redraw()
 
 func _tier_column(t: Dictionary, points: int, claimed: Array) -> Control:
 	var tier: int = t["tier"]
@@ -477,8 +481,22 @@ func _claim(tier: int) -> void:
 	for id in Catalog.tier_items(tier):
 		SaveData.grant_cosmetic(id)
 	SaveData.claim_season_tier(tier)
-	_refresh()
-	_center_on_current.call_deferred()
+	_refresh_header()
+	_swap_tier_column(tier)
+
+func _swap_tier_column(tier: int) -> void:
+	var points: int = SaveData.season_points()
+	var claimed: Array = SaveData.claimed_season_tiers()
+	for i in Catalog.TRACK.size():
+		if int(Catalog.TRACK[i]["tier"]) != tier:
+			continue
+		if i < _track.get_child_count():
+			var old := _track.get_child(i)
+			var fresh := _tier_column(Catalog.TRACK[i], points, claimed)
+			_track.add_child(fresh)
+			_track.move_child(fresh, i)
+			old.queue_free()
+		return
 
 func _center_on_current() -> void:
 	var unlocked := Catalog.unlocked_tier(SaveData.season_points())

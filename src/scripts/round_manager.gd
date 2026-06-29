@@ -7,12 +7,13 @@ var star2_threshold: int = 0
 var star3_threshold: int = 0
 
 var coordinator
+var relay_position: int = 0
 
 signal gold_changed(new_gold: int)
 signal damage_dealt_changed(total: int)
 signal kills_changed(total: int)
 signal top_star_reached
-signal round_summary(round_completed: int, kill_gold: int, round_bonus: int, interest: int)
+signal round_settled(round_completed: int)
 
 signal phase_changed(phase: String)
 signal round_changed(new_round: int)
@@ -29,7 +30,6 @@ var kills_this_round: int = 0
 var leaks_this_round: int = 0
 var total_leaks: int = 0
 var eliminated: bool = false
-var _round_kill_gold: int = 0
 
 var spawner
 var build_controller
@@ -73,10 +73,17 @@ func _ready() -> void:
 func is_active() -> bool:
 	return not eliminated
 
+func _relay() -> bool:
+	return coordinator != null and coordinator.is_coop_relay
+
 func can_afford(cost: int) -> bool:
+	if _relay():
+		return coordinator.can_afford_shared(cost)
 	return gold >= cost
 
 func spend(cost: int) -> bool:
+	if _relay():
+		return coordinator.spend_shared_gold(cost)
 	if gold < cost:
 		return false
 	gold -= cost
@@ -84,19 +91,27 @@ func spend(cost: int) -> bool:
 	return true
 
 func refund(amount: int) -> void:
+	if _relay():
+		coordinator.add_shared_gold(amount)
+		return
 	gold += amount
 	emit_signal("gold_changed", gold)
 
 func net_spend(cost: int) -> void:
+	if _relay():
+		coordinator.spend_shared_gold(cost)
+		return
 	gold = maxi(0, gold - cost)
 	emit_signal("gold_changed", gold)
 
 func _on_mob_killed() -> void:
-	gold += GameConstants.KILL_BONUS
-	_round_kill_gold += GameConstants.KILL_BONUS
+	if _relay():
+		coordinator.add_shared_gold(GameConstants.KILL_BONUS)
+	else:
+		gold += GameConstants.KILL_BONUS
+		emit_signal("gold_changed", gold)
 	total_kills += 1
 	kills_this_round += 1
-	emit_signal("gold_changed", gold)
 	emit_signal("kills_changed", total_kills)
 
 func _on_damage_dealt(amount: float) -> void:
@@ -135,6 +150,9 @@ func _on_mob_leaked(mob) -> void:
 	var penalty: int = GameConstants.BOSS_LEAK_PENALTY if (mob != null and mob.is_boss) else 1
 	leaks_this_round += penalty
 	total_leaks += penalty
+	if _relay():
+		coordinator.lose_shared_lives(penalty)
+		return
 	# PvP resolves leaks into the life see-saw at round end; everywhere else a
 	# leak costs lives immediately and a depleted board ends the run.
 	if coordinator != null and not coordinator.is_pvp:
@@ -175,13 +193,31 @@ func sim_step(dt: float, rng: RandomNumberGenerator) -> void:
 			m.queue_free()
 			continue
 		if m.sim_step(dt):
-			# Reached the exit -> leak.
-			_on_mob_leaked(m)
-			m.alive = false
 			mobs_array.remove_at(j)
-			m.queue_free()
+			if _relay() and relay_position < coordinator.boards.size() - 1:
+				_hand_off_mob(m)
+			else:
+				_on_mob_leaked(m)
+				m.alive = false
+				m.queue_free()
 		else:
 			j += 1
+
+func _hand_off_mob(m) -> void:
+	var nxt = coordinator.boards[relay_position + 1]
+	var new_path: PackedVector2Array = nxt.build_controller.current_path_world()
+	m.path = new_path
+	m.path_index = 0
+	if new_path.size() > 0:
+		m.position = new_path[0]
+		m.path_index = 1
+	m.board = nxt
+	var container = nxt.spawner.get_parent() if nxt.spawner != null else null
+	if container != null and is_instance_valid(container) and m.get_parent() != container:
+		m.reparent(container, false)
+		if new_path.size() > 0:
+			m.position = new_path[0]
+	nxt.mobs_array.append(m)
 
 func clear_projectiles() -> void:
 	for p in projectiles:
@@ -194,12 +230,11 @@ func is_run_done() -> bool:
 
 func settle_round(round_completed: int) -> void:
 	clear_projectiles()
-	var round_bonus := GameConstants.ROUND_BONUS_BASE + round_completed
-	var interest := mini(int(floor(gold * GameConstants.INTEREST_RATE)), GameConstants.INTEREST_CAP)
-	gold += round_bonus + interest
-	emit_signal("gold_changed", gold)
-	emit_signal("round_summary", round_completed, _round_kill_gold, round_bonus, interest)
-	_round_kill_gold = 0
+	if not _relay():
+		var round_bonus := GameConstants.ROUND_BONUS_BASE + round_completed
+		gold += round_bonus
+		emit_signal("gold_changed", gold)
+	emit_signal("round_settled", round_completed)
 
 func _alive_mob_count() -> int:
 	var n := 0

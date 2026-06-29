@@ -4,6 +4,7 @@ class_name Rail
 const UiLayout := preload("res://scripts/ui_layout.gd")
 const UiStyle := preload("res://scripts/ui_style.gd")
 const GhostLadderScript := preload("res://scripts/ghost_ladder.gd")
+const BoardsPickerScript := preload("res://scripts/boards_picker.gd")
 const Motion := preload("res://scripts/motion.gd")
 
 const FF_MULTS := [1.0, 2.0, 3.0]
@@ -33,9 +34,10 @@ var _rank_val: Label
 
 var _start_button: Button
 var _ff_button: Button
-var _build_button: Button
-var _menu_button: Button
-var _leaderboard_button: Button
+var _boards_button: Button
+
+var boards_picker
+var _game_view
 
 var _status_box: PanelContainer
 var _score_box: PanelContainer
@@ -43,7 +45,6 @@ var _buttons_box: PanelContainer
 var _ff_index: int = 0
 var _towers_count: int = 0
 var _towers_cap: int = 0
-var _last_build_mode: bool = false
 var _ladder_first_target: int = 0
 var _ladder_init: bool = false
 
@@ -69,6 +70,14 @@ func _ready() -> void:
 		if _is_pvp() and round_manager.coordinator != null:
 			round_manager.coordinator.ready_changed.connect(_refresh_buttons)
 			round_manager.coordinator.lives_resolved.connect(_refresh_standing)
+	if _is_coop_relay():
+		var co = round_manager.coordinator
+		if co.has_signal("shared_gold_changed"):
+			co.shared_gold_changed.connect(func(g): _set_shared_gold(g))
+		if co.has_signal("shared_lives_changed"):
+			co.shared_lives_changed.connect(func(l): _set_shared_lives(l))
+		if co.has_signal("shared_supply_changed"):
+			co.shared_supply_changed.connect(func(u, c): _set_shared_supply(u, c))
 	if build_controller != null:
 		build_controller.towers_changed.connect(_on_towers_changed)
 		_towers_count = build_controller.towers.size()
@@ -161,13 +170,6 @@ func _build_score_box() -> PanelContainer:
 	var panel: PanelContainer = box[0]
 	var v: VBoxContainer = box[1]
 	panel.custom_minimum_size = Vector2(0, SCORE_BOX_MIN_H * s)
-	var head := Label.new()
-	head.text = "STANDING" if _is_pvp() else ("STARS" if _endless() else "SCORE")
-	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	head.add_theme_font_size_override("font_size", int(11 * s))
-	head.add_theme_color_override("font_color", UiStyle.LABEL_COL)
-	v.add_child(head)
-	v.add_child(_sep(s))
 
 	if _is_pvp():
 		_lives_hero = _hero(v, "Lives")
@@ -188,17 +190,14 @@ func _build_buttons_box() -> PanelContainer:
 	if _is_pvp():
 		_start_button = _rail_button(v, "✓ Ready", true)
 		_start_button.pressed.connect(_on_start_pressed)
-		_leaderboard_button = _rail_button(v, "Leaderboard", false)
-		_leaderboard_button.pressed.connect(_on_minimap_pressed)
 	else:
 		_start_button = _rail_button(v, "▶ Start Round", true)
 		_start_button.pressed.connect(_on_start_pressed)
 		_ff_button = _rail_button(v, "Speed 1×", false)
 		_ff_button.pressed.connect(_on_ff_pressed)
-	_build_button = _rail_button(v, "Build  [B]", false)
-	_build_button.pressed.connect(_on_build_pressed)
-	_menu_button = _rail_button(v, "Menu", false)
-	_menu_button.pressed.connect(_on_menu_pressed)
+	if _is_multiplayer():
+		_boards_button = _rail_button(v, "Boards", false)
+		_boards_button.pressed.connect(_on_boards_pressed)
 	return box[0]
 
 func _kv(parent: VBoxContainer, key: String, val_col: Color) -> Label:
@@ -293,14 +292,34 @@ func _refresh() -> void:
 		_round_val.text = "%d" % round_manager.round_num
 	else:
 		_round_val.text = "%d / %d" % [round_manager.round_num, round_manager.max_rounds]
-	if _lives_status != null:
-		_lives_status.text = "%d" % maxi(0, round_manager.lives)
-	_supply_val.text = "%d / %d" % [_towers_count, _towers_cap]
-	_gold_val.text = "%d" % round_manager.gold
+	if _is_coop_relay():
+		if "shared_gold" in co:
+			_set_shared_gold(int(co.get("shared_gold")))
+		if _lives_status != null and "shared_lives" in co:
+			_set_shared_lives(int(co.get("shared_lives")))
+		if "shared_supply_used" in co and "shared_supply_cap" in co:
+			_set_shared_supply(int(co.get("shared_supply_used")), int(co.get("shared_supply_cap")))
+	else:
+		if _lives_status != null:
+			_lives_status.text = "%d" % maxi(0, round_manager.lives)
+		_supply_val.text = "%d / %d" % [_towers_count, _towers_cap]
+		_gold_val.text = "%d" % round_manager.gold
 	_refresh_phase()
 	_refresh_score()
 	_refresh_standing()
 	_refresh_buttons()
+
+func _set_shared_gold(g: int) -> void:
+	if _gold_val != null:
+		_gold_val.text = "%d" % maxi(0, g)
+
+func _set_shared_lives(l: int) -> void:
+	if _lives_status != null:
+		_lives_status.text = "%d" % maxi(0, l)
+
+func _set_shared_supply(used: int, cap: int) -> void:
+	if _supply_val != null:
+		_supply_val.text = "%d / %d" % [used, cap]
 
 func _refresh_phase() -> void:
 	if round_manager == null or _phase_val == null:
@@ -381,12 +400,7 @@ func _refresh_buttons() -> void:
 		if _ff_button != null:
 			_ff_button.disabled = building
 			_ff_button.text = "Speed %d×" % int(FF_MULTS[_ff_index])
-	if _build_button != null:
-		_build_button.disabled = not building
 
-# Hide a rail button WITHOUT collapsing its layout slot, so the buttons box keeps
-# a constant height across phases and the tower panel anchored below it stays put
-# (leaves a gap where the button was instead of shifting everything up).
 func _reserve_hide(btn: Button, shown: bool) -> void:
 	btn.visible = true
 	btn.modulate.a = 1.0 if shown else 0.0
@@ -403,13 +417,6 @@ func _on_towers_changed(count: int, cap: int) -> void:
 	_towers_cap = cap
 	_refresh()
 
-func _process(_dt: float) -> void:
-	if _build_button != null and build_controller != null:
-		var bm: bool = build_controller.is_build_mode()
-		if bm != _last_build_mode:
-			_last_build_mode = bm
-			_build_button.text = "Exit Build  [B]" if bm else "Build  [B]"
-
 func _on_start_pressed() -> void:
 	if round_manager == null:
 		return
@@ -425,17 +432,34 @@ func _on_ff_pressed() -> void:
 	_ff_button.text = "Speed %d×" % int(FF_MULTS[_ff_index])
 	_apply_time_scale()
 
-func _on_build_pressed() -> void:
-	if build_controller != null:
-		build_controller.toggle_build_mode()
+func _on_boards_pressed() -> void:
+	var picker = _picker()
+	if picker != null:
+		picker.toggle()
 
-func _on_minimap_pressed() -> void:
-	if minimap != null:
-		minimap.toggle()
+func _picker():
+	if boards_picker != null and is_instance_valid(boards_picker):
+		return boards_picker
+	var gv = _find_game_view()
+	if gv == null or round_manager == null or round_manager.coordinator == null:
+		return null
+	boards_picker = BoardsPickerScript.new()
+	boards_picker.coordinator = round_manager.coordinator
+	boards_picker.game_view = gv
+	add_child(boards_picker)
+	return boards_picker
 
-func _on_menu_pressed() -> void:
-	if pause_menu != null:
-		pause_menu.toggle_pause()
+func _find_game_view():
+	if _game_view != null and is_instance_valid(_game_view):
+		return _game_view
+	var parent := get_parent()
+	if parent == null:
+		return null
+	for c in parent.get_children():
+		if c.has_method("focus_board") and "local_index" in c:
+			_game_view = c
+			return c
+	return null
 
 func _apply_time_scale() -> void:
 	if _is_pvp():
@@ -470,6 +494,14 @@ func tower_slot_rect() -> Rect2:
 
 func _is_pvp() -> bool:
 	return round_manager != null and round_manager.coordinator != null and round_manager.coordinator.is_pvp
+
+func _is_multiplayer() -> bool:
+	var co = round_manager.coordinator if round_manager != null else null
+	return co != null and co.get("boards") != null and co.boards.size() > 1
+
+func _is_coop_relay() -> bool:
+	var co = round_manager.coordinator if round_manager != null else null
+	return co != null and ("is_coop_relay" in co) and bool(co.get("is_coop_relay"))
 
 func _commas(n: int) -> String:
 	var str_n := str(n)

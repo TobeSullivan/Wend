@@ -529,11 +529,16 @@ func _tower_at_cell(cell: Vector2i) -> Node2D:
 			return t
 	return null
 
+func _relay_supply() -> bool:
+	return round_manager != null and round_manager.coordinator != null and round_manager.coordinator.is_coop_relay
+
 func _supply_full() -> bool:
+	if _relay_supply():
+		return round_manager.coordinator.shared_supply_full()
 	return towers.size() >= max_towers
 
 func _is_valid_placement(cell: Vector2i) -> bool:
-	if towers.size() >= max_towers:
+	if _supply_full():
 		return false
 	if cell.x < 0 or cell.y < 0 or cell.x >= grid_size.x or cell.y >= grid_size.y:
 		return false

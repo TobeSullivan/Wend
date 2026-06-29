@@ -136,8 +136,6 @@ func get_shots() -> int:
 		s = 4
 	return mini(s, GameConstants.MULTISHOT_HARD_CAP)
 
-# Crit scales with merge tier (secondary to multishot). Higher-tier towers crit
-# more; clamped to the hard cap.
 func get_crit_chance() -> float:
 	return minf((tier - 1) * GameConstants.CRIT_CHANCE_PER_TIER, GameConstants.CRIT_CHANCE_HARD_CAP)
 

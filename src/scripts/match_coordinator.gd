@@ -8,6 +8,9 @@ signal match_ended
 signal lives_resolved
 signal board_eliminated(board)
 signal ready_changed
+signal shared_gold_changed(new_gold: int)
+signal shared_lives_changed(new_lives: int)
+signal shared_supply_changed(used: int, cap: int)
 
 var max_rounds: int = 10
 
@@ -15,6 +18,12 @@ var is_pvp: bool = false
 # Trials runs until difficulty outpaces the player and lives deplete; max_rounds
 # is only a win cap for the authored campaign.
 var endless: bool = false
+
+var is_coop_relay: bool = false
+var shared_gold: int = 0
+var shared_lives: int = 0
+var shared_supply_used: int = 0
+var shared_supply_cap: int = 0
 var scale_tier: int = 1
 const PVP_SAFETY_CAP := 60
 const ENDLESS_SAFETY_CAP := 999
@@ -191,23 +200,90 @@ func _start_run_phase() -> void:
 	_ready_set.clear()
 	phase = "run"
 	emit_signal("phase_changed", phase)
+	_start_wave_on_boards()
+
+func _start_wave_on_boards() -> void:
 	var hp := mob_hp_for_round()
 	var boss := is_boss_round()
 	var bhp := boss_hp_for_round()
+	if is_coop_relay:
+		var count: int = mob_count_for_round(boards[0]) if not boards.is_empty() else 0
+		for i in boards.size():
+			var b = boards[i]
+			if b.is_active():
+				b.start_run(round_num, hp, count if i == 0 else 0, boss, bhp)
+		return
 	for b in boards:
 		if b.is_active():
 			b.start_run(round_num, hp, mob_count_for_round(b), boss, bhp)
 
 func _all_runs_done() -> bool:
+	if is_coop_relay:
+		if boards.is_empty():
+			return true
+		var lead = boards[0]
+		if lead.is_active() and lead.spawner != null and not lead.spawner.is_done():
+			return false
+		for b in boards:
+			if b._alive_mob_count() > 0:
+				return false
+		return true
 	for b in boards:
 		if b.is_active() and not b.is_run_done():
 			return false
 	return true
 
+func setup_shared_pools(num_boards: int, supply_each: int) -> void:
+	is_coop_relay = true
+	shared_gold = GameConstants.STARTING_GOLD * num_boards
+	shared_lives = GameConstants.TRIALS_LIVES * num_boards
+	shared_supply_cap = supply_each * num_boards
+	shared_supply_used = 0
+
+func add_shared_gold(n: int) -> void:
+	shared_gold += n
+	emit_signal("shared_gold_changed", shared_gold)
+
+func can_afford_shared(n: int) -> bool:
+	return shared_gold >= n
+
+func spend_shared_gold(n: int) -> bool:
+	if shared_gold < n:
+		return false
+	shared_gold -= n
+	emit_signal("shared_gold_changed", shared_gold)
+	return true
+
+func shared_supply_used_now() -> int:
+	var n := 0
+	for b in boards:
+		if b.build_controller != null:
+			n += b.build_controller.towers.size()
+	return n
+
+func refresh_shared_supply() -> void:
+	shared_supply_used = shared_supply_used_now()
+	emit_signal("shared_supply_changed", shared_supply_used, shared_supply_cap)
+
+func shared_supply_full() -> bool:
+	return shared_supply_used_now() >= shared_supply_cap
+
+func lose_shared_lives(penalty: int) -> void:
+	shared_lives = maxi(0, shared_lives - penalty)
+	emit_signal("shared_lives_changed", shared_lives)
+	if shared_lives <= 0 and not match_over:
+		for b in boards:
+			b.eliminated = true
+			if not finish_order.has(b):
+				finish_order.append(b)
+		_end_match()
+
 func _end_round() -> void:
 	for b in boards:
 		if b.is_active():
 			b.settle_round(round_num)
+	if is_coop_relay:
+		add_shared_gold(GameConstants.ROUND_BONUS_BASE + round_num)
 
 	if is_pvp:
 		resolve_lives()
@@ -339,12 +415,7 @@ func _end_match() -> void:
 func net_enter_run() -> void:
 	phase = "run"
 	emit_signal("phase_changed", phase)
-	var hp := mob_hp_for_round()
-	var boss := is_boss_round()
-	var bhp := boss_hp_for_round()
-	for b in boards:
-		if b.is_active():
-			b.start_run(round_num, hp, mob_count_for_round(b), boss, bhp)
+	_start_wave_on_boards()
 
 func net_enter_build(new_round: int) -> void:
 	for b in boards:

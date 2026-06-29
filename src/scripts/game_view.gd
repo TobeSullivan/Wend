@@ -58,34 +58,35 @@ func _build_spectate_chrome(layer: CanvasLayer) -> void:
 	layer.add_child(_frame)
 
 	_banner = PanelContainer.new()
-	var bsb := StyleBoxFlat.new()
-	bsb.bg_color = UiStyle.START_BG
-	bsb.border_color = UiStyle.START_BORDER
-	bsb.set_border_width_all(2)
-	bsb.set_corner_radius_all(14)
-	bsb.content_margin_left = 18 * s
-	bsb.content_margin_right = 18 * s
-	bsb.content_margin_top = 8 * s
-	bsb.content_margin_bottom = 8 * s
-	_banner.add_theme_stylebox_override("panel", bsb)
+	_banner.add_theme_stylebox_override("panel",
+		UiStyle.flat_box(UiStyle.START_BG, 16, UiStyle.START_BORDER, 2, true))
 	_banner.anchor_left = 0.5
 	_banner.anchor_right = 0.5
 	_banner.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_banner.offset_top = 14 * s
 	_banner.visible = false
 	layer.add_child(_banner)
+	var bmargin := MarginContainer.new()
+	bmargin.add_theme_constant_override("margin_left", int(18 * s))
+	bmargin.add_theme_constant_override("margin_right", int(18 * s))
+	bmargin.add_theme_constant_override("margin_top", int(8 * s))
+	bmargin.add_theme_constant_override("margin_bottom", int(8 * s))
+	_banner.add_child(bmargin)
 	_banner_label = Label.new()
 	_banner_label.add_theme_font_size_override("font_size", int(18 * s))
-	_banner.add_child(_banner_label)
+	_banner_label.add_theme_color_override("font_color", Color.WHITE)
+	_banner_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	_banner_label.add_theme_constant_override("outline_size", 3)
+	bmargin.add_child(_banner_label)
 
 	_back_button = Button.new()
 	_back_button.text = "← Back to your board"
 	_back_button.add_theme_font_size_override("font_size", int(16 * s))
-	UiStyle.style_flat_button(_back_button, UiStyle.PILL_BG, 14, UiStyle.PILL_BORDER)
+	UiStyle.style_flat_button(_back_button, UiStyle.PILL_BG, 16, UiStyle.PILL_BORDER)
 	_back_button.anchor_left = 0.5
 	_back_button.anchor_right = 0.5
 	_back_button.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_back_button.offset_top = 58 * s
+	_back_button.offset_top = 60 * s
 	_back_button.visible = false
 	_back_button.pressed.connect(func(): focus_board(local_index))
 	layer.add_child(_back_button)
@@ -154,10 +155,39 @@ func _name_for(i: int) -> String:
 	return "Board %d" % (i + 1)
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventKey:
+		_on_key(event)
+		return
 	if event is InputEventScreenTouch:
 		_on_touch(event)
 	elif event is InputEventScreenDrag:
 		_on_drag(event)
+
+func _on_key(e: InputEventKey) -> void:
+	if not e.pressed or e.echo:
+		return
+	if coordinator == null or coordinator.phase != "run":
+		return
+	var n := board_containers.size()
+	if n <= 1:
+		return
+	var slot := -1
+	if e.keycode >= KEY_1 and e.keycode <= KEY_8:
+		slot = e.keycode - KEY_1
+	if slot < 0:
+		return
+	var order := _board_order()
+	if slot >= order.size():
+		return
+	focus_board(order[slot])
+	get_viewport().set_input_as_handled()
+
+func _board_order() -> Array:
+	var order: Array = [local_index]
+	for i in range(board_containers.size()):
+		if i != local_index:
+			order.append(i)
+	return order
 
 func _on_touch(e: InputEventScreenTouch) -> void:
 	if e.pressed:
@@ -216,6 +246,8 @@ func _over_open_overlay(pos: Vector2) -> bool:
 
 func _dispatch_tap(screen_pos: Vector2) -> void:
 	if local_build_controller == null:
+		return
+	if _spectate_index != local_index:
 		return
 	if _over_open_overlay(screen_pos):
 		return

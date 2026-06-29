@@ -163,9 +163,10 @@ static func _zones_overlap(c1: Vector2i, m1: int, c2: Vector2i, m2: int) -> bool
 	return w1.distance_to(w2) < BonusZoneScript.radius_for_magnitude(m1) + BonusZoneScript.radius_for_magnitude(m2)
 
 static func _derive_thresholds(map, _path_len_px: float) -> void:
-	map.star1_threshold = GameConstants.TRIALS_STAR_ROUNDS[0]
-	map.star2_threshold = GameConstants.TRIALS_STAR_ROUNDS[1]
-	map.star3_threshold = GameConstants.TRIALS_STAR_ROUNDS[2]
+	var rounds: Array = GameConstants.TRIALS_STAR_ROUNDS[clampi(map.scale_tier, 1, 5)]
+	map.star1_threshold = rounds[0]
+	map.star2_threshold = rounds[1]
+	map.star3_threshold = rounds[2]
 
 static func _round_to(value: float, step: int) -> int:
 	return int(round(value / float(step))) * step

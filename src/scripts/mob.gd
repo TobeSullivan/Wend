@@ -13,11 +13,27 @@ var is_boss: bool = false
 var board
 
 var anim: AnimatedSprite2D
+var _hp_bar: Node2D
 
 static var _walk_frames: SpriteFrames = null
 
 const BOSS_SCALE := 0.14
 const NORMAL_SCALE := 0.08
+
+const BAR_LEN := 22.0
+const BAR_THICK := 5.0
+const BAR_Y := 13.0
+const BOSS_BAR_LEN := 34.0
+const BOSS_BAR_THICK := 7.0
+const BOSS_BAR_Y := 21.0
+const BAR_FULL := Color(0.46, 0.86, 0.38)
+const BAR_LOW := Color(0.94, 0.32, 0.27)
+
+class _HpBar extends Node2D:
+	var mob = null
+	func _draw() -> void:
+		if mob != null:
+			mob._draw_hp_bar(self)
 
 func _ready() -> void:
 	hp = max_hp
@@ -29,6 +45,11 @@ func _ready() -> void:
 	if is_boss:
 		anim.scale = Vector2(BOSS_SCALE, BOSS_SCALE)
 		anim.modulate = Color(1.0, 0.55, 0.45)
+
+	_hp_bar = _HpBar.new()
+	_hp_bar.mob = self
+	_hp_bar.z_index = 2
+	add_child(_hp_bar)
 
 	if path.size() > 0:
 		position = path[0]
@@ -86,6 +107,8 @@ func take_hit(damage: float, is_crit: bool = false, source: Node2D = null) -> vo
 		return
 	var credited := minf(damage, hp)
 	hp -= damage
+	if _hp_bar != null:
+		_hp_bar.queue_redraw()
 	_spawn_damage_number(damage, is_crit)
 	if board != null:
 		board._on_damage_dealt(credited)
@@ -104,9 +127,38 @@ func _spawn_damage_number(amount: float, is_crit: bool) -> void:
 	get_parent().add_child(dn)
 	dn.setup(amount, is_crit, position)
 
-# Mobs die permanently now: mark dead and let the board reap us. No death
-# animation for now — a clean disappear reads better than the zombie-die clip.
 func _die() -> void:
 	alive = false
 	if board != null:
 		board._on_mob_killed()
+
+func _draw_hp_bar(c: CanvasItem) -> void:
+	if not alive:
+		return
+	var frac := clampf(hp / max_hp, 0.0, 1.0)
+	if not is_boss and frac >= 0.999:
+		return
+	var length: float = BOSS_BAR_LEN if is_boss else BAR_LEN
+	var thick: float = BOSS_BAR_THICK if is_boss else BAR_THICK
+	var cy: float = BOSS_BAR_Y if is_boss else BAR_Y
+	_capsule(c, cy, length + 2.0, thick + 2.0, Color(0, 0, 0, 0.55))
+	_capsule(c, cy, length, thick, Color(0.12, 0.14, 0.10, 0.92))
+	_capsule_part(c, cy, length, thick, frac, BAR_FULL.lerp(BAR_LOW, 1.0 - frac))
+
+func _capsule(c: CanvasItem, cy: float, length: float, thick: float, col: Color) -> void:
+	var r := thick * 0.5
+	var x0 := -length * 0.5 + r
+	var x1 := length * 0.5 - r
+	if x1 > x0:
+		c.draw_line(Vector2(x0, cy), Vector2(x1, cy), col, thick, true)
+	c.draw_circle(Vector2(x0, cy), r, col)
+	c.draw_circle(Vector2(x1, cy), r, col)
+
+func _capsule_part(c: CanvasItem, cy: float, length: float, thick: float, frac: float, col: Color) -> void:
+	var r := thick * 0.5
+	var left := -length * 0.5 + r
+	var right := left + frac * (length - thick)
+	if right > left:
+		c.draw_line(Vector2(left, cy), Vector2(right, cy), col, thick, true)
+	c.draw_circle(Vector2(left, cy), r, col)
+	c.draw_circle(Vector2(right, cy), r, col)

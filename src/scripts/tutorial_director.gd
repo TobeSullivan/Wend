@@ -26,7 +26,7 @@ func _ready() -> void:
 		coordinator.match_ended.connect(_on_match_ended)
 	if board != null:
 		board.kills_changed.connect(_on_kills_changed)
-		board.round_summary.connect(_on_round_summary)
+		board.round_settled.connect(_on_round_settled)
 	if build_controller != null:
 		build_controller.towers_changed.connect(_on_towers_changed)
 	call_deferred("_begin")
@@ -73,7 +73,7 @@ func _on_kills_changed(total: int) -> void:
 	if total >= 1:
 		_fire("on_first_kill")
 
-func _on_round_summary(_completed: int, _kill_gold: int, _round_bonus: int, _interest: int) -> void:
+func _on_round_settled(_completed: int) -> void:
 	_fire("on_round_end")
 
 func _on_towers_changed(count: int, _cap: int) -> void:

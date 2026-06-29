@@ -4,8 +4,6 @@ const STARTING_GOLD := 250
 const TOWER_COST := 10
 const KILL_BONUS := 1
 const ROUND_BONUS_BASE := 25
-const INTEREST_RATE := 0.10
-const INTEREST_CAP := 50
 const SELL_REFUND_RATE := 0.30
 
 const BUILD_TIME_FIRST := 30.0
@@ -22,7 +20,13 @@ const WAVE_COUNT_BASE := 14
 const WAVE_COUNT_PER_ROUND := 2
 const WAVE_COUNT_MAX := 60
 
-const TRIALS_STAR_ROUNDS := [10, 20, 30]
+const TRIALS_STAR_ROUNDS := {
+	1: [5, 10, 15],
+	2: [6, 12, 18],
+	3: [8, 14, 20],
+	4: [9, 16, 23],
+	5: [10, 18, 25],
+}
 
 const SCALE_HP_MULT := [0.45, 0.70, 1.0, 1.45, 1.9]
 const SCALE_HP_RAMP_ROUND := 18
@@ -62,10 +66,7 @@ const TIER_DAMAGE_GROWTH := 1.20      # dmg = base * growth^(tier-1)
 const TIER_RATE_GROWTH := 1.05        # fire rate scales -> cooldown = base / growth^(tier-1)
 const TIER_RANGE_PER_TIER := 10.0     # range += this per tier above 1
 
-# Crit scales with merge tier (placeholder curve; balance later). Secondary to
-# multishot -- crit = (tier-1) * PER_TIER, clamped to the hard cap.
-const CRIT_CHANCE_PER_TIER := 0.05    # T1=0%, T2=5% ... T10=45% (cap is a rail)
+const CRIT_CHANCE_PER_TIER := 0.05
 const CRIT_CHANCE_HARD_CAP := 0.75
-# Crit damage multiplier scales linearly with tier, BASE at T1 -> MAX at MAX_TIER.
-const CRIT_DAMAGE_BASE := 1.5         # T1 multiplier
-const CRIT_DAMAGE_MAX := 2.5          # T10 multiplier
+const CRIT_DAMAGE_BASE := 1.5
+const CRIT_DAMAGE_MAX := 2.5

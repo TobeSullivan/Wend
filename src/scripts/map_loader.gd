@@ -11,7 +11,6 @@ const BuildConfirmScript := preload("res://scripts/build_confirm.gd")
 const TowerDrawerScript := preload("res://scripts/tower_drawer.gd")
 const MatchEndPanelScript := preload("res://scripts/match_end_panel.gd")
 const WinPanelScript := preload("res://scripts/win_panel.gd")
-const RoundToastScript := preload("res://scripts/round_toast.gd")
 const PauseMenuScript := preload("res://scripts/pause_menu.gd")
 const GameViewScript := preload("res://scripts/game_view.gd")
 const LeaderboardPanelScript := preload("res://scripts/leaderboard_panel.gd")
@@ -63,7 +62,16 @@ static func build_match(host: Node2D, map, num_boards: int = 1, local_index: int
 		containers.append(container)
 		var board = _build_board(container, map, coordinator, i == local_index, use_bots)
 		board.lives = GameConstants.LIVES_PER_PLAYER if coordinator.is_pvp else GameConstants.TRIALS_LIVES
+		board.relay_position = i
 		boards.append(board)
+
+	var is_coop_relay: bool = (map.mode == MapResourceScript.Mode.PVE and num_boards > 1)
+	if is_coop_relay:
+		coordinator.setup_shared_pools(num_boards, map.supply_cap)
+		for b in boards:
+			if b.build_controller != null:
+				b.build_controller.towers_changed.connect(func(_c, _cap): coordinator.refresh_shared_supply())
+		coordinator.refresh_shared_supply()
 
 	if local_index < 0:
 		return boards
@@ -93,6 +101,7 @@ static func build_match(host: Node2D, map, num_boards: int = 1, local_index: int
 	local_ctrl.tower_drawer = drawer
 	drawer.game_view = game_view
 	host.add_child(game_view)
+	rail._game_view = game_view
 
 	if map.mode == MapResourceScript.Mode.CAMPAIGN and map.tutorial_beats != null and not map.tutorial_beats.is_empty():
 		var guide = null
@@ -256,9 +265,6 @@ static func _build_match_ui(host: Node2D, local_board, local_ctrl, map, ghost_la
 		match_end.lb_ctx = {"window": int(map.window_type), "tier": int(map.scale_tier), "group": "solo"}
 	match_end.ranked = (mode == MapResourceScript.Mode.PVP and SceneManager.transport != null)
 
-	var round_toast := RoundToastScript.new()
-	round_toast.round_manager = local_board
-
 	var pause_menu := PauseMenuScript.new()
 	pause_menu.build_controller = local_ctrl
 	pause_menu.round_manager = local_board
@@ -275,7 +281,6 @@ static func _build_match_ui(host: Node2D, local_board, local_ctrl, map, ghost_la
 		var win_panel := WinPanelScript.new()
 		win_panel.round_manager = local_board
 		host.add_child(win_panel)
-	host.add_child(round_toast)
 	host.add_child(pause_menu)
 	return [rail, drawer]
 

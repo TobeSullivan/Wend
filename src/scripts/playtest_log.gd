@@ -12,11 +12,11 @@ func _ready() -> void:
 	if not ENABLED:
 		return
 	if board != null:
-		board.round_summary.connect(_on_round_summary)
+		board.round_settled.connect(_on_round_settled)
 	if coordinator != null:
 		coordinator.match_ended.connect(_on_match_ended)
 
-func _on_round_summary(round_completed: int, kill_gold: int, round_bonus: int, interest: int) -> void:
+func _on_round_settled(round_completed: int) -> void:
 	_append({
 		"ev": "round",
 		"t": Time.get_datetime_string_from_system(),
@@ -26,9 +26,6 @@ func _on_round_summary(round_completed: int, kill_gold: int, round_bonus: int, i
 		"round": round_completed,
 		"cum_damage": board.total_damage_dealt,
 		"cum_kills": board.total_kills,
-		"round_kill_gold": kill_gold,
-		"round_bonus": round_bonus,
-		"interest": interest,
 		"gold": board.gold,
 		"towers": board.build_controller.towers.size(),
 	})
