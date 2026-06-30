@@ -7,6 +7,7 @@ signal party_changed()
 signal party_joined(ok: bool)
 signal party_left()
 signal party_launch(info: Dictionary)
+signal avatar_ready(texture: Texture2D)
 
 const APP_ID := 0
 
@@ -42,6 +43,7 @@ func _ready() -> void:
 	Steam.lobby_chat_update.connect(_on_lobby_chat_update)
 	Steam.lobby_data_update.connect(_on_lobby_data_update)
 	Steam.join_requested.connect(_on_join_requested)
+	Steam.avatar_loaded.connect(_on_avatar_loaded)
 	print("SteamManager: Steam OK — %s (id %d)" % [Steam.getPersonaName(), Steam.getSteamID()])
 	_emit_ready(true)
 
@@ -64,6 +66,18 @@ func get_persona_name() -> String:
 func open_overlay(type: String = "friends") -> void:
 	if _available:
 		Steam.activateGameOverlay(type)
+
+func request_local_avatar() -> void:
+	if _available:
+		Steam.getPlayerAvatar(Steam.AVATAR_MEDIUM, Steam.getSteamID())
+
+func _on_avatar_loaded(avatar_id: int, avatar_size: int, avatar_buffer: PackedByteArray) -> void:
+	if avatar_id != Steam.getSteamID():
+		return
+	if avatar_size <= 0 or avatar_buffer.is_empty():
+		return
+	var img := Image.create_from_data(avatar_size, avatar_size, false, Image.FORMAT_RGBA8, avatar_buffer)
+	avatar_ready.emit(ImageTexture.create_from_image(img))
 
 func _on_overlay_toggled(active: bool, _user_initiated: bool, _app_id: int) -> void:
 	overlay_toggled.emit(active)

@@ -146,10 +146,8 @@ func _slide_cover_off(cover: TextureRect, back: bool, w: float) -> void:
 	if not is_instance_valid(cover):
 		return
 	var t := cover.create_tween()
-	t.set_parallel(true)
 	Motion.leave(t)
 	t.tween_property(cover, "position:x", (w if back else -w), Motion.dur(Motion.SCREEN))
-	t.tween_property(cover, "modulate:a", 0.0, Motion.dur(Motion.SCREEN))
 	t.chain().tween_callback(cover.queue_free)
 	get_tree().create_timer(1.0).timeout.connect(func(): if is_instance_valid(cover): cover.queue_free())
 

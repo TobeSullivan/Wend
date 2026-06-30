@@ -9,6 +9,7 @@ const BANNER_TEX := preload("res://assets/ui/banner_plank.png")
 
 var _active_slot := "tower"
 var _equipped := {}
+var _steam_avatar: Texture2D = null
 
 var _preview: PreviewBoard
 var _profile_box: PanelContainer
@@ -31,6 +32,14 @@ func _ready() -> void:
 	Motion.fade_in(_profile_box, Motion.M, Motion.dur(0.10))
 	var rack_btns: Array = _slot_buttons.values()
 	Motion.cascade(rack_btns, func(b, _i, d): Motion.fade_in(b, Motion.S, d))
+	if SteamManager.is_available():
+		if not SteamManager.avatar_ready.is_connected(_on_avatar_ready):
+			SteamManager.avatar_ready.connect(_on_avatar_ready)
+		SteamManager.request_local_avatar()
+
+func _on_avatar_ready(tex: Texture2D) -> void:
+	_steam_avatar = tex
+	_refresh_profile()
 
 func _load_equipped() -> void:
 	_equipped = Catalog.default_equipped()
@@ -290,7 +299,14 @@ func _item_card(it: Dictionary, owned: bool) -> Control:
 		imp.offset_left = 8
 		imp.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.add_child(imp)
+	_ignore_mouse(card)
 	return card
+
+func _ignore_mouse(node: Node) -> void:
+	for c in node.get_children():
+		if c is Control:
+			(c as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_ignore_mouse(c)
 
 func _item_art(it: Dictionary, owned: bool, px: int) -> Control:
 	var box := PanelContainer.new()
@@ -409,10 +425,18 @@ func _refresh_profile() -> void:
 	av.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	av.add_theme_stylebox_override("panel", _wood_box(FRAME_TEX, fcol, 36, 36, 10))
 	var name_text := _player_name()
-	var ini := _label(name_text.substr(0, 1).to_upper(), 38, Color("dfe6cf"))
-	ini.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	ini.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	av.add_child(ini)
+	if _steam_avatar != null:
+		var pic := TextureRect.new()
+		pic.texture = _steam_avatar
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		av.add_child(pic)
+	else:
+		var ini := _label(name_text.substr(0, 1).to_upper(), 38, Color("dfe6cf"))
+		ini.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		ini.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		av.add_child(ini)
 	row.add_child(av)
 
 	var col := VBoxContainer.new()
@@ -436,14 +460,11 @@ func _refresh_profile() -> void:
 			chip.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 			col.add_child(chip)
 
-	var src := _label("name + pic from Steam", 11, UiStyle.LABEL_COL)
-	src.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	src.offset_left = -190
-	src.offset_top = 8
-	src.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_profile_box.add_child(src)
-
 func _player_name() -> String:
+	if SteamManager.is_available():
+		var nm := SteamManager.get_persona_name()
+		if nm != "":
+			return nm
 	var svc = get_node_or_null("/root/NakamaService")
 	if svc != null and svc.get("session") != null:
 		var u = svc.session.get("username")
@@ -481,7 +502,7 @@ class PreviewBoard extends Control:
 		"board_beach": Color("e8d9a8"), "board_suburbia": Color("8a8f96")}
 
 	var _path: Array = []
-	var _running := false
+	var _running := true
 	var _mob_t: Array = []
 	var _cooldown: Array = []
 	var _shots: Array = []
@@ -521,9 +542,9 @@ class PreviewBoard extends Control:
 		add_child(chip)
 
 		_run_btn = Button.new()
-		_run_btn.text = "▶ Run"
+		_run_btn.text = "■ Stop"
 		_run_btn.add_theme_font_size_override("font_size", 14)
-		UiStyle.style_go_button(_run_btn)
+		UiStyle.style_danger_button(_run_btn)
 		_run_btn.pressed.connect(_toggle_run)
 		_run_btn.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 		_run_btn.offset_left = -110
@@ -531,6 +552,7 @@ class PreviewBoard extends Control:
 		_run_btn.offset_right = -12
 		_run_btn.offset_bottom = 50
 		add_child(_run_btn)
+		set_process(true)
 
 	func _toggle_run() -> void:
 		_running = not _running
