@@ -36,7 +36,8 @@ var match_over: bool = false
 
 const SIM_HZ := 60
 const SIM_DT := 1.0 / SIM_HZ
-const MAX_STEPS_PER_FRAME := 8
+const MAX_STEPS_PER_FRAME := 12
+const COOP_RUN_SPEED := 3.0
 var sim_tick: int = 0
 var _sim_accum: float = 0.0
 var build_ticks_left: int = 0
@@ -95,11 +96,16 @@ func _ready() -> void:
 	build_ticks_left = _build_ticks_for(round_num)
 	build_time_left = build_ticks_left * SIM_DT
 
+func _run_speed_mult() -> float:
+	if is_coop_relay and phase == "run" and not match_over:
+		return COOP_RUN_SPEED
+	return 1.0
+
 func _process(delta: float) -> void:
 	_bot_actions_this_frame = 0
 	if match_over:
 		return
-	_sim_accum += delta
+	_sim_accum += delta * _run_speed_mult()
 	var backlog_cap := MAX_STEPS_PER_FRAME * SIM_DT
 	if _sim_accum > backlog_cap:
 		_sim_accum = backlog_cap
@@ -169,7 +175,7 @@ func set_board_ready(board, value: bool) -> void:
 	if driven_externally and net != null:
 		net.send_local_ready(value)
 		return
-	if not is_pvp or phase != "build":
+	if not (is_pvp or is_coop_relay) or phase != "build":
 		return
 	log_input(boards.find(board), {"type": "vote_start", "value": value})
 	if value:
@@ -414,6 +420,8 @@ func _end_match() -> void:
 
 func net_enter_run() -> void:
 	phase = "run"
+	if net != null:
+		net.local_ready = false
 	emit_signal("phase_changed", phase)
 	_start_wave_on_boards()
 

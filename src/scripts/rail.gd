@@ -67,8 +67,9 @@ func _ready() -> void:
 		round_manager.kills_changed.connect(func(_k): _refresh())
 		round_manager.damage_dealt_changed.connect(func(_d): _refresh_score())
 		round_manager.lives_changed.connect(func(_l): _refresh())
-		if _is_pvp() and round_manager.coordinator != null:
+		if (_is_pvp() or _is_coop_relay()) and round_manager.coordinator != null:
 			round_manager.coordinator.ready_changed.connect(_refresh_buttons)
+		if _is_pvp() and round_manager.coordinator != null:
 			round_manager.coordinator.lives_resolved.connect(_refresh_standing)
 	if _is_coop_relay():
 		var co = round_manager.coordinator
@@ -84,6 +85,8 @@ func _ready() -> void:
 		_towers_cap = build_controller.max_towers
 	_sync_ff_to_engine()
 	_refresh()
+	if _is_pvp() or _is_coop_relay():
+		_apply_time_scale()
 
 	for b in [_status_box, _score_box, _buttons_box]:
 		if b != null:
@@ -187,8 +190,8 @@ func _build_buttons_box() -> PanelContainer:
 	var box := _box()
 	var v: VBoxContainer = box[1]
 	v.add_theme_constant_override("separation", int(9 * s))
-	if _is_pvp():
-		_start_button = _rail_button(v, "✓ Ready", true)
+	if _is_pvp() or _is_coop_relay():
+		_start_button = _rail_button(v, "0/0 Ready", true)
 		_start_button.pressed.connect(_on_start_pressed)
 	else:
 		_start_button = _rail_button(v, "▶ Start Round", true)
@@ -389,10 +392,10 @@ func _refresh_buttons() -> void:
 	if round_manager == null or _start_button == null:
 		return
 	var building: bool = round_manager.phase == "build" and not round_manager.match_over
-	if _is_pvp():
+	if _is_pvp() or _is_coop_relay():
 		var coord = round_manager.coordinator
 		var readied: bool = coord.is_board_ready(round_manager)
-		_start_button.text = "%s Ready (%d/%d)" % ["✓" if readied else "○", coord.ready_count(), coord.active_boards().size()]
+		_start_button.text = "%s%d/%d Ready" % ["✓ " if readied else "", coord.ready_count(), coord.active_boards().size()]
 		_reserve_hide(_start_button, building)
 	else:
 		_start_button.text = "▶ Start Round"
@@ -420,7 +423,7 @@ func _on_towers_changed(count: int, cap: int) -> void:
 func _on_start_pressed() -> void:
 	if round_manager == null:
 		return
-	if _is_pvp():
+	if _is_pvp() or _is_coop_relay():
 		var coord = round_manager.coordinator
 		coord.set_board_ready(round_manager, not coord.is_board_ready(round_manager))
 		_refresh_buttons()
@@ -462,7 +465,7 @@ func _find_game_view():
 	return null
 
 func _apply_time_scale() -> void:
-	if _is_pvp():
+	if _is_pvp() or _is_coop_relay():
 		Engine.time_scale = 1.0
 		return
 	if round_manager != null and round_manager.phase == "run" and not round_manager.match_over:

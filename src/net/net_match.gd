@@ -123,7 +123,10 @@ func _broadcast_match_end() -> void:
 	match_finished.emit()
 
 func _apply_clock(msg: Dictionary) -> void:
+	var prev_ready := net_ready_count
 	net_ready_count = int(msg.get("ready", 0))
+	if net_ready_count != prev_ready:
+		coordinator.emit_signal("ready_changed")
 	var was: String = coordinator.phase
 	coordinator.net_set_build_time(float(msg["build_time_left"]))
 	var new_phase: String = msg["phase"]

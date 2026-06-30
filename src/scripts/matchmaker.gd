@@ -6,9 +6,7 @@ signal escalated(step, info)
 signal failed(reason)
 
 const RANKED_SCHEDULE := [
-	{"at": 0.0,  "query": "+properties.mode:ranked", "min": 8, "max": 8},
-	{"at": 15.0, "query": "+properties.mode:ranked", "min": 6, "max": 8},
-	{"at": 30.0, "query": "+properties.mode:ranked", "min": 4, "max": 8},
+	{"at": 0.0, "query": "+properties.mode:ranked", "min": 2, "max": 8},
 ]
 
 var _socket
