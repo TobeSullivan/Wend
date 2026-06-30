@@ -1,11 +1,11 @@
 # State — Wend
-Last updated: 2026-06-29
+Last updated: 2026-06-29 (Jira cutover)
 
 ## Current focus
-(1) Steam Playtest build **in review** (submitted Jun 22); (2) **this session (design):** co-op
-Trials redesigned into a **damage relay**, the in-match **rail reworked**, and the **board-viewing
-picker** locked. All handed to CC. (3) Carried-over balance/leaderboard tuning still pending
-playtest.
+(1) Steam **Playtest live** — tracking real player data now (supersedes the prior "in review"
+state); (2) **this session (design):** co-op Trials redesigned into a **damage relay**, the
+in-match **rail reworked**, and the **board-viewing picker** locked. All handed to CC. (3) Balance
+and leaderboard dials being fitted against live Playtest data.
 
 ## Last session (design, this Claude)
 Reworked multiplayer/board-view after the 2026-06-22 mobs-die pivot broke the old co-op model.
@@ -37,9 +37,14 @@ Reworked multiplayer/board-view after the 2026-06-22 mobs-die pivot broke the ol
   (NEW), notes/mockups/wend_boards_popout_names_final.png + wend_spectate_overlay.png +
   wend_boards_popout_B_thumbnails.png (NEW), STATE.md
 
+## Task & bug tracking
+Discrete tasks and bugs now live on the **Jira board (project KAN)** —
+https://wendthegame.atlassian.net/jira/software/projects/KAN/boards/2 — not in a repo ledger.
+`notes/open_items.md` is retired; must-not-reverse locks are in `notes/decisions.md`, deferred
+seeds in `notes/parked.md`.
+
 ## Open questions / blocked on
-- **Co-op dials (playtest):** shared-lives integer, shared-supply/density budget, bounty, per-scale
-  area/point caps. Shape locked, numbers move.
+- **Co-op dials:** shared-lives integer, shared-supply/density budget, bounty, per-scale
+  area/point caps. Shape locked, numbers move — fitting against live Playtest data now.
 - **Ranked second box:** drop entirely vs host picker inline — Tobe to eyeball (not blocking).
-- **Steam:** review pending; identity verification → App ID → confidential Playtest app.
-- Per-tier stat curves + lives integers still deferred to playtest.
+- Per-tier stat curves + lives integers being tuned against live Playtest data.

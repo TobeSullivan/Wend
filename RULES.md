@@ -36,7 +36,7 @@ Design discussions produce design artifacts. If a conversation drifts toward "le
 ## Project-specific conventions
 
 ### Design decisions are sticky once locked
-Anything explicitly locked goes into the relevant `design/` or `notes/` file. Open items live in `notes/open_items.md`. Once locked, decisions don't get re-litigated unless the user opens that thread explicitly — don't re-pitch alternatives to settled questions.
+Anything explicitly locked goes into the relevant `design/` or `notes/` file (`notes/decisions.md` for must-not-reverse calls, `notes/parked.md` for deferred seeds). Open tasks and bugs live on the **Jira board (project KAN)**, not in a repo ledger. Once locked, decisions don't get re-litigated unless the user opens that thread explicitly — don't re-pitch alternatives to settled questions.
 
 ### Strong opinions, lightly held — extra hard on design
 Push back on suspect choices, present steelmanned alternatives, flag risks. Once the user makes a call, move on. Don't re-raise the same concern across turns.
@@ -84,7 +84,7 @@ tower_defense/
 ├── STATE.md
 ├── PROJECT.md
 ├── design/        # DESIGN.md, DESIGN_MODES.md, VISUAL_SYSTEM.md, CAMPAIGN.md, INMATCH_FIXES.md
-├── notes/         # market research, MP architecture, resim contract, leaderboard, matchmaking, open_items, mockups/
+├── notes/         # market research, MP architecture, resim contract, leaderboard, matchmaking, decisions, parked, mockups/
 ├── src/           # Godot project source
 ├── art/           # asset pack + final art
 └── levels/        # campaign + generated map resources
@@ -96,4 +96,4 @@ The Claude.ai Project folder only ever holds `claude-rules.md` and `RULES.md`.
 
 ## Phasing posture
 
-Move from design into prototyping quickly; don't get lost in design indefinitely. "Good enough to start" = a coherent core loop, locked mechanics for one mode, and a clear next-thing-to-build. Multiplayer, guilds, console ports, friends integration, hosting infrastructure are sequenced per `STATE.md` / `notes/open_items.md`, not all designed before code starts.
+Move from design into prototyping quickly; don't get lost in design indefinitely. "Good enough to start" = a coherent core loop, locked mechanics for one mode, and a clear next-thing-to-build. Multiplayer, guilds, console ports, friends integration, hosting infrastructure are sequenced per `STATE.md` and the Jira **KAN** board, not all designed before code starts.
