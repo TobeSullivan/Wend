@@ -12,6 +12,7 @@ var _group: String = "solo"
 var _tier: int = 3
 var _season: int = SaveData.BUILD_SEASON
 var _mission: int = 1
+var _render_gen: int = 0
 
 var _cat_buttons: Dictionary = {}
 var _selectors: VBoxContainer
@@ -169,6 +170,7 @@ func _select(setter: Callable) -> void:
 	_rebuild_list()
 
 func _rebuild_list() -> void:
+	_render_gen += 1
 	for child in _list_box.get_children():
 		child.queue_free()
 	match _cat:
@@ -177,7 +179,10 @@ func _rebuild_list() -> void:
 		Cat.CAMPAIGN: _render_campaign()
 
 func _render_trials() -> void:
+	var gen := _render_gen
 	var data: Dictionary = await LeaderboardService.trials_board(_window, _tier, _group)
+	if not is_instance_valid(self) or gen != _render_gen:
+		return
 	var entries: Array = data.get("entries", [])
 	if entries.is_empty():
 		_list_box.add_child(_empty_state("No scores on this board yet.", "Be the first to post a run."))
@@ -185,7 +190,10 @@ func _render_trials() -> void:
 	_render_score_rows(entries, true)
 
 func _render_ranked() -> void:
+	var gen := _render_gen
 	var data: Dictionary = await LeaderboardService.ranked_ladder(_season)
+	if not is_instance_valid(self) or gen != _render_gen:
+		return
 	var you = data.get("you", null)
 	if you != null:
 		_list_box.add_child(_ranked_standing(you))
@@ -199,7 +207,10 @@ func _render_ranked() -> void:
 		_render_ranked_rows(band.get("rows", []))
 
 func _render_campaign() -> void:
+	var gen := _render_gen
 	var data: Dictionary = await LeaderboardService.campaign_board(_mission)
+	if not is_instance_valid(self) or gen != _render_gen:
+		return
 	var entries: Array = data.get("entries", [])
 	if entries.is_empty():
 		_list_box.add_child(_empty_state("No times on this mission's board yet.",
