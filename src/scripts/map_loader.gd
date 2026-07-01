@@ -9,6 +9,7 @@ const RoundManagerScript := preload("res://scripts/round_manager.gd")
 const RailScript := preload("res://scripts/rail.gd")
 const BuildConfirmScript := preload("res://scripts/build_confirm.gd")
 const TowerDrawerScript := preload("res://scripts/tower_drawer.gd")
+const CountdownOverlayScript := preload("res://scripts/countdown_overlay.gd")
 const MatchEndPanelScript := preload("res://scripts/match_end_panel.gd")
 const WinPanelScript := preload("res://scripts/win_panel.gd")
 const PauseMenuScript := preload("res://scripts/pause_menu.gd")
@@ -292,6 +293,9 @@ static func _build_match_ui(host: Node2D, local_board, local_ctrl, map, ghost_la
 		win_panel.round_manager = local_board
 		host.add_child(win_panel)
 	host.add_child(pause_menu)
+	var countdown := CountdownOverlayScript.new()
+	countdown.round_manager = local_board
+	host.add_child(countdown)
 	return [rail, drawer]
 
 static func _build_ghost_ladder(map):
