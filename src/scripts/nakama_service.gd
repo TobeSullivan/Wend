@@ -38,6 +38,18 @@ func _load_config() -> void:
 func is_configured() -> bool:
 	return _configured
 
+func submit_team_score_async(payload: Dictionary) -> bool:
+	if not _configured:
+		return false
+	if client == null:
+		client = Nakama.create_client(_server_key, _host, _port, _scheme)
+	payload["secret"] = OS.get_environment("WEND_SERVER_SUBMIT_SECRET")
+	var res = await client.rpc_async_with_key(_http_key, "submit_team_score", JSON.stringify(payload))
+	if res == null or res.is_exception():
+		push_warning("NakamaService: submit_team_score failed (%s)" % (str(res.get_exception()) if res != null else "null"))
+		return false
+	return true
+
 func fetch_display_names(ids: Array) -> Dictionary:
 	var out := {}
 	if not has_session() or client == null or ids.is_empty():

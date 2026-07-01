@@ -238,10 +238,14 @@ func _coop_send_join() -> void:
 	var nm := SteamManager.get_persona_name()
 	if nm == "":
 		nm = last_player_name
+	var uid := ""
+	if NakamaService.has_session():
+		uid = String(NakamaService.session.user_id)
 	transport.send_to_authority({
 		"t": NetProtocol.JOIN_ROOM,
 		"match_id": String(_coop_go.get("match_id", "")),
 		"name": nm,
+		"user_id": uid,
 		"expected": int(_coop_go.get("count", 2)),
 		"tier": int(_coop_go.get("tier", 1)),
 		"seed": int(_coop_go.get("seed", 0)),
@@ -348,8 +352,8 @@ func _finish_match_result(snap: Dictionary) -> void:
 		var composite := LeaderboardService.encode_score(rounds, score_val)
 		if not is_coop:
 			SaveData.record_pve_score(snap["window_date"], snap["scale_tier"], composite)
-		_post_online("trials", LeaderboardService.trials_board_id(
-			snap["window_type"], snap["scale_tier"], group), composite, record_b64)
+			_post_online("trials", LeaderboardService.trials_board_id(
+				snap["window_type"], snap["scale_tier"], group), composite, record_b64)
 		var t: Dictionary = snap["task"]
 		if not t.is_empty():
 			_award_tasks({"towers": t["towers"], "zones": t["zones"], "kills": t["kills"], "score": damage})

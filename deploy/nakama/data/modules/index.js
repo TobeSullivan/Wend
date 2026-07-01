@@ -66,6 +66,7 @@ function InitModule(ctx, logger, nk, initializer) {
 	_ensureRankedBoard(logger, nk);
 	_ensureTrialsTournaments(logger, nk);
 	initializer.registerRpc("submit_score", rpcSubmitScore);
+	initializer.registerRpc("submit_team_score", rpcSubmitTeamScore);
 	initializer.registerRpc("trials_seeds", rpcTrialsSeeds);
 	// Steam login: the built-in authenticateSteam can't validate modern (SDK 1.57+) web-API
 	// tickets because it omits the required `identity` param. This RPC validates the ticket WITH
@@ -183,6 +184,31 @@ function rpcSubmitScore(ctx, logger, nk, payload) {
 		}]);
 	}
 	return JSON.stringify({ ok: true, board_id: boardId, score: score });
+}
+
+function rpcSubmitTeamScore(ctx, logger, nk, payload) {
+	var req;
+	try { req = JSON.parse(payload); } catch (e) { throw errInvalid("payload must be JSON"); }
+	var expected = ctx.env["WEND_SERVER_SUBMIT_SECRET"];
+	if (!expected || String(req.secret) !== String(expected)) throw errPermission("bad server secret");
+	var boardId = req.board_id;
+	var ownerId = req.owner_id;
+	var score = Math.floor(Number(req.score));
+	var subscore = Math.floor(Number(req.subscore)) || 0;
+	if (!boardId || typeof boardId !== "string") throw errInvalid("board_id required");
+	if (!ownerId || typeof ownerId !== "string") throw errInvalid("owner_id required");
+	if (!isFinite(score) || score < 0) throw errInvalid("score must be a non-negative integer");
+	var names = Array.isArray(req.names) ? req.names : [];
+	var display = names.filter(function (n) { return n; }).join(", ").substring(0, 128) || "Team";
+	var meta = {
+		team: true,
+		roster: names,
+		user_ids: Array.isArray(req.user_ids) ? req.user_ids : [],
+		submitted_unix: Math.floor(Date.now() / 1000),
+	};
+	nk.tournamentRecordWrite(boardId, ownerId, display, score, subscore, meta, "best");
+	logger.info("submit_team_score ok: board=%s owner=%s roster=%s", boardId, ownerId, display);
+	return JSON.stringify({ ok: true, board_id: boardId });
 }
 
 // --- Steam web-API ticket auth (custom, because the built-in omits `identity`) -----------

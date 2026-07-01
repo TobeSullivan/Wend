@@ -53,7 +53,7 @@ func _join_room(peer: int, msg: Dictionary) -> void:
 		print("[server] room %s created (expected %d)" % [mid, room.expected])
 	if room.started:
 		return
-	if room.add_member(peer, String(msg.get("name", "Player"))):
+	if room.add_member(peer, String(msg.get("name", "Player")), String(msg.get("user_id", ""))):
 		_peer_room[peer] = mid
 		print("[server] peer %d → room %s (%d/%d)" % [peer, mid, room.member_count(), room.expected])
 		if room.member_count() >= room.expected:

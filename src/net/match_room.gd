@@ -30,10 +30,10 @@ func setup(real_transport) -> void:
 	add_child(_transport)
 	_transport.init_room(real_transport)
 
-func add_member(peer: int, member_name: String) -> bool:
+func add_member(peer: int, member_name: String, user_id: String = "") -> bool:
 	if started or _roster.size() >= expected:
 		return false
-	_roster.append({"peer": peer, "name": member_name, "seat": _roster.size()})
+	_roster.append({"peer": peer, "name": member_name, "user_id": user_id, "seat": _roster.size()})
 	return true
 
 func member_count() -> int:
@@ -94,4 +94,36 @@ func peer_dropped(id: int) -> void:
 		_transport.route_peer_left(id)
 
 func _on_match_finished() -> void:
+	_submit_team_result()
 	finished.emit(match_id)
+
+func _submit_team_result() -> void:
+	if mode_name != "coop" or coordinator == null or boards.is_empty():
+		return
+	var team_damage := 0
+	for b in boards:
+		team_damage += int(b.total_damage_dealt)
+	var rounds := int(coordinator.round_num)
+	var names: Array = []
+	var ids: Array = []
+	var owner := ""
+	for m in _roster:
+		names.append(String(m.get("name", "")))
+		var uid := String(m.get("user_id", ""))
+		ids.append(uid)
+		if owner == "" and uid != "":
+			owner = uid
+	if owner == "":
+		push_warning("[room %s] roster has no Nakama user_id — team score not submitted" % match_id)
+		return
+	var group: String = LeaderboardService.GROUPS[clampi(_roster.size() - 1, 0, 3)]
+	var board_id := LeaderboardService.trials_board_id(window_type, tier, group)
+	var composite := LeaderboardService.encode_score(rounds, team_damage)
+	NakamaService.submit_team_score_async({
+		"board_id": board_id,
+		"owner_id": owner,
+		"names": names,
+		"user_ids": ids,
+		"score": composite,
+		"subscore": 0,
+	})
