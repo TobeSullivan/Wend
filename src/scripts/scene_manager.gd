@@ -246,6 +246,7 @@ func _coop_send_join() -> void:
 		"match_id": String(_coop_go.get("match_id", "")),
 		"name": nm,
 		"user_id": uid,
+		"is_host": SteamManager.is_party_leader(),
 		"expected": int(_coop_go.get("count", 2)),
 		"tier": int(_coop_go.get("tier", 1)),
 		"seed": int(_coop_go.get("seed", 0)),

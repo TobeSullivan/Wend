@@ -30,11 +30,26 @@ func setup(real_transport) -> void:
 	add_child(_transport)
 	_transport.init_room(real_transport)
 
-func add_member(peer: int, member_name: String, user_id: String = "") -> bool:
+func add_member(peer: int, member_name: String, user_id: String = "", is_host: bool = false) -> bool:
 	if started or _roster.size() >= expected:
 		return false
-	_roster.append({"peer": peer, "name": member_name, "user_id": user_id, "seat": _roster.size()})
+	_roster.append({"peer": peer, "name": member_name, "user_id": user_id, "is_host": is_host, "seat": _roster.size()})
 	return true
+
+func _seat_host_first() -> void:
+	var host_entry = null
+	var rest: Array = []
+	for m in _roster:
+		if host_entry == null and bool(m.get("is_host", false)):
+			host_entry = m
+		else:
+			rest.append(m)
+	if host_entry != null:
+		var ordered: Array = [host_entry]
+		ordered.append_array(rest)
+		_roster = ordered
+	for i in _roster.size():
+		_roster[i]["seat"] = i
 
 func member_count() -> int:
 	return _roster.size()
@@ -49,6 +64,7 @@ func start() -> void:
 	if started:
 		return
 	started = true
+	_seat_host_first()
 	var count := _roster.size()
 	var match_seed := seed_override if seed_override != 0 else absi(hash(match_id))
 	var names: Array = []
