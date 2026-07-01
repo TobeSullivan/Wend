@@ -87,7 +87,10 @@ static func build_match(host: Node2D, map, num_boards: int = 1, local_index: int
 	var local_board = boards[local_index]
 	var local_ctrl = local_board.build_controller
 	var local_map = board_maps[local_index]
-	var ui = _build_match_ui(host, local_board, local_ctrl, local_map, _build_ghost_ladder(local_map))
+	var lb_group := "solo"
+	if is_coop_relay:
+		lb_group = LeaderboardService.GROUPS[clampi(num_boards - 1, 0, 3)]
+	var ui = _build_match_ui(host, local_board, local_ctrl, local_map, _build_ghost_ladder(local_map), lb_group)
 	var rail = ui[0]
 	var drawer = ui[1]
 
@@ -254,7 +257,7 @@ static func _build_board(container: Node2D, map, coordinator, is_local: bool, us
 
 	return board
 
-static func _build_match_ui(host: Node2D, local_board, local_ctrl, map, ghost_ladder) -> Array:
+static func _build_match_ui(host: Node2D, local_board, local_ctrl, map, ghost_ladder, lb_group := "solo") -> Array:
 	var mode: int = int(map.mode)
 	var rail := RailScript.new()
 	rail.round_manager = local_board
@@ -269,7 +272,7 @@ static func _build_match_ui(host: Node2D, local_board, local_ctrl, map, ghost_la
 	var match_end := MatchEndPanelScript.new()
 	match_end.round_manager = local_board
 	if mode == MapResourceScript.Mode.PVE:
-		match_end.lb_ctx = {"window": int(map.window_type), "tier": int(map.scale_tier), "group": "solo"}
+		match_end.lb_ctx = {"window": int(map.window_type), "tier": int(map.scale_tier), "group": lb_group}
 	match_end.ranked = (mode == MapResourceScript.Mode.PVP and SceneManager.transport != null)
 
 	var pause_menu := PauseMenuScript.new()

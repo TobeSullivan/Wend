@@ -446,7 +446,14 @@ func _show_medal() -> void:
 	if lb_ctx.is_empty():
 		_show_campaign_victory()
 		return
-	var damage: int = round_manager.total_damage_dealt
+	var local_damage: int = round_manager.total_damage_dealt
+	var coord = round_manager.coordinator
+	var score_damage := local_damage
+	if coord != null and coord.is_coop_relay:
+		var team := 0
+		for b in coord.boards:
+			team += int(b.total_damage_dealt)
+		score_damage = team
 	var rounds: int = _rounds_reached()
 	var star_count: int = round_manager.star_rating(rounds)
 	_title_label.text = "Run Complete"
@@ -458,7 +465,7 @@ func _show_medal() -> void:
 	_stars_row.visible = true
 	_result_label.text = "You reached Round %d" % rounds
 	_result_label.add_theme_color_override("font_color", STAR_RESULT_COLOR[star_count])
-	_detail_label.text = "Score: %s  ·  Kills: %d" % [_commas(damage), round_manager.total_kills]
+	_detail_label.text = "Score: %s  ·  Kills: %d" % [_commas(score_damage), round_manager.total_kills]
 	_thresholds_vbox.visible = true
 	_populate_thresholds(rounds)
 	_set_buttons([
@@ -467,11 +474,11 @@ func _show_medal() -> void:
 		{"text": "Return Home", "cb": _on_return_home},
 	])
 	_panel.visible = true
-	await SceneManager.report_match_result(damage)
+	await SceneManager.report_match_result(local_damage)
 	if not is_instance_valid(self):
 		return
 	_show_season_award()
-	await _populate_placement(LeaderboardService.encode_score(rounds, damage))
+	await _populate_placement(LeaderboardService.encode_score(rounds, score_damage))
 
 func _rounds_reached() -> int:
 	if round_manager == null:
