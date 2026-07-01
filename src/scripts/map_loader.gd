@@ -78,10 +78,6 @@ static func build_match(host: Node2D, map, num_boards: int = 1, local_index: int
 
 	if is_coop_relay:
 		coordinator.setup_shared_pools(num_boards, map.supply_cap)
-		for b in boards:
-			if b.build_controller != null:
-				b.build_controller.towers_changed.connect(func(_c, _cap): coordinator.refresh_shared_supply())
-		coordinator.refresh_shared_supply()
 
 	if local_index < 0:
 		return boards

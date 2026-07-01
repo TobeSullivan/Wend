@@ -77,8 +77,6 @@ func _ready() -> void:
 			co.shared_gold_changed.connect(func(g): _set_shared_gold(g))
 		if co.has_signal("shared_lives_changed"):
 			co.shared_lives_changed.connect(func(l): _set_shared_lives(l))
-		if co.has_signal("shared_supply_changed"):
-			co.shared_supply_changed.connect(func(u, c): _set_shared_supply(u, c))
 	if build_controller != null:
 		build_controller.towers_changed.connect(_on_towers_changed)
 		_towers_count = build_controller.towers.size()
@@ -300,13 +298,11 @@ func _refresh() -> void:
 			_set_shared_gold(int(co.get("shared_gold")))
 		if _lives_status != null and "shared_lives" in co:
 			_set_shared_lives(int(co.get("shared_lives")))
-		if "shared_supply_used" in co and "shared_supply_cap" in co:
-			_set_shared_supply(int(co.get("shared_supply_used")), int(co.get("shared_supply_cap")))
 	else:
 		if _lives_status != null:
 			_lives_status.text = "%d" % maxi(0, round_manager.lives)
-		_supply_val.text = "%d / %d" % [_towers_count, _towers_cap]
 		_gold_val.text = "%d" % round_manager.gold
+	_supply_val.text = "%d / %d" % [_towers_count, _towers_cap]
 	_refresh_phase()
 	_refresh_score()
 	_refresh_standing()
