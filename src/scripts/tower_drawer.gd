@@ -18,8 +18,10 @@ var _name_lab: Label
 var _sub_lab: Label
 var _stat_val: Dictionary = {}
 var _dmg_lab: Label
+var _sell_btn: Button
 
 var _selected
+var _readonly := false
 
 const STAT_ROWS := ["multishot", "damage", "attack_speed", "range", "crit_chance", "crit_damage", "dps"]
 const STAT_LABELS := {
@@ -148,6 +150,7 @@ func _build_ui() -> void:
 	UiStyle.style_flat_button(sell, UiStyle.SELL_BG, 11, UiStyle.SELL_BORDER, 2, false)
 	sell.pressed.connect(_on_sell_pressed)
 	v.add_child(sell)
+	_sell_btn = sell
 
 func _place() -> void:
 	if _panel == null or not _panel.visible:
@@ -171,20 +174,47 @@ func _place() -> void:
 
 func _on_tower_selected(tower) -> void:
 	_selected = tower
+	_readonly = false
+	if _sell_btn != null:
+		_sell_btn.visible = true
 	_panel.visible = true
 	_refresh()
 	_place.call_deferred()
 
 func _on_selection_cleared() -> void:
+	if _readonly:
+		return
 	_selected = null
 	_panel.visible = false
+
+func show_readonly(tower) -> void:
+	if not is_instance_valid(tower):
+		return
+	_selected = tower
+	_readonly = true
+	if _sell_btn != null:
+		_sell_btn.visible = false
+	_panel.visible = true
+	_refresh()
+	_place.call_deferred()
+
+func hide_readonly() -> void:
+	if not _readonly:
+		return
+	_selected = null
+	_readonly = false
+	_panel.visible = false
+	if _sell_btn != null:
+		_sell_btn.visible = true
 
 func _refresh() -> void:
 	if not is_instance_valid(_selected) or not _panel.visible:
 		return
 	var t = _selected
 	_name_lab.text = "Tier %d Tower" % t.tier
-	if t.tier >= GameConstants.MAX_TIER:
+	if _readonly:
+		_sub_lab.text = "Spectating (read only)."
+	elif t.tier >= GameConstants.MAX_TIER:
 		_sub_lab.text = "Maxed (T%d)" % GameConstants.MAX_TIER
 	else:
 		_sub_lab.text = "Drag onto a same-tier neighbor to merge -> T%d (or arm + direction)." % (t.tier + 1)

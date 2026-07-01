@@ -409,6 +409,9 @@ func handle_tap(world_pos: Vector2) -> void:
 	_touch_mode = true
 	_tap_cell(GridScript.world_to_cell(world_pos))
 
+func tower_at_cell(cell: Vector2i):
+	return _tower_at_cell(cell)
+
 func _tap_cell(cell: Vector2i) -> void:
 	var t := _tower_at_cell(cell)
 	if t != null:

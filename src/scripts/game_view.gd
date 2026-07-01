@@ -119,6 +119,8 @@ func board_screen_rect() -> Rect2:
 
 func _focus(i: int) -> void:
 	_spectate_index = i
+	if tower_drawer != null and tower_drawer.has_method("hide_readonly"):
+		tower_drawer.hide_readonly()
 	for j in range(board_containers.size()):
 		board_containers[j].visible = (j == i)
 	if _camera == null:
@@ -158,10 +160,25 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey:
 		_on_key(event)
 		return
+	if event is InputEventMouseButton:
+		_on_mouse_button(event)
+		return
 	if event is InputEventScreenTouch:
 		_on_touch(event)
 	elif event is InputEventScreenDrag:
 		_on_drag(event)
+
+func _on_mouse_button(e: InputEventMouseButton) -> void:
+	if not (e.pressed and e.button_index == MOUSE_BUTTON_LEFT):
+		return
+	if _spectate_index == local_index:
+		return
+	if not UiLayout.play_rect(is_pvp, get_viewport_rect().size).has_point(e.position):
+		return
+	if _over_open_overlay(e.position):
+		return
+	_spectate_tower_tap(_screen_to_world(e.position))
+	get_viewport().set_input_as_handled()
 
 func _on_key(e: InputEventKey) -> void:
 	if not e.pressed or e.echo:
@@ -245,13 +262,31 @@ func _over_open_overlay(pos: Vector2) -> bool:
 	return false
 
 func _dispatch_tap(screen_pos: Vector2) -> void:
-	if local_build_controller == null:
-		return
-	if _spectate_index != local_index:
-		return
 	if _over_open_overlay(screen_pos):
 		return
-	local_build_controller.handle_tap(_screen_to_world(screen_pos))
+	var world := _screen_to_world(screen_pos)
+	if _spectate_index != local_index:
+		_spectate_tower_tap(world)
+		return
+	if local_build_controller == null:
+		return
+	local_build_controller.handle_tap(world)
+
+func _spectate_tower_tap(world: Vector2) -> void:
+	if tower_drawer == null or coordinator == null:
+		return
+	if _spectate_index < 0 or _spectate_index >= coordinator.boards.size():
+		return
+	var origin: Vector2 = board_containers[_spectate_index].position
+	var cell := GridScript.world_to_cell(world - origin)
+	var bc = coordinator.boards[_spectate_index].build_controller
+	if bc == null:
+		return
+	var tower = bc.tower_at_cell(cell)
+	if tower != null:
+		tower_drawer.show_readonly(tower)
+	else:
+		tower_drawer.hide_readonly()
 
 func _screen_to_world(s: Vector2) -> Vector2:
 	var vp := get_viewport_rect().size
