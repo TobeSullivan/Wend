@@ -90,7 +90,7 @@ static func build_match(host: Node2D, map, num_boards: int = 1, local_index: int
 	var lb_group := "solo"
 	if is_coop_relay:
 		lb_group = LeaderboardService.GROUPS[clampi(num_boards - 1, 0, 3)]
-	var ui = _build_match_ui(host, local_board, local_ctrl, local_map, _build_ghost_ladder(local_map), lb_group)
+	var ui = _build_match_ui(host, local_board, local_ctrl, local_map, _build_ghost_ladder(local_map, lb_group), lb_group)
 	var rail = ui[0]
 	var drawer = ui[1]
 
@@ -297,13 +297,13 @@ static func _build_match_ui(host: Node2D, local_board, local_ctrl, map, ghost_la
 	host.add_child(countdown)
 	return [rail, drawer]
 
-static func _build_ghost_ladder(map):
+static func _build_ghost_ladder(map, group := "solo"):
 	if map.mode != MapResourceScript.Mode.PVE:
 		return null
 	var ladder = GhostLadderScript.new()
 	var best := LeaderboardService.round_part(SaveData.best_pve_score(map.window_date, map.scale_tier))
-	ladder.setup(int(map.star1_threshold), int(map.star2_threshold), int(map.star3_threshold),
-		GhostLadderScript.fetch_snapshot(map), best)
+	ladder.setup(int(map.star1_threshold), int(map.star2_threshold), int(map.star3_threshold), [], best)
+	ladder.configure_fetch(int(map.window_type), int(map.scale_tier), group)
 	return ladder
 
 const BOARD_BORDER := 6

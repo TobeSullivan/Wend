@@ -12,18 +12,41 @@ var ghosts: Array = []
 var own_best: int = 0
 
 var _ghost_rungs: Array = []
+var _window: int = 0
+var _tier: int = 1
+var _group: String = "solo"
 
 func setup(bronze_t: int, silver_t: int, gold_t: int, ghost_list: Array, best: int) -> void:
 	bronze = bronze_t
 	silver = silver_t
 	gold = gold_t
 	own_best = best
+	set_ghosts(ghost_list)
+
+func set_ghosts(ghost_list: Array) -> void:
 	ghosts = ghost_list.duplicate(true)
 	_ghost_rungs = []
 	for g in ghosts:
 		if int(g.get("score", 0)) > gold:
 			_ghost_rungs.append(g)
 	_ghost_rungs.sort_custom(func(a, b): return int(a["score"]) < int(b["score"]))
+
+func configure_fetch(window: int, tier: int, group: String) -> void:
+	_window = window
+	_tier = tier
+	_group = group
+
+func fetch_ghosts_async() -> void:
+	var data = await LeaderboardService.trials_board(_window, _tier, _group)
+	if typeof(data) != TYPE_DICTIONARY:
+		return
+	var gl: Array = []
+	for e in data.get("entries", []):
+		var nm := String(e.get("name", ""))
+		var rnd := LeaderboardService.round_part(int(e.get("score", 0)))
+		if nm != "" and rnd > 0:
+			gl.append({"name": nm, "score": rnd})
+	set_ghosts(gl)
 
 func target_for(score: int) -> Dictionary:
 	if gold > 0 and score < gold:
@@ -72,6 +95,3 @@ func rungs_above(score: int, n: int = 3) -> Array:
 	if out.size() > n:
 		out = out.slice(0, n)
 	return out
-
-static func fetch_snapshot(_map) -> Array:
-	return []

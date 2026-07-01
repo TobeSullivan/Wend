@@ -53,6 +53,8 @@ func _ready() -> void:
 	if not _is_pvp():
 		if ghost_ladder != null:
 			_rung_source = ghost_ladder
+			if ghost_ladder.has_method("fetch_ghosts_async"):
+				_fetch_ghosts()
 		elif round_manager != null:
 			_rung_source = GhostLadderScript.new()
 			_rung_source.setup(int(round_manager.star1_threshold), int(round_manager.star2_threshold),
@@ -329,6 +331,11 @@ func _refresh_phase() -> void:
 		_phase_val.text = "Build · %d:%02d" % [int(round_manager.build_time_left) / 60, int(round_manager.build_time_left) % 60]
 	else:
 		_phase_val.text = "Run"
+
+func _fetch_ghosts() -> void:
+	await ghost_ladder.fetch_ghosts_async()
+	if is_instance_valid(self):
+		_refresh_score()
 
 func _refresh_score() -> void:
 	if _is_pvp() or _score_hero == null or round_manager == null:
