@@ -28,7 +28,10 @@ Output is a self-contained ELF x86-64 (pck embedded, ~74 MB). `deploy/build/` is
 > same as the Android preset), so the "Linux Server" preset lives only on the build machine.
 > If it's ever missing, recreate it in the Godot editor (Project → Export → Add → Linux) with:
 > `Architecture = x86_64`, `Embed PCK = on`, `Export Path = ../deploy/build/wend_server.x86_64`,
-> `dedicated_server = off` (the server sims the full match scene, so keep all resources).
+> `dedicated_server = off` (the server sims the full match scene, so keep all resources), and
+> `Resources -> Filters to export non-resource files = nakama_local.cfg`. That last one is
+> REQUIRED: `all_resources` does not bundle the plain `.cfg`, so without it the match server
+> logs "nakama_local.cfg missing -- backend disabled" and cannot submit co-op team scores.
 
 ---
 
