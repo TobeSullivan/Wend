@@ -16,6 +16,8 @@ WorkingDirectory=/opt/wend
 ExecStart=/usr/bin/stdbuf -oL -eL /opt/wend/wend_server.x86_64 --headless -- --server
 # Godot writes user:// (save data, logs) under $HOME — keep it on the box, not /root.
 Environment=HOME=/opt/wend
+# WEND_SERVER_SUBMIT_SECRET (co-op team-score submit) lives in a gitignored env file on the box.
+EnvironmentFile=-/opt/wend/wend-server.env
 Restart=on-failure
 RestartSec=3
 # The match runs in one process; if it crashes, restart and the lobby reopens.

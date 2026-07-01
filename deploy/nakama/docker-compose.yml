@@ -51,7 +51,8 @@ services:
           --runtime.js_entrypoint "index.js" \
           --runtime.env "STEAM_PUBLISHER_KEY=${STEAM_PUBLISHER_KEY:-}" \
           --runtime.env "STEAM_APP_ID=${STEAM_APP_ID:-4884650}" \
-          --runtime.env "STEAM_IDENTITY=${STEAM_IDENTITY:-wend-nakama}"
+          --runtime.env "STEAM_IDENTITY=${STEAM_IDENTITY:-wend-nakama}" \
+          --runtime.env "WEND_SERVER_SUBMIT_SECRET=${WEND_SERVER_SUBMIT_SECRET:?set WEND_SERVER_SUBMIT_SECRET in .env}"
     volumes:
       # Runtime modules load from /nakama/data/modules; index.js (js_entrypoint) lives there.
       - ./data:/nakama/data
