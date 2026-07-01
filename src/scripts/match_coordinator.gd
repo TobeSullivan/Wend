@@ -38,6 +38,7 @@ const SIM_HZ := 60
 const SIM_DT := 1.0 / SIM_HZ
 const MAX_STEPS_PER_FRAME := 12
 const COOP_RUN_SPEED := 3.0
+const PVP_RUN_SPEED := 3.0
 var sim_tick: int = 0
 var _sim_accum: float = 0.0
 var build_ticks_left: int = 0
@@ -97,8 +98,11 @@ func _ready() -> void:
 	build_time_left = build_ticks_left * SIM_DT
 
 func _run_speed_mult() -> float:
-	if is_coop_relay and phase == "run" and not match_over:
-		return COOP_RUN_SPEED
+	if phase == "run" and not match_over:
+		if is_coop_relay:
+			return COOP_RUN_SPEED
+		if is_pvp:
+			return PVP_RUN_SPEED
 	return 1.0
 
 func _process(delta: float) -> void:
