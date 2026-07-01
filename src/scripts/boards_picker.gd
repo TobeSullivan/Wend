@@ -5,6 +5,7 @@ class_name BoardsPicker
 const UiStyle := preload("res://scripts/ui_style.gd")
 const UiLayout := preload("res://scripts/ui_layout.gd")
 const Motion := preload("res://scripts/motion.gd")
+const PlayerIdentity := preload("res://scripts/player_identity.gd")
 
 var coordinator
 var game_view
@@ -102,22 +103,12 @@ func _player_row(hotkey: int, board_i: int, is_you: bool) -> Button:
 	badge.add_child(badge_lbl)
 	row.add_child(badge)
 
-	var avatar := PanelContainer.new()
-	avatar.custom_minimum_size = Vector2(28 * s, 28 * s)
-	avatar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	avatar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	avatar.add_theme_stylebox_override("panel", UiStyle.flat_box(UiStyle.DOCK_BORDER, 14, UiStyle.PILL_BORDER, 2, false))
-	row.add_child(avatar)
-
 	var name_txt := _name_for(board_i)
 	if is_you:
 		name_txt += "  (you)"
-	var name_lbl := _label(name_txt, 16, Color.WHITE)
-	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	name_lbl.clip_text = true
-	name_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	row.add_child(name_lbl)
+	var chip := PlayerIdentity.chip(name_txt, null, int(28 * s), int(16 * s), true)
+	chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(chip)
 
 	var chev := _label("›", 22, UiStyle.LABEL_COL)
 	chev.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

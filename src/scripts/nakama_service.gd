@@ -38,6 +38,20 @@ func _load_config() -> void:
 func is_configured() -> bool:
 	return _configured
 
+func fetch_display_names(ids: Array) -> Dictionary:
+	var out := {}
+	if not has_session() or client == null or ids.is_empty():
+		return out
+	var res = await client.get_users_async(session, PackedStringArray(ids))
+	if res == null or res.is_exception():
+		return out
+	for u in res.users:
+		var nm := String(u.display_name).strip_edges()
+		if nm == "":
+			nm = String(u.username)
+		out[String(u.id)] = nm
+	return out
+
 func has_session() -> bool:
 	return session != null and session.valid and not session.is_expired()
 
