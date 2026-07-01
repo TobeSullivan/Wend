@@ -4,6 +4,7 @@ class_name LeaderboardPanel
 const UiLayout := preload("res://scripts/ui_layout.gd")
 const UiStyle := preload("res://scripts/ui_style.gd")
 const Motion := preload("res://scripts/motion.gd")
+const PlayerIdentity := preload("res://scripts/player_identity.gd")
 
 var coordinator
 var boards: Array = []
@@ -125,6 +126,8 @@ func _make_row(idx: int) -> Dictionary:
 	var rank_lbl := _lbl("", int(15 * s), UiStyle.LABEL_COL)
 	rank_lbl.custom_minimum_size = Vector2(22 * s, 0)
 	hb.add_child(rank_lbl)
+
+	hb.add_child(PlayerIdentity.avatar_box(pname, null, int(22 * s)))
 
 	var name_lbl := _lbl(pname, int(15 * s), Color.WHITE)
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL

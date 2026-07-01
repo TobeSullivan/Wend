@@ -2,6 +2,7 @@ extends Control
 
 const UiStyle := preload("res://scripts/ui_style.gd")
 const MapResourceScript := preload("res://resources/map_resource.gd")
+const PlayerIdentity := preload("res://scripts/player_identity.gd")
 
 enum Cat { TRIALS, RANKED, CAMPAIGN }
 
@@ -229,6 +230,7 @@ func _score_row(rank: int, display_name: String, score: int, is_me: bool, compos
 	var row := _row_panel(is_me)
 	var hb := _row_hbox(row)
 	hb.add_child(_cell("%d" % rank, 44, _rank_col(is_me), HORIZONTAL_ALIGNMENT_RIGHT))
+	hb.add_child(PlayerIdentity.avatar_box(display_name, null, 22))
 	var nm := _cell(display_name, 0, Color("dffacb") if is_me else Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT)
 	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	nm.clip_text = true
@@ -242,6 +244,7 @@ func _ranked_row(rank: int, display_name: String, tier: String, lp: int, is_me: 
 	var row := _row_panel(is_me)
 	var hb := _row_hbox(row)
 	hb.add_child(_cell("%d" % rank, 44, _rank_col(is_me), HORIZONTAL_ALIGNMENT_RIGHT))
+	hb.add_child(PlayerIdentity.avatar_box(display_name, null, 22))
 	var nm := _cell(display_name, 0, Color("dffacb") if is_me else Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT)
 	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	nm.clip_text = true
