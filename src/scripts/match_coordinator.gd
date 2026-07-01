@@ -147,14 +147,20 @@ func mob_hp_for_round() -> float:
 	return base * _scale_hp_mult()
 
 func _scale_hp_mult() -> float:
-	if not (endless or is_pvp):
+	if is_pvp:
+		var pramp := clampf(float(round_num) / float(GameConstants.PVP_HP_RAMP_ROUND), 0.0, 1.0)
+		return lerpf(1.0, GameConstants.PVP_HP_SCALE_MAX, pramp)
+	if not endless:
 		return 1.0
 	var full: float = GameConstants.SCALE_HP_MULT[clampi(scale_tier - 1, 0, GameConstants.SCALE_HP_MULT.size() - 1)]
 	var ramp := clampf(float(round_num) / float(GameConstants.SCALE_HP_RAMP_ROUND), 0.0, 1.0)
 	return lerpf(1.0, full, ramp)
 
 func mob_count_for_round(board) -> int:
-	if not (endless or is_pvp):
+	if is_pvp:
+		var np := GameConstants.WAVE_COUNT_BASE + (round_num - 1) * GameConstants.PVP_COUNT_PER_ROUND
+		return clampi(np, GameConstants.WAVE_COUNT_BASE, GameConstants.WAVE_COUNT_MAX)
+	if not endless:
 		return board.mob_count
 	var n := GameConstants.WAVE_COUNT_BASE + (round_num - 1) * GameConstants.WAVE_COUNT_PER_ROUND
 	return clampi(n, GameConstants.WAVE_COUNT_BASE, GameConstants.WAVE_COUNT_MAX)
@@ -213,7 +219,13 @@ func _start_wave_on_boards() -> void:
 	var boss := is_boss_round()
 	var bhp := boss_hp_for_round()
 	if is_coop_relay:
-		var count: int = mob_count_for_round(boards[0]) if not boards.is_empty() else 0
+		var nb := boards.size()
+		var hp_mult := 1.0 + GameConstants.COOP_HP_PER_BOARD * float(nb - 1)
+		var count_mult := 1.0 + GameConstants.COOP_COUNT_PER_BOARD * float(nb - 1)
+		hp *= hp_mult
+		bhp *= hp_mult
+		var base_count: int = mob_count_for_round(boards[0]) if not boards.is_empty() else 0
+		var count := int(round(float(base_count) * count_mult))
 		for i in boards.size():
 			var b = boards[i]
 			if b.is_active():

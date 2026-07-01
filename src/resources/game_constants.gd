@@ -31,6 +31,13 @@ const TRIALS_STAR_ROUNDS := {
 const SCALE_HP_MULT := [0.45, 0.70, 1.0, 1.45, 1.9]
 const SCALE_HP_RAMP_ROUND := 18
 
+const COOP_HP_PER_BOARD := 1.0
+const COOP_COUNT_PER_BOARD := 0.35
+
+const PVP_HP_SCALE_MAX := 2.6
+const PVP_HP_RAMP_ROUND := 12
+const PVP_COUNT_PER_ROUND := 3
+
 # --- Boss ---
 # Mobs die permanently now; a boss rides among the wave every N rounds and a
 # leak past it costs a heavy chunk of lives. (design_revisions_2026-06-22 §2)
