@@ -8,7 +8,6 @@ signal match_ended
 signal lives_resolved
 signal board_eliminated(board)
 signal ready_changed
-signal shared_gold_changed(new_gold: int)
 signal shared_lives_changed(new_lives: int)
 signal shared_supply_changed(used: int, cap: int)
 
@@ -20,7 +19,6 @@ var is_pvp: bool = false
 var endless: bool = false
 
 var is_coop_relay: bool = false
-var shared_gold: int = 0
 var shared_lives: int = 0
 var shared_supply_used: int = 0
 var shared_supply_cap: int = 0
@@ -257,24 +255,15 @@ func _all_runs_done() -> bool:
 
 func setup_shared_pools(num_boards: int, supply_each: int) -> void:
 	is_coop_relay = true
-	shared_gold = GameConstants.STARTING_GOLD * num_boards
 	shared_lives = GameConstants.TRIALS_LIVES * num_boards
 	shared_supply_cap = supply_each * num_boards
 	shared_supply_used = 0
 
-func add_shared_gold(n: int) -> void:
-	shared_gold += n
-	emit_signal("shared_gold_changed", shared_gold)
-
-func can_afford_shared(n: int) -> bool:
-	return shared_gold >= n
-
-func spend_shared_gold(n: int) -> bool:
-	if shared_gold < n:
-		return false
-	shared_gold -= n
-	emit_signal("shared_gold_changed", shared_gold)
-	return true
+func award_gold_all(n: int) -> void:
+	for b in boards:
+		if b.is_active():
+			b.gold += n
+			b.emit_signal("gold_changed", b.gold)
 
 func shared_supply_used_now() -> int:
 	var n := 0
@@ -305,7 +294,7 @@ func _end_round() -> void:
 		if b.is_active():
 			b.settle_round(round_num)
 	if is_coop_relay:
-		add_shared_gold(GameConstants.ROUND_BONUS_BASE + round_num)
+		award_gold_all(GameConstants.ROUND_BONUS_BASE + round_num)
 
 	if is_pvp:
 		resolve_lives()

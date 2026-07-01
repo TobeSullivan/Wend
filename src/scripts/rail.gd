@@ -75,8 +75,6 @@ func _ready() -> void:
 			round_manager.coordinator.lives_resolved.connect(_refresh_standing)
 	if _is_coop_relay():
 		var co = round_manager.coordinator
-		if co.has_signal("shared_gold_changed"):
-			co.shared_gold_changed.connect(func(g): _set_shared_gold(g))
 		if co.has_signal("shared_lives_changed"):
 			co.shared_lives_changed.connect(func(l): _set_shared_lives(l))
 	if build_controller != null:
@@ -296,23 +294,17 @@ func _refresh() -> void:
 	else:
 		_round_val.text = "%d / %d" % [round_manager.round_num, round_manager.max_rounds]
 	if _is_coop_relay():
-		if "shared_gold" in co:
-			_set_shared_gold(int(co.get("shared_gold")))
 		if _lives_status != null and "shared_lives" in co:
 			_set_shared_lives(int(co.get("shared_lives")))
 	else:
 		if _lives_status != null:
 			_lives_status.text = "%d" % maxi(0, round_manager.lives)
-		_gold_val.text = "%d" % round_manager.gold
+	_gold_val.text = "%d" % maxi(0, round_manager.gold)
 	_supply_val.text = "%d / %d" % [_towers_count, _towers_cap]
 	_refresh_phase()
 	_refresh_score()
 	_refresh_standing()
 	_refresh_buttons()
-
-func _set_shared_gold(g: int) -> void:
-	if _gold_val != null:
-		_gold_val.text = "%d" % maxi(0, g)
 
 func _set_shared_lives(l: int) -> void:
 	if _lives_status != null:

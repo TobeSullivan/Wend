@@ -50,6 +50,15 @@ func submit_team_score_async(payload: Dictionary) -> bool:
 		return false
 	return true
 
+func report_client_log_async(payload: Dictionary) -> bool:
+	if not has_session() or client == null:
+		return false
+	var res = await client.rpc_async(session, "client_log", JSON.stringify(payload))
+	if res == null or res.is_exception():
+		push_warning("NakamaService: client_log failed (%s)" % (str(res.get_exception()) if res != null else "null result"))
+		return false
+	return true
+
 func fetch_display_names(ids: Array) -> Dictionary:
 	var out := {}
 	if not has_session() or client == null or ids.is_empty():

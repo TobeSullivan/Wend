@@ -25,6 +25,12 @@ Nakama="*res://addons/com.heroiclabs.nakama/Nakama.gd"
 NakamaService="*res://scripts/nakama_service.gd"
 SceneManager="*res://scripts/scene_manager.gd"
 DebugOverlay="*res://scripts/debug_overlay.gd"
+CrashReporter="*res://scripts/crash_reporter.gd"
+
+[debug]
+
+file_logging/enable_file_logging=true
+file_logging/max_files=5
 
 [display]
 

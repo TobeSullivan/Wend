@@ -77,13 +77,9 @@ func _relay() -> bool:
 	return coordinator != null and coordinator.is_coop_relay
 
 func can_afford(cost: int) -> bool:
-	if _relay():
-		return coordinator.can_afford_shared(cost)
 	return gold >= cost
 
 func spend(cost: int) -> bool:
-	if _relay():
-		return coordinator.spend_shared_gold(cost)
 	if gold < cost:
 		return false
 	gold -= cost
@@ -91,22 +87,16 @@ func spend(cost: int) -> bool:
 	return true
 
 func refund(amount: int) -> void:
-	if _relay():
-		coordinator.add_shared_gold(amount)
-		return
 	gold += amount
 	emit_signal("gold_changed", gold)
 
 func net_spend(cost: int) -> void:
-	if _relay():
-		coordinator.spend_shared_gold(cost)
-		return
 	gold = maxi(0, gold - cost)
 	emit_signal("gold_changed", gold)
 
 func _on_mob_killed() -> void:
 	if _relay():
-		coordinator.add_shared_gold(GameConstants.KILL_BONUS)
+		coordinator.award_gold_all(GameConstants.KILL_BONUS)
 	else:
 		gold += GameConstants.KILL_BONUS
 		emit_signal("gold_changed", gold)

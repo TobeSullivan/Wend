@@ -34,6 +34,8 @@ var BETA = true;
 var CURRENT_SEASON = BETA ? 0 : 1;  // ranked_s<N>; bump on season roll (launch opens at 1)
 var TRIALS_ID_PREFIX = BETA ? "trials_beta_" : "trials_";  // mirrors LeaderboardService.trials_board_id
 var RECORD_COLLECTION = "match_records";  // storage collection for re-sim re-validation
+var CLIENT_LOG_COLLECTION = "client_logs";
+var CLIENT_LOG_MAX_BYTES = 64 * 1024;
 // Per-window Trials map seeds (leaderboard_schema.md §3): SERVER-owned so a client can't pick
 // an easy map and post under the real board id, and so everyone that window shares the same 5
 // maps. Generated once per window-cycle and stored (system-owned); the client fetches via the
@@ -73,6 +75,7 @@ function InitModule(ctx, logger, nk, initializer) {
 	// the identity, then mints a Nakama session keyed by the verified Steam ID. Called by the
 	// client with the runtime http_key BEFORE it has a session (NakamaService._authenticate_steam).
 	initializer.registerRpc("steam_auth", rpcSteamAuth);
+	initializer.registerRpc("client_log", rpcClientLog);
 	// Forming lobby: an authoritative "lobby" match accretes matchmaker pops up to 8, runs the
 	// vote, then points everyone at a Godot match-server room (notes/matchmaking_orchestration.md).
 	initializer.registerMatch(LOBBY_MODULE, {
@@ -281,6 +284,41 @@ function rpcSteamAuth(ctx, logger, nk, payload) {
 		created: auth.created,
 		steam_id: steamId,
 	});
+}
+
+function rpcClientLog(ctx, logger, nk, payload) {
+	if (!ctx.userId) throw errPermission("must be authenticated");
+	var req;
+	try { req = JSON.parse(payload); } catch (e) { throw errInvalid("payload must be JSON"); }
+	var text = String(req.log || "");
+	if (!text) throw errInvalid("log required");
+	if (text.length > CLIENT_LOG_MAX_BYTES) text = text.substring(text.length - CLIENT_LOG_MAX_BYTES);
+
+	var username = ctx.username || "";
+	try {
+		var acc = nk.accountGetId(ctx.userId);
+		if (acc && acc.user && acc.user.displayName) username = acc.user.displayName;
+	} catch (e) {}
+
+	var now = Math.floor(Date.now() / 1000);
+	var tag = req.tag ? String(req.tag).replace(/[^A-Za-z0-9._-]/g, "").substring(0, 48) : "log";
+	var key = String(now) + "_" + tag;
+	nk.storageWrite([{
+		collection: CLIENT_LOG_COLLECTION, key: key, userId: ctx.userId,
+		value: {
+			when_unix: now,
+			username: username,
+			platform: String(req.platform || ""),
+			version: String(req.version || ""),
+			godot: String(req.godot || ""),
+			log_ts: String(req.log_ts || ""),
+			errors: Math.floor(Number(req.errors)) || 0,
+			log: text,
+		},
+		permissionRead: 0, permissionWrite: 0,
+	}]);
+	logger.info("client_log stored: user=%s key=%s bytes=%d errors=%s", username, key, text.length, String(req.errors));
+	return JSON.stringify({ ok: true, key: key });
 }
 
 // --- Server-owned Trials map seeds (leaderboard_schema.md §3) ----------------
