@@ -177,8 +177,8 @@ func _on_mouse_button(e: InputEventMouseButton) -> void:
 		return
 	if _over_open_overlay(e.position):
 		return
-	_spectate_tower_tap(_screen_to_world(e.position))
-	get_viewport().set_input_as_handled()
+	if _spectate_tower_tap(_screen_to_world(e.position)):
+		get_viewport().set_input_as_handled()
 
 func _on_key(e: InputEventKey) -> void:
 	if not e.pressed or e.echo:
@@ -272,21 +272,22 @@ func _dispatch_tap(screen_pos: Vector2) -> void:
 		return
 	local_build_controller.handle_tap(world)
 
-func _spectate_tower_tap(world: Vector2) -> void:
+func _spectate_tower_tap(world: Vector2) -> bool:
 	if tower_drawer == null or coordinator == null:
-		return
+		return false
 	if _spectate_index < 0 or _spectate_index >= coordinator.boards.size():
-		return
+		return false
 	var origin: Vector2 = board_containers[_spectate_index].position
 	var cell := GridScript.world_to_cell(world - origin)
 	var bc = coordinator.boards[_spectate_index].build_controller
 	if bc == null:
-		return
+		return false
 	var tower = bc.tower_at_cell(cell)
 	if tower != null:
 		tower_drawer.show_readonly(tower)
-	else:
-		tower_drawer.hide_readonly()
+		return true
+	tower_drawer.hide_readonly()
+	return false
 
 func _screen_to_world(s: Vector2) -> Vector2:
 	var vp := get_viewport_rect().size
