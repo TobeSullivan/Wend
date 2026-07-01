@@ -106,6 +106,8 @@ static func _apply(boards: Array, entry: Dictionary) -> String:
 		"build_merge":
 			if not bc._attempt_build_merge(a["cell"]):
 				return "illegal_build_merge"
+		"undo":
+			bc.apply_remote_undo(a["undo"])
 		"start":
 			board.coordinator.request_start_now()
 		"vote_start":

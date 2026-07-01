@@ -85,6 +85,8 @@ func _apply_build_input(msg: Dictionary) -> void:
 			bc.apply_remote_merge(msg["src"], msg["dst"])
 		NetProtocol.ACT_BUILD_MERGE:
 			bc.apply_remote_build_merge(msg["cell"])
+		NetProtocol.ACT_UNDO:
+			bc.apply_remote_undo(msg["undo"])
 
 func _process(dt: float) -> void:
 	if transport == null or not transport.is_authority() or coordinator.match_over:

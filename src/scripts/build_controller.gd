@@ -49,6 +49,7 @@ var _ghost: Sprite2D
 var _ghost_range: Line2D
 var _sel_range: Line2D
 var _selected_tower
+var _last_action: Dictionary = {}
 
 var _build_mode: bool = false
 var _current_path: PackedVector2Array = PackedVector2Array()
@@ -155,6 +156,9 @@ func _input(event: InputEvent) -> void:
 		if event.keycode == KEY_B:
 			_set_build_mode(not _build_mode)
 			return
+		if event.keycode == KEY_U:
+			undo_last()
+			return
 		if _handle_merge_key(event.keycode):
 			return
 
@@ -192,6 +196,7 @@ func _input(event: InputEvent) -> void:
 				if existing.tier == GameConstants.MIN_TIER and _attempt_build_merge(cell):
 					_relay_build_merge(cell)
 					_log_action({"type": "build_merge", "cell": cell})
+					_last_action = {}
 					if not mouse_event.shift_pressed:
 						_set_build_mode(false)
 				return
@@ -202,6 +207,7 @@ func _input(event: InputEvent) -> void:
 			round_manager.spend(GameConstants.TOWER_COST)
 			_place_tower(cell)
 			_relay_place(cell)
+			_last_action = {"kind": "build", "cell": cell}
 			if not mouse_event.shift_pressed:
 				_set_build_mode(false)
 		else:
@@ -219,8 +225,11 @@ func _input(event: InputEvent) -> void:
 			_set_armed(false)
 			_clear_selection()
 			if _in_build_phase():
+				var st := _tower_at_cell(cell)
+				var srec: Dictionary = {"kind": "sell", "cell": cell, "tier": st.tier, "invested": st.total_invested} if st != null else {}
 				if _sell_tower_at_cell(cell):
 					_relay_sell(cell)
+					_last_action = srec
 
 # --- Merge: keyboard / controller (tap-to-arm) ---
 
@@ -328,6 +337,7 @@ func _try_merge(src_cell: Vector2i, dst_cell: Vector2i) -> bool:
 	_do_merge(src, dst)
 	_relay_merge(src_cell, dst_cell)
 	_log_action({"type": "merge", "src": src_cell, "dst": dst_cell})
+	_last_action = {}
 	return true
 
 func _attempt_build_merge(cell: Vector2i) -> bool:
@@ -440,6 +450,7 @@ func confirm_pending_build() -> void:
 	round_manager.spend(GameConstants.TOWER_COST)
 	_place_tower(cell)
 	_relay_place(cell)
+	_last_action = {"kind": "build", "cell": cell}
 	_clear_pending()
 
 func cancel_pending_build() -> void:
@@ -451,8 +462,10 @@ func sell_selected_tower() -> void:
 	if not _in_build_phase():
 		return
 	var cell: Vector2i = _selected_tower.grid_cell
+	var srec: Dictionary = {"kind": "sell", "cell": cell, "tier": _selected_tower.tier, "invested": _selected_tower.total_invested}
 	if _sell_tower_at_cell(cell):
 		_relay_sell(cell)
+		_last_action = srec
 
 func _set_pending(cell: Vector2i) -> void:
 	_pending_cell = cell
@@ -519,6 +532,8 @@ func _in_build_phase() -> bool:
 	return round_manager == null or round_manager.phase == "build"
 
 func _on_phase_changed(phase: String) -> void:
+	if phase != "build":
+		_last_action = {}
 	if phase == "run" and _build_mode:
 		_set_build_mode(false)
 	if road_renderer != null:
@@ -641,6 +656,66 @@ func apply_remote_merge(src: Vector2i, dst: Vector2i) -> bool:
 		return false
 	_do_merge(s, d)
 	return true
+
+func undo_last() -> void:
+	if not interactive or not _in_build_phase() or _last_action.is_empty():
+		return
+	var record := _last_action
+	_last_action = {}
+	apply_remote_undo(record)
+	if net != null:
+		net.submit_local_input(NetProtocolScript.build_input_undo(seat, record))
+	_log_action({"type": "undo", "undo": record})
+
+func apply_remote_undo(record: Dictionary) -> void:
+	var cell: Vector2i = record.get("cell", _NO_CELL)
+	if cell == _NO_CELL:
+		return
+	var kind := String(record.get("kind", ""))
+	if kind == "build":
+		var t := _tower_at_cell(cell)
+		if t == null or not is_instance_valid(t):
+			return
+		if t == _selected_tower:
+			_clear_selection()
+		var idx := towers.find(t)
+		if idx != -1:
+			towers.remove_at(idx)
+		blocked.erase(cell)
+		t.queue_free()
+		if round_manager != null:
+			round_manager.refund(GameConstants.TOWER_COST)
+	elif kind == "sell":
+		if _tower_at_cell(cell) != null:
+			return
+		var tier := int(record.get("tier", GameConstants.MIN_TIER))
+		var invested := int(record.get("invested", GameConstants.TOWER_COST))
+		_restore_tower(cell, tier, invested)
+		var refund := int(floor(invested * GameConstants.SELL_REFUND_RATE))
+		if round_manager != null:
+			round_manager.net_spend(refund)
+	else:
+		return
+	recompute_path()
+	_last_ghost_cell = _NO_CELL
+	emit_signal("towers_changed", towers.size(), max_towers)
+
+func _restore_tower(cell: Vector2i, tier: int, invested: int) -> void:
+	var tower := TowerScript.new()
+	tower.grid_cell = cell
+	tower.position = GridScript.cell_to_world(cell)
+	tower.mobs = mobs_array
+	tower.board = round_manager
+	tower.total_invested = invested
+	tower.skin_tex = tower_skin_tex
+	tower.proj_tint = proj_tint
+	tower.fx_id = fx_id
+	tower.aura_ramp = aura_ramp
+	get_parent().add_child(tower)
+	if tier > GameConstants.MIN_TIER:
+		tower.set_tier(tier)
+	towers.append(tower)
+	blocked[cell] = true
 
 func recompute_path() -> void:
 	_current_path = PathfinderScript.compute_orthogonal_path(entry_cell, checkpoint_cells, exit_cell, blocked)
