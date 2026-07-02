@@ -12,8 +12,8 @@ const BUILD_TIME_NORMAL := 25.0
 const MOB_BASE_HP := 150.0
 const MOB_SPEED := 80.0
 const MOB_SLOW_FLOOR := 0.10
-const MOB_HP_FLAT_ROUNDS := 3
-const MOB_HP_GROWTH := 1.12
+const MOB_HP_FLAT_ROUNDS := 2
+const MOB_HP_GROWTH := 1.14
 const SPAWN_INTERVAL := 0.8
 
 const WAVE_COUNT_BASE := 14
@@ -30,6 +30,9 @@ const TRIALS_STAR_ROUNDS := {
 
 const SCALE_HP_MULT := [0.45, 0.70, 1.0, 1.45, 1.9]
 const SCALE_HP_RAMP_ROUND := 18
+
+const EARLY_HP_MULT := 2.2
+const EARLY_HP_CONVERGE_ROUND := 25
 
 const COOP_HP_PER_BOARD := 1.0
 const COOP_COUNT_PER_BOARD := 0.35

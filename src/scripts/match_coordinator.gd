@@ -146,7 +146,13 @@ func mob_hp_for_round() -> float:
 	var base := GameConstants.MOB_BASE_HP
 	if round_num > GameConstants.MOB_HP_FLAT_ROUNDS:
 		base *= pow(GameConstants.MOB_HP_GROWTH, round_num - GameConstants.MOB_HP_FLAT_ROUNDS)
-	return base * _scale_hp_mult()
+	return base * _scale_hp_mult() * _early_pressure()
+
+func _early_pressure() -> float:
+	if not endless or round_num >= GameConstants.EARLY_HP_CONVERGE_ROUND:
+		return 1.0
+	var t := float(GameConstants.EARLY_HP_CONVERGE_ROUND - round_num) / float(GameConstants.EARLY_HP_CONVERGE_ROUND - 1)
+	return 1.0 + (GameConstants.EARLY_HP_MULT - 1.0) * t
 
 func _scale_hp_mult() -> float:
 	if is_pvp:
