@@ -19,8 +19,8 @@ func _ready() -> void:
 func room_count() -> int:
 	return _rooms.size()
 
-func _on_peer_joined(_id: int) -> void:
-	pass
+func _on_peer_joined(id: int) -> void:
+	print("[server] peer %d connected (%d room(s) live)" % [id, _rooms.size()])
 
 func _on_received(from_id: int, msg: Dictionary) -> void:
 	if String(msg.get("t", "")) == NetProtocol.JOIN_ROOM:
@@ -32,7 +32,10 @@ func _on_received(from_id: int, msg: Dictionary) -> void:
 
 func _join_room(peer: int, msg: Dictionary) -> void:
 	var mid := String(msg.get("match_id", ""))
+	print("[server] JOIN_ROOM peer=%d match=%s expected=%s is_host=%s mode=%s" % [
+		peer, mid, str(msg.get("expected", "?")), str(msg.get("is_host", false)), str(msg.get("mode", "pvp"))])
 	if mid == "":
+		print("[server] JOIN_ROOM peer=%d rejected: empty match_id" % peer)
 		return
 	var room
 	if _rooms.has(mid):
@@ -52,15 +55,23 @@ func _join_room(peer: int, msg: Dictionary) -> void:
 		_rooms[mid] = room
 		print("[server] room %s created (expected %d)" % [mid, room.expected])
 	if room.started:
+		print("[server] peer %d rejected: room %s already started" % [peer, mid])
 		return
 	if room.add_member(peer, String(msg.get("name", "Player")), String(msg.get("user_id", "")), bool(msg.get("is_host", false))):
 		_peer_room[peer] = mid
 		print("[server] peer %d → room %s (%d/%d)" % [peer, mid, room.member_count(), room.expected])
 		if room.member_count() >= room.expected:
+			print("[server] room %s reached %d/%d — starting" % [mid, room.member_count(), room.expected])
 			room.start()
+		else:
+			print("[server] room %s waiting for %d more peer(s)" % [mid, room.expected - room.member_count()])
+	else:
+		print("[server] peer %d rejected by room %s (started=%s, %d/%d)" % [
+			peer, mid, str(room.started), room.member_count(), room.expected])
 
 func _on_peer_left(id: int) -> void:
 	var mid := String(_peer_room.get(id, ""))
+	print("[server] peer %d disconnected (room %s)" % [id, mid if mid != "" else "none"])
 	_peer_room.erase(id)
 	if mid != "" and _rooms.has(mid):
 		_rooms[mid].peer_dropped(id)

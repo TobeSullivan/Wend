@@ -76,6 +76,10 @@ func goto_coop_party(ctx := {}) -> void:
 	_menu_change(COOP_PARTY_SCENE)
 
 func goto_home() -> void:
+	if active_coordinator != null and is_instance_valid(active_coordinator):
+		active_coordinator.match_over = true
+	net_close()
+	SteamManager.leave_party()
 	pending_map = null
 	pending_board_count = 1
 	current_is_multiplayer = false
